@@ -27,12 +27,15 @@ export function maskPhone(phone: string): string {
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/g;
+// Booking / account references look like two letters + 4-6 digits (SK1001, NT2001).
+const REF_RE = /\b[A-Z]{2}\d{4,6}\b/g;
 
 /** Free-text scrub for strings we cannot classify by key (user messages, error text). */
 export function maskText(text: string): string {
   return text
     .replace(EMAIL_RE, (m) => maskEmail(m))
-    .replace(PHONE_RE, (m) => maskPhone(m));
+    .replace(PHONE_RE, (m) => maskPhone(m))
+    .replace(REF_RE, (m) => maskRef(m));
 }
 
 const REF_KEYS = /^(bookingref|ref|accountid|accountnumber|customerid|passengerid)$/i;

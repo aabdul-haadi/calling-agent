@@ -46,6 +46,8 @@ export interface ChatRequest {
   conversationId?: string;
   message: string;
   channel?: Channel;
+  /** Only used when this message starts a new conversation (scenario tests). */
+  simulator?: SimulatorControls;
 }
 
 export interface HandoffSummary {

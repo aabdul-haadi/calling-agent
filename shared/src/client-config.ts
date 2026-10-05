@@ -26,7 +26,18 @@ export type Rule = z.infer<typeof ruleSchema>;
 export const journeySchema = z.object({
   id: idSchema,
   label: z.string(),
-  steps: z.array(z.object({ id: idSchema, label: z.string() })).min(2),
+  // The bar shows the furthest step reached. Tools move it forward on success; these two
+  // optional hooks move it generically: after the customer's next message / at end of the turn.
+  steps: z
+    .array(
+      z.object({
+        id: idSchema,
+        label: z.string(),
+        afterUserReply: idSchema.optional(),
+        afterTurn: idSchema.optional(),
+      }),
+    )
+    .min(2),
 });
 
 export const clientConfigSchema = z.object({
