@@ -8,17 +8,26 @@ const chatBody = z.object({
   conversationId: z.string().uuid().optional(),
   message: z.string().trim().min(1).max(2000),
   channel: z.enum(['chat', 'voice']).optional(),
-  simulator: z.object({ apiFailing: z.boolean(), latencyMs: z.number().int().min(0).max(3000) }).optional(),
+  simulator: z
+    .object({ apiFailing: z.boolean(), latencyMs: z.number().int().min(0).max(3000) })
+    .optional(),
 });
 
-const simulatorBody = z.object({ apiFailing: z.boolean(), latencyMs: z.number().int().min(0).max(3000) });
+const simulatorBody = z.object({
+  apiFailing: z.boolean(),
+  latencyMs: z.number().int().min(0).max(3000),
+});
 const latencyBody = z.object({ ms: z.number().min(0).max(60_000) });
 const idParam = z.string().uuid();
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const res = schema.safeParse(value);
   if (!res.success) {
-    throw new HttpError(400, 'INVALID_REQUEST', res.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '));
+    throw new HttpError(
+      400,
+      'INVALID_REQUEST',
+      res.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '),
+    );
   }
   return res.data;
 }
@@ -39,7 +48,9 @@ export function chatRouter(chat: ChatService): Router {
   });
 
   router.patch('/conversations/:id/simulator', async (req, res) => {
-    res.json({ data: await chat.setSimulator(parse(idParam, req.params.id), parse(simulatorBody, req.body)) });
+    res.json({
+      data: await chat.setSimulator(parse(idParam, req.params.id), parse(simulatorBody, req.body)),
+    });
   });
 
   router.post('/conversations/:id/voice-latency', async (req, res) => {

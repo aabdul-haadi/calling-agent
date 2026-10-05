@@ -15,7 +15,8 @@ import { clientDir } from '@backend/clients';
 import { createRetriever, ingestClient, localProvider } from '@backend/knowledge';
 import { resolve } from 'node:path';
 
-export type ScriptStep = Partial<LlmResponse> | ((req: LlmRequest) => Partial<LlmResponse> | 'fail');
+export type ScriptStep =
+  Partial<LlmResponse> | ((req: LlmRequest) => Partial<LlmResponse> | 'fail');
 
 interface Classification {
   intent: string;
@@ -28,7 +29,9 @@ interface Classification {
  * Deterministic stand-in for the real model. Classification calls (recognised by their system
  * prompt) are answered by `classify`; every other call consumes the next scripted step.
  */
-export function createScriptedLlm(classify: (userMessage: string) => Partial<Classification> = () => ({})) {
+export function createScriptedLlm(
+  classify: (userMessage: string) => Partial<Classification> = () => ({}),
+) {
   const queue: ScriptStep[] = [];
   const calls: LlmRequest[] = [];
   const judgeVerdict = { pass: true, reason: 'Looks good.' };
@@ -40,7 +43,13 @@ export function createScriptedLlm(classify: (userMessage: string) => Partial<Cla
         const last = req.messages[req.messages.length - 1];
         const text = last && 'content' in last ? last.content : '';
         const msg = /"""([\s\S]*)"""/.exec(text)?.[1] ?? text;
-        const c: Classification = { intent: 'rebooking', sentiment: 'neutral', wantsHuman: false, isPolicyQuestion: false, ...classify(msg) };
+        const c: Classification = {
+          intent: 'rebooking',
+          sentiment: 'neutral',
+          wantsHuman: false,
+          isPolicyQuestion: false,
+          ...classify(msg),
+        };
         return ok({ text: JSON.stringify(c), toolCalls: [] });
       }
       if (req.system.startsWith('Summarise')) return fail('UNAVAILABLE', 'no summariser in tests');
@@ -54,7 +63,10 @@ export function createScriptedLlm(classify: (userMessage: string) => Partial<Cla
       if (resolved === 'fail') return fail('UNAVAILABLE', 'model down');
       return ok({
         text: resolved.text ?? '',
-        toolCalls: (resolved.toolCalls ?? []).map((c) => ({ ...c, id: c.id || `call_${++toolId}` })),
+        toolCalls: (resolved.toolCalls ?? []).map((c) => ({
+          ...c,
+          id: c.id || `call_${++toolId}`,
+        })),
       });
     },
   };
@@ -89,7 +101,9 @@ export interface Harness {
   close(): Promise<void>;
 }
 
-export async function createHarness(opts: { ingestKnowledge?: boolean; classify?: Parameters<typeof createScriptedLlm>[0] } = {}): Promise<Harness> {
+export async function createHarness(
+  opts: { ingestKnowledge?: boolean; classify?: Parameters<typeof createScriptedLlm>[0] } = {},
+): Promise<Harness> {
   const mockApp = createMockApp(defaultOptions());
   const server: Server = await new Promise((resolveServer) => {
     const s = mockApp.listen(0, '127.0.0.1', () => resolveServer(s));
@@ -110,7 +124,12 @@ export async function createHarness(opts: { ingestKnowledge?: boolean; classify?
 
   if (opts.ingestKnowledge) {
     for (const m of registry.list()) {
-      await ingestClient(db.db, localProvider, m.config.id, resolve(clientDir(m), m.config.knowledgeDir));
+      await ingestClient(
+        db.db,
+        localProvider,
+        m.config.id,
+        resolve(clientDir(m), m.config.knowledgeDir),
+      );
     }
   }
   const retrieve = createRetriever(db.db, localProvider, logger);
@@ -119,10 +138,25 @@ export async function createHarness(opts: { ingestKnowledge?: boolean; classify?
     logger,
     webhook: { url: `${mockUrl}/contact-center/handoffs`, secret: 'test-webhook-secret' },
   });
-  const base = { db: db.db, registry, llm: llm.client, logger, env, retrieve, apiRetry: { retries: 2, baseDelayMs: 1, maxDelayMs: 2 } };
+  const base = {
+    db: db.db,
+    registry,
+    llm: llm.client,
+    logger,
+    env,
+    retrieve,
+    apiRetry: { retries: 2, baseDelayMs: 1, maxDelayMs: 2 },
+  };
   const chat = createChatService({ ...base, handoff });
   const evalChat = createChatService({ ...base, handoff: evalHandoffService });
-  const evals = createEvalService({ db: db.db, registry, llm: llm.client, logger, chat: evalChat, mockServicesUrl: mockUrl });
+  const evals = createEvalService({
+    db: db.db,
+    registry,
+    llm: llm.client,
+    logger,
+    chat: evalChat,
+    mockServicesUrl: mockUrl,
+  });
   const app = createApp({ env, logger, db: db.db, registry, chat, evals });
 
   return {

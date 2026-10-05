@@ -8,7 +8,15 @@ export interface TabDef {
 }
 
 /** Accessible tabs (WAI-ARIA pattern): arrow keys move between tabs, Home/End jump. */
-export function Tabs({ tabs, value, onChange }: { tabs: TabDef[]; value: string; onChange: (id: string) => void }) {
+export function Tabs({
+  tabs,
+  value,
+  onChange,
+}: {
+  tabs: TabDef[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
   const base = useId();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 

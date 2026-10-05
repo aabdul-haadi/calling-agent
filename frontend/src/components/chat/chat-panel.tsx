@@ -48,7 +48,15 @@ export interface ChatPanelProps {
   onSend: (text: string) => void;
 }
 
-export function ChatPanel({ agentName, messages, sending, error, starterPrompts, disabled, onSend }: ChatPanelProps) {
+export function ChatPanel({
+  agentName,
+  messages,
+  sending,
+  error,
+  starterPrompts,
+  disabled,
+  onSend,
+}: ChatPanelProps) {
   const [draft, setDraft] = useState('');
   const bottom = useRef<HTMLLIElement>(null);
 
@@ -65,14 +73,24 @@ export function ChatPanel({ agentName, messages, sending, error, starterPrompts,
 
   return (
     <Card className="flex h-[32rem] flex-col lg:h-[calc(100vh-11rem)]">
-      <ol aria-label="Conversation" aria-live="polite" className="flex-1 space-y-3 overflow-y-auto p-4">
+      <ol
+        aria-label="Conversation"
+        aria-live="polite"
+        className="flex-1 space-y-3 overflow-y-auto p-4"
+      >
         {messages.length === 0 && (
           <li className="py-6 text-center">
             <p className="font-medium">Hi, I'm {agentName}. How can I help?</p>
             <p className="mt-1 text-sm text-muted-foreground">Try one of these to get started:</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {starterPrompts.map((p) => (
-                <Button key={p} variant="outline" size="sm" onClick={() => onSend(p)} disabled={sending || disabled}>
+                <Button
+                  key={p}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSend(p)}
+                  disabled={sending || disabled}
+                >
                   {p}
                 </Button>
               ))}
@@ -104,7 +122,12 @@ export function ChatPanel({ agentName, messages, sending, error, starterPrompts,
           disabled={disabled}
           className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
         />
-        <Button type="submit" size="icon" disabled={!draft.trim() || sending || disabled} aria-label="Send message">
+        <Button
+          type="submit"
+          size="icon"
+          disabled={!draft.trim() || sending || disabled}
+          aria-label="Send message"
+        >
           <Send className="h-4 w-4" aria-hidden="true" />
         </Button>
       </form>

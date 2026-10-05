@@ -10,4 +10,5 @@ export * from './registry';
 export const loadClients = (): ClientRegistry => createRegistry(allClients);
 
 /** Absolute path of a client's folder (knowledge docs, scenarios live inside it). */
-export const clientDir = (module: ClientModule): string => resolve(REPO_ROOT, 'clients', module.config.id);
+export const clientDir = (module: ClientModule): string =>
+  resolve(REPO_ROOT, 'clients', module.config.id);

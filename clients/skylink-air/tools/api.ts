@@ -32,12 +32,21 @@ export const refSchema = z
 
 export const normalizeRef = (ref: string) => ref.trim().toUpperCase();
 
-export async function fetchBooking(ref: string, ctx: ToolContext): Promise<ToolResult<BookingRecord>> {
-  return ctx.api.request({ path: `bookings/${encodeURIComponent(normalizeRef(ref))}`, schema: bookingSchema });
+export async function fetchBooking(
+  ref: string,
+  ctx: ToolContext,
+): Promise<ToolResult<BookingRecord>> {
+  return ctx.api.request({
+    path: `bookings/${encodeURIComponent(normalizeRef(ref))}`,
+    schema: bookingSchema,
+  });
 }
 
 /** A verified customer may only touch their OWN bookings, even if they know someone else's ref. */
-export async function fetchOwnedBooking(ref: string, ctx: ToolContext): Promise<ToolResult<BookingRecord>> {
+export async function fetchOwnedBooking(
+  ref: string,
+  ctx: ToolContext,
+): Promise<ToolResult<BookingRecord>> {
   const res = await fetchBooking(ref, ctx);
   if (!res.ok) return res;
   if (res.data.passengerId !== ctx.state.customerId) {

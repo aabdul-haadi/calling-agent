@@ -12,8 +12,12 @@ export const getBill = defineTool({
   async run({ accountId }, ctx) {
     const id = normalizeId(accountId);
     // A verified customer may only read their OWN bill.
-    if (id !== ctx.state.customerId) return fail('UNAUTHORIZED', 'That account does not belong to the verified customer.');
-    const res = await ctx.api.request({ path: `accounts/${encodeURIComponent(id)}/bills/latest`, schema: billSchema });
+    if (id !== ctx.state.customerId)
+      return fail('UNAUTHORIZED', 'That account does not belong to the verified customer.');
+    const res = await ctx.api.request({
+      path: `accounts/${encodeURIComponent(id)}/bills/latest`,
+      schema: billSchema,
+    });
     if (!res.ok) return res;
     const b = res.data;
     return ok({
@@ -26,6 +30,9 @@ export const getBill = defineTool({
       lineItems: b.lineItems,
     });
   },
-  summarize: (d) => (d.change > 0 ? `Bill is $${d.change} higher than last month` : 'Bill is unchanged from last month'),
+  summarize: (d) =>
+    d.change > 0
+      ? `Bill is $${d.change} higher than last month`
+      : 'Bill is unchanged from last month',
   remember: (data) => ({ collected: { bill: data }, step: 'explain' }),
 });

@@ -14,13 +14,15 @@ export function testsRouter(evals: EvalService): Router {
 
   router.post('/tests/run', async (req, res) => {
     const clientId = (req.body as { clientId?: unknown } | undefined)?.clientId;
-    if (typeof clientId !== 'string') throw new HttpError(400, 'INVALID_REQUEST', 'clientId is required');
+    if (typeof clientId !== 'string')
+      throw new HttpError(400, 'INVALID_REQUEST', 'clientId is required');
     res.status(202).json({ data: { runId: await evals.start(clientId) } });
   });
 
   router.get('/tests/runs', async (req, res) => {
     const clientId = req.query.clientId;
-    if (typeof clientId !== 'string') throw new HttpError(400, 'INVALID_REQUEST', 'clientId is required');
+    if (typeof clientId !== 'string')
+      throw new HttpError(400, 'INVALID_REQUEST', 'clientId is required');
     res.json({ data: await evals.list(clientId) });
   });
 

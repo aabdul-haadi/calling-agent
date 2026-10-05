@@ -14,7 +14,10 @@ export const AppRoutes = () => (
       <Route path="clients/:clientId" element={<ClientConfigPage />} />
       <Route path="inbox" element={<HandoffInboxPage />} />
       <Route path="tests" element={<TestDashboardPage />} />
-      <Route path="*" element={<p className="py-10 text-center text-muted-foreground">Page not found.</p>} />
+      <Route
+        path="*"
+        element={<p className="py-10 text-center text-muted-foreground">Page not found.</p>}
+      />
     </Route>
   </Routes>
 );

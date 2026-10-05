@@ -34,7 +34,8 @@ describe('token cache', () => {
   it('does not cache failures and can be invalidated', async () => {
     let calls = 0;
     const cache = createTokenCache({
-      fetchToken: async () => (++calls === 1 ? fail('UNAVAILABLE', 'down') : ok({ token: `t${calls}`, expiresInSec: 60 })),
+      fetchToken: async () =>
+        ++calls === 1 ? fail('UNAVAILABLE', 'down') : ok({ token: `t${calls}`, expiresInSec: 60 }),
     });
     expect((await cache.get()).ok).toBe(false);
     expect(await cache.get()).toEqual(ok('t2'));

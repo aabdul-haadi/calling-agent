@@ -7,7 +7,9 @@ const css = readFileSync(resolve(__dirname, '../styles/index.css'), 'utf8');
 
 function tokens(selector: string): Record<string, string> {
   const block = css.split(selector + ' {')[1]?.split('}')[0] ?? '';
-  return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
+  return Object.fromEntries(
+    [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]),
+  );
 }
 
 function hslToRgb(hsl: string): [number, number, number] {
@@ -36,7 +38,11 @@ const themes: Record<string, Record<string, string>> = {
   'light + sky': { ...tokens(':root') },
   'light + violet': { ...tokens(':root'), ...tokens("[data-accent='violet']") },
   'dark + sky': { ...tokens(':root'), ...tokens('.dark') },
-  'dark + violet': { ...tokens(':root'), ...tokens('.dark'), ...tokens(".dark[data-accent='violet'],\n.dark [data-accent='violet']") },
+  'dark + violet': {
+    ...tokens(':root'),
+    ...tokens('.dark'),
+    ...tokens(".dark[data-accent='violet'],\n.dark [data-accent='violet']"),
+  },
 };
 
 describe('colour contrast meets WCAG AA (4.5:1)', () => {

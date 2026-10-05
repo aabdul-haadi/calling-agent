@@ -14,7 +14,13 @@ export function DemoControls({ value, onChange, onReset }: DemoControlsProps) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <Button variant="outline" size="sm" aria-expanded={open} aria-controls="demo-drawer" onClick={() => setOpen((o) => !o)}>
+      <Button
+        variant="outline"
+        size="sm"
+        aria-expanded={open}
+        aria-controls="demo-drawer"
+        onClick={() => setOpen((o) => !o)}
+      >
         <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Demo controls
       </Button>
       {open && (
@@ -26,7 +32,13 @@ export function DemoControls({ value, onChange, onReset }: DemoControlsProps) {
         >
           <div className="flex items-center justify-between">
             <p className="font-medium">Demo controls</p>
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Close demo controls" onClick={() => setOpen(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Close demo controls"
+              onClick={() => setOpen(false)}
+            >
               <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>

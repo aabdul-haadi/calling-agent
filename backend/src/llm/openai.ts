@@ -10,7 +10,12 @@ const responseSchema = z.object({
         message: z.object({
           content: z.string().nullable().optional(),
           tool_calls: z
-            .array(z.object({ id: z.string(), function: z.object({ name: z.string(), arguments: z.string() }) }))
+            .array(
+              z.object({
+                id: z.string(),
+                function: z.object({ name: z.string(), arguments: z.string() }),
+              }),
+            )
             .optional(),
         }),
       }),
@@ -18,7 +23,10 @@ const responseSchema = z.object({
     .min(1),
 });
 
-export function toOpenAiMessages(system: string, messages: LlmMessage[]): Record<string, unknown>[] {
+export function toOpenAiMessages(
+  system: string,
+  messages: LlmMessage[],
+): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [{ role: 'system', content: system }];
   for (const m of messages) {
     if (m.role === 'user') out.push({ role: 'user', content: m.content });
@@ -41,7 +49,11 @@ export function toOpenAiMessages(system: string, messages: LlmMessage[]): Record
   return out;
 }
 
-export function createOpenAiClient(opts: { apiKey: string; model: string; fetchImpl?: typeof fetch }): LlmClient {
+export function createOpenAiClient(opts: {
+  apiKey: string;
+  model: string;
+  fetchImpl?: typeof fetch;
+}): LlmClient {
   return {
     async complete(req: LlmRequest) {
       const res = await postJson(

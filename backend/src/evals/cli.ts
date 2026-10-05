@@ -22,13 +22,25 @@ const services = createServices(env, handle.db, logger);
 
 const module = services.registry.get(clientId);
 if (!module) {
-  console.error(`Unknown client "${clientId}". Known: ${services.registry.list().map((m) => m.config.id).join(', ')}`);
+  console.error(
+    `Unknown client "${clientId}". Known: ${services.registry
+      .list()
+      .map((m) => m.config.id)
+      .join(', ')}`,
+  );
   process.exit(1);
 }
 // Make sure policies are ingested so knowledge scenarios are meaningful.
-await ingestClient(handle.db, createEmbeddingProvider(env), clientId, resolve(clientDir(module), module.config.knowledgeDir));
+await ingestClient(
+  handle.db,
+  createEmbeddingProvider(env),
+  clientId,
+  resolve(clientDir(module), module.config.knowledgeDir),
+);
 
-console.log(`Running scenario suite for ${module.config.displayName} (real LLM: ${env.LLM_PROVIDER}/${env.LLM_MODEL})...\n`);
+console.log(
+  `Running scenario suite for ${module.config.displayName} (real LLM: ${env.LLM_PROVIDER}/${env.LLM_MODEL})...\n`,
+);
 const run = await services.evals.run(clientId, (r) => {
   console.log(`${r.passed ? 'PASS' : 'FAIL'}  ${r.scenarioId}  - ${r.title}`);
   for (const f of r.failures) console.log(`        ${f}`);

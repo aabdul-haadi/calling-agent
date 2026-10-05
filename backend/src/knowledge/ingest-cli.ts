@@ -14,7 +14,12 @@ const wanted = process.argv[2];
 
 for (const module of loadClients().list()) {
   if (wanted && module.config.id !== wanted) continue;
-  const n = await ingestClient(handle.db, embeddings, module.config.id, resolve(clientDir(module), module.config.knowledgeDir));
+  const n = await ingestClient(
+    handle.db,
+    embeddings,
+    module.config.id,
+    resolve(clientDir(module), module.config.knowledgeDir),
+  );
   console.log(`${module.config.id}: ingested ${n} chunks`);
 }
 await handle.close();

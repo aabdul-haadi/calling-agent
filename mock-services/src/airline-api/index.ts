@@ -58,7 +58,8 @@ export function createAirlineApi(opts: MockOptions): Router {
 
   router.post('/bookings/:ref/change', (req, res) => {
     const key = req.header('idempotency-key');
-    if (!key) return sendError(res, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
+    if (!key)
+      return sendError(res, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
     const ref = req.params.ref ?? '';
     const { newFlightId } = (req.body ?? {}) as { newFlightId?: string };
     const fingerprint = `${ref}:${newFlightId}`;
@@ -66,7 +67,12 @@ export function createAirlineApi(opts: MockOptions): Router {
     const previous = idempotency.get(key);
     if (previous) {
       if (previous.fingerprint !== fingerprint) {
-        return sendError(res, 422, 'IDEMPOTENCY_KEY_REUSED', 'Key was used for a different request');
+        return sendError(
+          res,
+          422,
+          'IDEMPOTENCY_KEY_REUSED',
+          'Key was used for a different request',
+        );
       }
       res.setHeader('idempotent-replay', 'true');
       return res.status(previous.status).json(previous.body);
@@ -84,7 +90,8 @@ export function createAirlineApi(opts: MockOptions): Router {
     const target = newFlightId ? flights.get(newFlightId) : undefined;
     if (!target) return err(404, 'FLIGHT_NOT_FOUND', 'No such flight');
     const current = flights.get(booking.flightId)!;
-    if (target.id === current.id) return err(409, 'ALREADY_ON_FLIGHT', 'Booking is already on that flight');
+    if (target.id === current.id)
+      return err(409, 'ALREADY_ON_FLIGHT', 'Booking is already on that flight');
     if (target.status !== 'SCHEDULED' || target.seatsLeft < 1) {
       return err(409, 'FLIGHT_UNAVAILABLE', 'Flight is cancelled or full');
     }

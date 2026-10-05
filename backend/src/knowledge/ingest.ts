@@ -9,7 +9,9 @@ export async function readKnowledgeDir(dir: string): Promise<Chunk[]> {
   const files = (await readdir(dir)).filter((f) => extname(f) === '.md').sort();
   const chunks: Chunk[] = [];
   for (const file of files) {
-    chunks.push(...chunkMarkdown(basename(file, '.md'), await readFile(resolve(dir, file), 'utf8')));
+    chunks.push(
+      ...chunkMarkdown(basename(file, '.md'), await readFile(resolve(dir, file), 'utf8')),
+    );
   }
   return chunks;
 }

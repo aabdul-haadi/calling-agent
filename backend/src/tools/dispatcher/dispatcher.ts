@@ -65,7 +65,10 @@ export async function dispatch(
     result = await tool.run(parsed.data, ctx);
   } catch (err) {
     // A bug inside a tool must never crash the conversation.
-    ctx.logger.error({ tool: name, err: err instanceof Error ? err.message : String(err) }, 'tool threw');
+    ctx.logger.error(
+      { tool: name, err: err instanceof Error ? err.message : String(err) },
+      'tool threw',
+    );
     result = fail('UNAVAILABLE', 'The tool failed unexpectedly');
   }
   if (!result.ok) return done(result, tool);

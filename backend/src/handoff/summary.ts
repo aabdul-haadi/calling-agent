@@ -12,7 +12,9 @@ export function customerLabel(input: Pick<HandoffInput, 'state'>): string {
   const { state } = input;
   if (!state.verified) return 'Unverified customer';
   const first = state.collected.passengerFirstName ?? state.collected.customerFirstName;
-  const id = IDENTIFIER_KEYS.map((k) => state.collected[k]).find((v): v is string => typeof v === 'string');
+  const id = IDENTIFIER_KEYS.map((k) => state.collected[k]).find(
+    (v): v is string => typeof v === 'string',
+  );
   const name = typeof first === 'string' ? maskName(first) : 'Customer';
   return id ? `${name} · ${maskRef(id)}` : name;
 }
@@ -35,7 +37,10 @@ export function fallbackSummary(input: HandoffInput): HandoffSummary {
 
 const llmSummary = z.object({ lines: z.array(z.string()).length(3) });
 
-export async function buildSummary(llm: LlmClient | undefined, input: HandoffInput): Promise<HandoffSummary> {
+export async function buildSummary(
+  llm: LlmClient | undefined,
+  input: HandoffInput,
+): Promise<HandoffSummary> {
   const base = fallbackSummary(input);
   if (!llm) return base;
   const transcript = input.transcript.map((m) => `${m.role}: ${maskText(m.content)}`).join('\n');

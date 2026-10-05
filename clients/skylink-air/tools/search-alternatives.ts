@@ -28,9 +28,16 @@ export const searchAlternatives = defineTool({
     const alternatives = res.data
       .filter((f) => f.id !== booking.data.flight.id)
       .slice(0, 3)
-      .map((f) => ({ flightId: f.id, flightNumber: f.flightNumber, departure: f.departure, arrival: f.arrival, seatsLeft: f.seatsLeft }));
+      .map((f) => ({
+        flightId: f.id,
+        flightNumber: f.flightNumber,
+        departure: f.departure,
+        arrival: f.arrival,
+        seatsLeft: f.seatsLeft,
+      }));
     return ok({ alternatives });
   },
-  summarize: (d) => `Found ${d.alternatives.length} alternative flight${d.alternatives.length === 1 ? '' : 's'}`,
+  summarize: (d) =>
+    `Found ${d.alternatives.length} alternative flight${d.alternatives.length === 1 ? '' : 's'}`,
   remember: (data) => ({ collected: { alternatives: data.alternatives }, step: 'offer' }),
 });

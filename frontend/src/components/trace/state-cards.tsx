@@ -18,21 +18,38 @@ function describe(key: string, value: unknown): string | undefined {
     const b = value as Record<string, string>;
     return `${b.flightNumber} ${b.origin} → ${b.destination}${b.status === 'FLIGHT_CANCELLED_BY_AIRLINE' ? ' (cancelled)' : ''}`;
   }
-  if (key === 'alternatives' && Array.isArray(value)) return `${value.length} alternative flights offered`;
-  if (key === 'bill' && value && typeof value === 'object') return `Latest bill $${(value as { total: number }).total}`;
-  if (key === 'outage' && value && typeof value === 'object') return `Area status: ${(value as { status: string }).status}`;
+  if (key === 'alternatives' && Array.isArray(value))
+    return `${value.length} alternative flights offered`;
+  if (key === 'bill' && value && typeof value === 'object')
+    return `Latest bill $${(value as { total: number }).total}`;
+  if (key === 'outage' && value && typeof value === 'object')
+    return `Area status: ${(value as { status: string }).status}`;
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   return undefined;
 }
 
-export function StateCard({ state, client }: { state?: ConversationStateView; client: ClientDetail }) {
-  const journey = client.journeys.find((j) => j.id === (state?.journeyId ?? client.journeys[0]?.id)) ?? client.journeys[0]!;
+export function StateCard({
+  state,
+  client,
+}: {
+  state?: ConversationStateView;
+  client: ClientDetail;
+}) {
+  const journey =
+    client.journeys.find((j) => j.id === (state?.journeyId ?? client.journeys[0]?.id)) ??
+    client.journeys[0]!;
   const current = state?.journeyStep ?? journey.steps[0]!.id;
-  const index = Math.max(0, journey.steps.findIndex((s) => s.id === current));
+  const index = Math.max(
+    0,
+    journey.steps.findIndex((s) => s.id === current),
+  );
   const pct = Math.round(((index + 1) / journey.steps.length) * 100);
   const facts = Object.entries(state?.collected ?? {})
-    .map(([k, v]) => [LABELS[k] ?? k.replace(/([A-Z])/g, ' $1').toLowerCase(), describe(k, v)] as const)
+    .map(
+      ([k, v]) =>
+        [LABELS[k] ?? k.replace(/([A-Z])/g, ' $1').toLowerCase(), describe(k, v)] as const,
+    )
     .filter((f): f is readonly [string, string] => f[1] !== undefined);
 
   return (
@@ -48,7 +65,9 @@ export function StateCard({ state, client }: { state?: ConversationStateView; cl
           ) : (
             <XCircle className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
           )}
-          <span className="font-medium">Identity {state?.verified ? 'verified' : 'not verified yet'}</span>
+          <span className="font-medium">
+            Identity {state?.verified ? 'verified' : 'not verified yet'}
+          </span>
         </div>
 
         <div>
@@ -67,13 +86,18 @@ export function StateCard({ state, client }: { state?: ConversationStateView; cl
             aria-valuetext={`${journey.steps[index]!.label}, step ${index + 1} of ${journey.steps.length}`}
             className="h-2 overflow-hidden rounded-full bg-muted"
           >
-            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${pct}%` }} />
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-500"
+              style={{ width: `${pct}%` }}
+            />
           </div>
           <p className="mt-1 text-sm font-medium">{journey.steps[index]!.label}</p>
         </div>
 
         <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Collected info</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Collected info
+          </p>
           {facts.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nothing yet.</p>
           ) : (
@@ -100,7 +124,9 @@ export function KnowledgeCard({ citations }: { citations: Citation[] }) {
           <BookOpen className="h-4 w-4" aria-hidden="true" /> Knowledge used
         </CardTitle>
       </CardHeader>
-      <CardContent className={cn('space-y-3', citations.length === 0 && 'text-sm text-muted-foreground')}>
+      <CardContent
+        className={cn('space-y-3', citations.length === 0 && 'text-sm text-muted-foreground')}
+      >
         {citations.length === 0 ? (
           'Policy snippets the agent relies on will be cited here.'
         ) : (
@@ -109,7 +135,9 @@ export function KnowledgeCard({ citations }: { citations: Citation[] }) {
               <li key={`${c.source}-${i}`} className="rounded-xl bg-muted p-3 text-sm">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <Badge tone="accent">{c.source}</Badge>
-                  <span className="text-xs text-muted-foreground">match {Math.round(c.score * 100)}%</span>
+                  <span className="text-xs text-muted-foreground">
+                    match {Math.round(c.score * 100)}%
+                  </span>
                 </div>
                 <p className="line-clamp-4">{c.snippet}</p>
               </li>

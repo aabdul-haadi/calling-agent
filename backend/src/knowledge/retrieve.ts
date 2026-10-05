@@ -15,7 +15,9 @@ export const MIN_SCORE = 0.3;
 function lexicalOverlap(queryTokens: string[], chunkTokens: Set<string>): number {
   if (queryTokens.length === 0) return 0;
   const hit = queryTokens.filter((q) => {
-    for (const c of chunkTokens) if (c === q || (q.length >= 3 && c.length >= 3 && (c.startsWith(q) || q.startsWith(c)))) return true;
+    for (const c of chunkTokens)
+      if (c === q || (q.length >= 3 && c.length >= 3 && (c.startsWith(q) || q.startsWith(c))))
+        return true;
     return false;
   });
   return hit.length / queryTokens.length;
@@ -31,21 +33,23 @@ export interface Candidate {
 /** Simple rerank: vector similarity blended with keyword overlap, then a hard relevance gate. */
 export function rerank(query: string, candidates: Candidate[]): Citation[] {
   const q = [...new Set(tokenize(query))];
-  return candidates
-    .map((c) => {
-      const overlap = lexicalOverlap(q, new Set(tokenize(`${c.heading} ${c.content}`)));
-      return { c, overlap, score: 0.5 * Math.max(0, c.similarity) + 0.5 * overlap };
-    })
-    // Vector search always returns *something*; the keyword gate stops unrelated text from passing.
-    .filter((r) => r.overlap > 0 && r.score >= MIN_SCORE)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_RESULTS)
-    .map(({ c, score }) => ({
-      source: c.source,
-      heading: c.heading,
-      snippet: c.content.length > 600 ? `${c.content.slice(0, 600)}…` : c.content,
-      score: Math.round(score * 100) / 100,
-    }));
+  return (
+    candidates
+      .map((c) => {
+        const overlap = lexicalOverlap(q, new Set(tokenize(`${c.heading} ${c.content}`)));
+        return { c, overlap, score: 0.5 * Math.max(0, c.similarity) + 0.5 * overlap };
+      })
+      // Vector search always returns *something*; the keyword gate stops unrelated text from passing.
+      .filter((r) => r.overlap > 0 && r.score >= MIN_SCORE)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, MAX_RESULTS)
+      .map(({ c, score }) => ({
+        source: c.source,
+        heading: c.heading,
+        snippet: c.content.length > 600 ? `${c.content.slice(0, 600)}…` : c.content,
+        score: Math.round(score * 100) / 100,
+      }))
+  );
 }
 
 export function createRetriever(db: Db, embeddings: EmbeddingProvider, logger: Logger): Retriever {
@@ -57,7 +61,10 @@ export function createRetriever(db: Db, embeddings: EmbeddingProvider, logger: L
       return { citations, relevant: citations.length > 0 };
     } catch (err) {
       // If search is down we must not improvise policy, so report "nothing relevant".
-      logger.error({ err: err instanceof Error ? err.message : String(err) }, 'knowledge search failed');
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        'knowledge search failed',
+      );
       return { citations: [], relevant: false };
     }
   };

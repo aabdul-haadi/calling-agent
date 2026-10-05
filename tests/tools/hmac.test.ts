@@ -18,11 +18,15 @@ describe('HMAC signing', () => {
   });
 
   it('rejects the wrong secret', () => {
-    expect(verifySignature({ secret: 'other-secret', timestamp, body, signature, now })).toBe(false);
+    expect(verifySignature({ secret: 'other-secret', timestamp, body, signature, now })).toBe(
+      false,
+    );
   });
 
   it('rejects stale timestamps (replay protection)', () => {
-    expect(verifySignature({ secret, timestamp, body, signature, now: now + 10 * 60_000 })).toBe(false);
+    expect(verifySignature({ secret, timestamp, body, signature, now: now + 10 * 60_000 })).toBe(
+      false,
+    );
   });
 
   it('rejects malformed signatures without throwing', () => {

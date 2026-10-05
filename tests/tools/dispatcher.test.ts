@@ -18,13 +18,24 @@ const echo = defineTool({
   summarize: (d) => `doubled to ${d.doubled}`,
 });
 const boom = defineTool({
-  name: 'boom', description: 'throws', input: z.object({}), label: 'Boom',
-  run: async () => { throw new Error('kaboom'); },
+  name: 'boom',
+  description: 'throws',
+  input: z.object({}),
+  label: 'Boom',
+  run: async () => {
+    throw new Error('kaboom');
+  },
 });
 
 const rules: Rule[] = [
   { id: 'v', kind: 'requiresVerification', description: 'verify first', tools: ['echo'] },
-  { id: 'm', kind: 'maxCallsPerConversation', description: 'Only one boom.', tool: 'boom', limit: 1 },
+  {
+    id: 'm',
+    kind: 'maxCallsPerConversation',
+    description: 'Only one boom.',
+    tool: 'boom',
+    limit: 1,
+  },
 ];
 const registry = new Map([echo, boom].map((t) => [t.name, t]));
 const deps = { registry, allowed: ['echo', 'boom'], rules };
@@ -67,7 +78,10 @@ describe('dispatcher', () => {
   it('refuses tools that are unknown or not on the client allow-list', async () => {
     const unknown = await dispatch('drop_database', {}, ctx(), deps);
     expect(unknown.result).toMatchObject({ ok: false, error: 'INVALID_ARGS' });
-    const notAllowed = await dispatch('echo', { n: 1 }, ctx({ verified: true }), { ...deps, allowed: ['boom'] });
+    const notAllowed = await dispatch('echo', { n: 1 }, ctx({ verified: true }), {
+      ...deps,
+      allowed: ['boom'],
+    });
     expect(notAllowed.result).toMatchObject({ ok: false, error: 'INVALID_ARGS' });
   });
 
@@ -84,11 +98,18 @@ describe('dispatcher', () => {
 
   it('propagates typed failures from tools and applies state patches only on success', async () => {
     const failing = defineTool({
-      name: 'f', description: '', input: z.object({}), label: 'F',
+      name: 'f',
+      description: '',
+      input: z.object({}),
+      label: 'F',
       run: async () => fail('NOT_FOUND', 'nope'),
       remember: () => ({ verified: true }),
     });
-    const out = await dispatch('f', {}, ctx(), { registry: new Map([[failing.name, failing]]), allowed: ['f'], rules: [] });
+    const out = await dispatch('f', {}, ctx(), {
+      registry: new Map([[failing.name, failing]]),
+      allowed: ['f'],
+      rules: [],
+    });
     expect(out.result).toMatchObject({ ok: false, error: 'NOT_FOUND' });
     expect(out.patch).toEqual({});
   });
@@ -98,7 +119,10 @@ describe('SkyLink config wiring', () => {
   it('requires verification for every booking tool, in code', () => {
     const state = newState(skylinkModule.config);
     for (const tool of ['get_booking', 'search_alternatives', 'change_flight']) {
-      expect(checkRules(skylinkModule.config.rules, tool, state)).toMatchObject({ ok: false, error: 'AUTH_REQUIRED' });
+      expect(checkRules(skylinkModule.config.rules, tool, state)).toMatchObject({
+        ok: false,
+        error: 'AUTH_REQUIRED',
+      });
     }
     expect(checkRules(skylinkModule.config.rules, 'verify_customer', state).ok).toBe(true);
     expect(checkRules(skylinkModule.config.rules, 'transfer_to_human', state).ok).toBe(true);

@@ -24,11 +24,21 @@ export function createServices(env: Env, db: Db, logger: Logger): Services {
     db,
     logger,
     llm,
-    webhook: { url: `${env.MOCK_SERVICES_URL}/contact-center/handoffs`, secret: env.WEBHOOK_SECRET },
+    webhook: {
+      url: `${env.MOCK_SERVICES_URL}/contact-center/handoffs`,
+      secret: env.WEBHOOK_SECRET,
+    },
   });
   const base = { db, registry, llm, logger, env, retrieve };
   const chat = createChatService({ ...base, handoff });
   const evalChat = createChatService({ ...base, handoff: evalHandoffService });
-  const evals = createEvalService({ db, registry, llm, logger, chat: evalChat, mockServicesUrl: env.MOCK_SERVICES_URL });
+  const evals = createEvalService({
+    db,
+    registry,
+    llm,
+    logger,
+    chat: evalChat,
+    mockServicesUrl: env.MOCK_SERVICES_URL,
+  });
   return { registry, llm, chat, evals };
 }

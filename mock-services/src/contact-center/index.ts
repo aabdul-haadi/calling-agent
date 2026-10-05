@@ -36,7 +36,12 @@ export function createContactCenter(opts: MockOptions): Router {
     } catch {
       return sendError(res, 400, 'BAD_JSON', 'Body must be JSON');
     }
-    queue.set(eventId, { eventId, receivedAt: new Date().toISOString(), status: 'pending', payload });
+    queue.set(eventId, {
+      eventId,
+      receivedAt: new Date().toISOString(),
+      status: 'pending',
+      payload,
+    });
     res.status(201).json({ data: { duplicate: false } });
   });
 

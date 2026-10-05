@@ -8,7 +8,14 @@ export function summarizeBooking(b: {
   ref: string;
   fareClass: string;
   changesMade: number;
-  flight: { flightNumber: string; origin: string; destination: string; departure: string; arrival: string; status: string };
+  flight: {
+    flightNumber: string;
+    origin: string;
+    destination: string;
+    departure: string;
+    arrival: string;
+    status: string;
+  };
 }) {
   return {
     ref: b.ref,
@@ -25,13 +32,18 @@ export function summarizeBooking(b: {
 
 export const getBooking = defineTool({
   name: 'get_booking',
-  description: 'Look up a verified passenger\'s booking by reference. Shows the flight and whether it was cancelled.',
+  description:
+    "Look up a verified passenger's booking by reference. Shows the flight and whether it was cancelled.",
   input: z.object({ bookingRef: refSchema }),
   label: 'Checked the booking system',
   async run({ bookingRef }, ctx) {
     const res = await fetchOwnedBooking(bookingRef, ctx);
     return res.ok ? ok(summarizeBooking(res.data)) : res;
   },
-  summarize: (d) => (d.status === 'FLIGHT_CANCELLED_BY_AIRLINE' ? 'Flight was cancelled' : 'Flight is on schedule'),
-  remember: (data, input) => ({ collected: { booking: data, bookingRef: normalizeRef(input.bookingRef) }, step: 'look_up' }),
+  summarize: (d) =>
+    d.status === 'FLIGHT_CANCELLED_BY_AIRLINE' ? 'Flight was cancelled' : 'Flight is on schedule',
+  remember: (data, input) => ({
+    collected: { booking: data, bookingRef: normalizeRef(input.bookingRef) },
+    step: 'look_up',
+  }),
 });

@@ -51,7 +51,8 @@ export const skylinkAir: ClientConfig = {
     {
       id: 'requires-verification',
       kind: 'requiresVerification',
-      description: 'Booking details can only be read or changed after the passenger is verified (booking reference + last name).',
+      description:
+        'Booking details can only be read or changed after the passenger is verified (booking reference + last name).',
       tools: ['get_booking', 'search_alternatives', 'change_flight'],
     },
     {
@@ -62,7 +63,13 @@ export const skylinkAir: ClientConfig = {
       limit: 1,
     },
   ],
-  tools: ['verify_customer', 'get_booking', 'search_alternatives', 'change_flight', 'transfer_to_human'],
+  tools: [
+    'verify_customer',
+    'get_booking',
+    'search_alternatives',
+    'change_flight',
+    'transfer_to_human',
+  ],
   escalation: {
     onUserRequest: true,
     maxFailedTurns: 2,

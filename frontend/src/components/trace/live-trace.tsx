@@ -13,7 +13,13 @@ function TraceItem({ event }: { event: TraceEvent }) {
   const hasDetail = event.detail !== undefined && event.detail !== null;
   return (
     <li className="relative pl-6">
-      <span className={cn('absolute left-0 top-1.5 h-3 w-3 rounded-full ring-4 ring-card', dot[event.status])} aria-hidden="true" />
+      <span
+        className={cn(
+          'absolute left-0 top-1.5 h-3 w-3 rounded-full ring-4 ring-card',
+          dot[event.status],
+        )}
+        aria-hidden="true"
+      />
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm">
           <span className="sr-only">{statusText[event.status]}: </span>
@@ -35,7 +41,9 @@ function TraceItem({ event }: { event: TraceEvent }) {
         )}
       </div>
       {open && (
-        <pre className="mt-1 max-h-48 overflow-auto rounded-xl bg-muted p-2 text-xs">{JSON.stringify(event.detail, null, 2)}</pre>
+        <pre className="mt-1 max-h-48 overflow-auto rounded-xl bg-muted p-2 text-xs">
+          {JSON.stringify(event.detail, null, 2)}
+        </pre>
       )}
     </li>
   );
@@ -52,10 +60,14 @@ export function LiveTrace({ trace }: { trace: TraceEvent[] }) {
       <CardContent className="flex-1 overflow-y-auto">
         {trace.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            What the agent does will appear here as it happens: understanding the request, checking systems, finding policies.
+            What the agent does will appear here as it happens: understanding the request, checking
+            systems, finding policies.
           </p>
         ) : (
-          <ol aria-label="What the agent did" className="relative space-y-4 border-l border-border pl-3">
+          <ol
+            aria-label="What the agent did"
+            className="relative space-y-4 border-l border-border pl-3"
+          >
             {trace.map((e) => (
               <TraceItem key={e.id} event={e} />
             ))}

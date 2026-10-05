@@ -24,13 +24,19 @@ export const changeFlight = defineTool({
     const ref = normalizeRef(bookingRef);
     const offeredFlights = offered.safeParse(ctx.state.collected.alternatives);
     if (!offeredFlights.success || !offeredFlights.data.some((f) => f.flightId === newFlightId)) {
-      return fail('RULE_BLOCKED', 'That flight was not one of the options offered. Search alternatives first.');
+      return fail(
+        'RULE_BLOCKED',
+        'That flight was not one of the options offered. Search alternatives first.',
+      );
     }
     const booking = await fetchOwnedBooking(ref, ctx);
     if (!booking.ok) return booking;
     const cancelled = booking.data.flight.status === 'CANCELLED';
     if (!cancelled && booking.data.changesMade >= FREE_VOLUNTARY_CHANGES) {
-      return fail('RULE_BLOCKED', 'The free change for this booking has been used; a fee would apply. Offer a human agent.');
+      return fail(
+        'RULE_BLOCKED',
+        'The free change for this booking has been used; a fee would apply. Offer a human agent.',
+      );
     }
 
     // Same conversation + booking + flight => same key => the API replays instead of double-booking.

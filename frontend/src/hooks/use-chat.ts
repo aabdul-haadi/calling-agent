@@ -121,4 +121,3 @@ export function useChat(clientId: string) {
     addVoiceLatency,
   };
 }
-

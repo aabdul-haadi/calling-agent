@@ -25,7 +25,9 @@ export function createTelecomApi(opts: MockOptions): Router {
   });
 
   router.get('/outages', (req, res) => {
-    const area = String(req.query.area ?? '').trim().toLowerCase();
+    const area = String(req.query.area ?? '')
+      .trim()
+      .toLowerCase();
     if (!area) return sendError(res, 400, 'MISSING_PARAMS', 'area is required');
     const outage = seed.outages.find((o) => o.area.toLowerCase() === area);
     if (!outage) return sendError(res, 404, 'AREA_NOT_FOUND', 'Unknown coverage area');

@@ -11,7 +11,10 @@ export interface RunnerDeps {
   clientId: string;
 }
 
-export async function runScenario(deps: RunnerDeps, s: Scenario): Promise<Omit<EvalResultView, 'id'>> {
+export async function runScenario(
+  deps: RunnerDeps,
+  s: Scenario,
+): Promise<Omit<EvalResultView, 'id'>> {
   const transcript: { role: 'user' | 'assistant'; content: string }[] = [];
   const tools: ObservedTool[] = [];
   const replies: string[] = [];
@@ -29,11 +32,15 @@ export async function runScenario(deps: RunnerDeps, s: Scenario): Promise<Omit<E
         simulator: s.simulator,
       });
       conversationId = res.conversationId;
-      transcript.push({ role: 'user', content: message }, { role: 'assistant', content: res.reply });
+      transcript.push(
+        { role: 'user', content: message },
+        { role: 'assistant', content: res.reply },
+      );
       replies.push(res.reply);
       for (const ev of res.trace) {
         const detail = ev.detail as { tool?: string } | undefined;
-        if (ev.type === 'tool' && detail?.tool) tools.push({ tool: detail.tool, ok: ev.status === 'ok' });
+        if (ev.type === 'tool' && detail?.tool)
+          tools.push({ tool: detail.tool, ok: ev.status === 'ok' });
       }
       if (res.handoff) handedOff = true;
     }
@@ -42,7 +49,12 @@ export async function runScenario(deps: RunnerDeps, s: Scenario): Promise<Omit<E
   }
 
   failures.push(...runDeterministicChecks(s, { replies, tools, handedOff }));
-  const verdict = await judge(deps.llm, s, transcript, tools.map((t) => `${t.tool}${t.ok ? '' : ' (failed)'}`).join(', '));
+  const verdict = await judge(
+    deps.llm,
+    s,
+    transcript,
+    tools.map((t) => `${t.tool}${t.ok ? '' : ' (failed)'}`).join(', '),
+  );
   if (!verdict.pass) failures.push(`Judge: ${verdict.reason}`);
 
   return {

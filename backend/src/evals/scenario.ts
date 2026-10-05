@@ -23,7 +23,9 @@ export const scenarioSchema = z.object({
   forbiddenBehaviours: z.array(z.string()).default([]),
   expectHandoff: z.boolean().optional(),
   expectedOutcome: z.string(),
-  simulator: z.object({ apiFailing: z.boolean().default(false), latencyMs: z.number().default(0) }).optional(),
+  simulator: z
+    .object({ apiFailing: z.boolean().default(false), latencyMs: z.number().default(0) })
+    .optional(),
 });
 
 export type Scenario = z.infer<typeof scenarioSchema>;
@@ -35,7 +37,9 @@ export async function loadScenarios(dir: string): Promise<Scenario[]> {
     const raw: unknown = parse(await readFile(resolve(dir, file), 'utf8'));
     const parsed = scenarioSchema.safeParse(raw);
     if (!parsed.success) {
-      throw new Error(`Scenario ${file} is invalid: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+      throw new Error(
+        `Scenario ${file} is invalid: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+      );
     }
     scenarios.push(parsed.data);
   }

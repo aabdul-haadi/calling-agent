@@ -26,7 +26,9 @@ export const conversations = pgTable('conversations', {
   id: uuid('id').primaryKey().defaultRandom(),
   clientId: text('client_id').notNull(),
   state: jsonb('state').notNull(),
-  simulator: jsonb('simulator').notNull().default(sql`'{"apiFailing":false,"latencyMs":0}'::jsonb`),
+  simulator: jsonb('simulator')
+    .notNull()
+    .default(sql`'{"apiFailing":false,"latencyMs":0}'::jsonb`),
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

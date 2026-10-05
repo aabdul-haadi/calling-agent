@@ -4,4 +4,10 @@ import { getBooking } from './get-booking';
 import { searchAlternatives } from './search-alternatives';
 import { changeFlight } from './change-flight';
 
-export const skylinkTools = [verifyCustomer, getBooking, searchAlternatives, changeFlight, transferToHuman];
+export const skylinkTools = [
+  verifyCustomer,
+  getBooking,
+  searchAlternatives,
+  changeFlight,
+  transferToHuman,
+];

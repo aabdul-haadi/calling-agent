@@ -7,7 +7,12 @@ const responseSchema = z.object({
   content: z.array(
     z.union([
       z.object({ type: z.literal('text'), text: z.string() }),
-      z.object({ type: z.literal('tool_use'), id: z.string(), name: z.string(), input: z.unknown() }),
+      z.object({
+        type: z.literal('tool_use'),
+        id: z.string(),
+        name: z.string(),
+        input: z.unknown(),
+      }),
       z.object({ type: z.string() }).passthrough(),
     ]),
   ),
@@ -16,14 +21,17 @@ const responseSchema = z.object({
 type Block = Record<string, unknown>;
 
 /** Anthropic wants tool results as blocks inside ONE user message, so consecutive tool turns are merged. */
-export function toAnthropicMessages(messages: LlmMessage[]): { role: string; content: string | Block[] }[] {
+export function toAnthropicMessages(
+  messages: LlmMessage[],
+): { role: string; content: string | Block[] }[] {
   const out: { role: string; content: string | Block[] }[] = [];
   for (const m of messages) {
     if (m.role === 'user') out.push({ role: 'user', content: m.content });
     else if (m.role === 'assistant') {
       const blocks: Block[] = [];
       if (m.content) blocks.push({ type: 'text', text: m.content });
-      for (const c of m.toolCalls ?? []) blocks.push({ type: 'tool_use', id: c.id, name: c.name, input: c.input ?? {} });
+      for (const c of m.toolCalls ?? [])
+        blocks.push({ type: 'tool_use', id: c.id, name: c.name, input: c.input ?? {} });
       out.push({ role: 'assistant', content: blocks });
     } else {
       const block = { type: 'tool_result', tool_use_id: m.toolCallId, content: m.content };
@@ -35,7 +43,11 @@ export function toAnthropicMessages(messages: LlmMessage[]): { role: string; con
   return out;
 }
 
-export function createAnthropicClient(opts: { apiKey: string; model: string; fetchImpl?: typeof fetch }): LlmClient {
+export function createAnthropicClient(opts: {
+  apiKey: string;
+  model: string;
+  fetchImpl?: typeof fetch;
+}): LlmClient {
   return {
     async complete(req: LlmRequest) {
       const res = await postJson(
@@ -47,7 +59,13 @@ export function createAnthropicClient(opts: { apiKey: string; model: string; fet
           system: req.system,
           messages: toAnthropicMessages(req.messages),
           ...(req.tools?.length
-            ? { tools: req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })) }
+            ? {
+                tools: req.tools.map((t) => ({
+                  name: t.name,
+                  description: t.description,
+                  input_schema: t.parameters,
+                })),
+              }
             : {}),
         },
         { fetchImpl: opts.fetchImpl },

@@ -18,7 +18,9 @@ export function HomePage() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-3xl font-semibold tracking-tight">Launch support agents for any company</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Launch support agents for any company
+        </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
           One shared engine, one config folder per client. Pick a company to chat with its agent.
         </p>
@@ -43,7 +45,10 @@ export function HomePage() {
               <li key={c.id} data-accent={c.accent}>
                 <Card className="flex h-full flex-col gap-4 p-6">
                   <div className="flex items-center gap-4">
-                    <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-lg font-bold text-accent-foreground">
+                    <span
+                      aria-hidden="true"
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-lg font-bold text-accent-foreground"
+                    >
                       {c.initials}
                     </span>
                     <div>
@@ -59,7 +64,10 @@ export function HomePage() {
                     Open agent <span className="sr-only">for {c.displayName}</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
-                  <Link to={`/clients/${c.id}`} className="text-center text-sm underline underline-offset-2">
+                  <Link
+                    to={`/clients/${c.id}`}
+                    className="text-center text-sm underline underline-offset-2"
+                  >
                     View config
                   </Link>
                 </Card>
@@ -70,7 +78,10 @@ export function HomePage() {
       </section>
 
       <section aria-labelledby="how-heading">
-        <h2 id="how-heading" className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2
+          id="how-heading"
+          className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+        >
           How it works
         </h2>
         <ol className="flex flex-wrap items-center gap-3">
@@ -83,7 +94,9 @@ export function HomePage() {
                   <p className="text-xs text-muted-foreground">{hint}</p>
                 </div>
               </div>
-              {i < steps.length - 1 && <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+              {i < steps.length - 1 && (
+                <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              )}
             </li>
           ))}
         </ol>

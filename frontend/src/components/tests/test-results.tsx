@@ -13,12 +13,19 @@ export function ScoreCard({ run }: { run: EvalRunView }) {
   return (
     <Card className="flex flex-wrap items-center gap-6 p-6">
       <div>
-        <p className="text-5xl font-semibold tabular-nums" aria-label={`${run.passed} of ${run.total} scenarios passed`}>
+        <p
+          className="text-5xl font-semibold tabular-nums"
+          aria-label={`${run.passed} of ${run.total} scenarios passed`}
+        >
           {run.passed}
           <span className="text-muted-foreground">/{run.total}</span>
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {run.status === 'running' ? `Running… ${completed} of ${run.total} done` : run.status === 'error' ? 'Run stopped early' : `${pct}% passed`}
+          {run.status === 'running'
+            ? `Running… ${completed} of ${run.total} done`
+            : run.status === 'error'
+              ? 'Run stopped early'
+              : `${pct}% passed`}
         </p>
       </div>
       <div
@@ -29,13 +36,27 @@ export function ScoreCard({ run }: { run: EvalRunView }) {
         aria-valuenow={finished ? run.passed : completed}
         className="h-3 min-w-[10rem] flex-1 overflow-hidden rounded-full bg-muted"
       >
-        <div className={cn('h-full rounded-full transition-[width]', finished && pct < 100 ? 'bg-warn' : 'bg-ok')} style={{ width: `${finished ? pct : (completed / Math.max(1, run.total)) * 100}%` }} />
+        <div
+          className={cn(
+            'h-full rounded-full transition-[width]',
+            finished && pct < 100 ? 'bg-warn' : 'bg-ok',
+          )}
+          style={{ width: `${finished ? pct : (completed / Math.max(1, run.total)) * 100}%` }}
+        />
       </div>
     </Card>
   );
 }
 
-export function ScenarioList({ results, onOpen, selectedId }: { results: EvalResultView[]; onOpen: (r: EvalResultView) => void; selectedId?: string }) {
+export function ScenarioList({
+  results,
+  onOpen,
+  selectedId,
+}: {
+  results: EvalResultView[];
+  onOpen: (r: EvalResultView) => void;
+  selectedId?: string;
+}) {
   return (
     <ul className="space-y-2" aria-label="Scenario results">
       {results.map((r) => (
@@ -79,25 +100,40 @@ export function FailurePanel({ result, onClose }: { result: EvalResultView; onCl
   }, [onClose]);
 
   return (
-    <aside aria-label={`Details for ${result.title}`} className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+    <aside
+      aria-label={`Details for ${result.title}`}
+      className="rounded-2xl border border-border bg-card p-5 shadow-soft"
+    >
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h2 className="font-semibold">{result.title}</h2>
-          <Badge tone={result.passed ? 'ok' : 'danger'}>{result.passed ? 'Passed' : 'Failed'}</Badge>
+          <Badge tone={result.passed ? 'ok' : 'danger'}>
+            {result.passed ? 'Passed' : 'Failed'}
+          </Badge>
         </div>
-        <Button ref={closeRef} variant="ghost" size="icon" aria-label="Close details" onClick={onClose}>
+        <Button
+          ref={closeRef}
+          variant="ghost"
+          size="icon"
+          aria-label="Close details"
+          onClick={onClose}
+        >
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 
       <section className="mb-4">
-        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Expected behaviour</h3>
+        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Expected behaviour
+        </h3>
         <p className="text-sm">{result.expected}</p>
       </section>
 
       {result.failures.length > 0 && (
         <section className="mb-4">
-          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">What went wrong</h3>
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            What went wrong
+          </h3>
           <ul className="list-disc space-y-1 pl-5 text-sm text-danger">
             {result.failures.map((f, i) => (
               <li key={i}>{f}</li>
@@ -107,20 +143,34 @@ export function FailurePanel({ result, onClose }: { result: EvalResultView; onCl
       )}
 
       <section className="mb-4">
-        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Judge's reason</h3>
+        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Judge's reason
+        </h3>
         <p className="text-sm">{result.judgeReason}</p>
       </section>
 
       <section className="mb-4">
-        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Tools used</h3>
-        <p className="text-sm">{result.toolsCalled.length ? result.toolsCalled.join(' → ') : 'None'}</p>
+        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Tools used
+        </h3>
+        <p className="text-sm">
+          {result.toolsCalled.length ? result.toolsCalled.join(' → ') : 'None'}
+        </p>
       </section>
 
       <section>
-        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Transcript</h3>
+        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Transcript
+        </h3>
         <ol className="space-y-2 text-sm">
           {result.transcript.map((m, i) => (
-            <li key={i} className={cn('rounded-xl px-3 py-2', m.role === 'user' ? 'bg-accent-soft' : 'bg-muted')}>
+            <li
+              key={i}
+              className={cn(
+                'rounded-xl px-3 py-2',
+                m.role === 'user' ? 'bg-accent-soft' : 'bg-muted',
+              )}
+            >
               <span className="font-medium">{m.role === 'user' ? 'Customer' : 'Agent'}: </span>
               {m.content}
             </li>

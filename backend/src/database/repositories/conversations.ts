@@ -15,8 +15,15 @@ export interface StoredConversation {
 const simulatorSchema = z.object({ apiFailing: z.boolean(), latencyMs: z.number() });
 export const DEFAULT_SIMULATOR: SimulatorControls = { apiFailing: false, latencyMs: 0 };
 
-export async function createConversation(db: Db, clientId: string, state: ConversationState): Promise<string> {
-  const [row] = await db.insert(conversations).values({ clientId, state }).returning({ id: conversations.id });
+export async function createConversation(
+  db: Db,
+  clientId: string,
+  state: ConversationState,
+): Promise<string> {
+  const [row] = await db
+    .insert(conversations)
+    .values({ clientId, state })
+    .returning({ id: conversations.id });
   return row!.id;
 }
 
@@ -26,7 +33,12 @@ export async function getConversation(db: Db, id: string): Promise<StoredConvers
   const state = conversationStateSchema.safeParse(row.state);
   if (!state.success) return undefined;
   const sim = simulatorSchema.safeParse(row.simulator);
-  return { id: row.id, clientId: row.clientId, state: state.data, simulator: sim.success ? sim.data : DEFAULT_SIMULATOR };
+  return {
+    id: row.id,
+    clientId: row.clientId,
+    state: state.data,
+    simulator: sim.success ? sim.data : DEFAULT_SIMULATOR,
+  };
 }
 
 export async function saveConversation(
@@ -41,12 +53,21 @@ export async function saveConversation(
     .where(eq(conversations.id, id));
 }
 
-export async function addMessage(db: Db, conversationId: string, role: 'user' | 'assistant', content: string) {
+export async function addMessage(
+  db: Db,
+  conversationId: string,
+  role: 'user' | 'assistant',
+  content: string,
+) {
   await db.insert(messages).values({ conversationId, role, content });
 }
 
 export async function listMessages(db: Db, conversationId: string) {
-  const rows = await db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(asc(messages.createdAt));
+  const rows = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(asc(messages.createdAt));
   return rows.map((r) => ({
     role: r.role === 'user' ? ('user' as const) : ('assistant' as const),
     content: r.content,
@@ -60,7 +81,11 @@ export async function addToolCalls(
   calls: { tool: string; input: unknown; output: unknown; status: string; latencyMs: number }[],
 ) {
   if (calls.length === 0) return;
-  await db.insert(toolCalls).values(calls.map((c) => ({ conversationId, ...c, input: c.input ?? {}, output: c.output ?? {} })));
+  await db
+    .insert(toolCalls)
+    .values(
+      calls.map((c) => ({ conversationId, ...c, input: c.input ?? {}, output: c.output ?? {} })),
+    );
 }
 
 export async function addTraceEvents(db: Db, conversationId: string, events: TraceEvent[]) {
@@ -80,7 +105,11 @@ export async function addTraceEvents(db: Db, conversationId: string, events: Tra
 }
 
 export async function listTrace(db: Db, conversationId: string): Promise<TraceEvent[]> {
-  const rows = await db.select().from(traceEvents).where(eq(traceEvents.conversationId, conversationId)).orderBy(asc(traceEvents.createdAt));
+  const rows = await db
+    .select()
+    .from(traceEvents)
+    .where(eq(traceEvents.conversationId, conversationId))
+    .orderBy(asc(traceEvents.createdAt));
   return rows.map((r) => ({
     id: r.id,
     at: r.createdAt.toISOString(),

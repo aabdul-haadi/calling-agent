@@ -19,7 +19,14 @@ const toView = (r: Row): HandoffView => ({
 
 export async function insertHandoff(
   db: Db,
-  v: { conversationId: string; clientId: string; reason: string; summary: HandoffSummary; sentiment: Sentiment; customerMasked: string },
+  v: {
+    conversationId: string;
+    clientId: string;
+    reason: string;
+    summary: HandoffSummary;
+    sentiment: Sentiment;
+    customerMasked: string;
+  },
 ): Promise<HandoffView> {
   const [row] = await db.insert(handoffs).values(v).returning();
   return toView(row!);
@@ -27,12 +34,18 @@ export async function insertHandoff(
 
 export async function listHandoffs(db: Db, clientId?: string): Promise<HandoffView[]> {
   const q = db.select().from(handoffs);
-  const rows = await (clientId ? q.where(eq(handoffs.clientId, clientId)) : q).orderBy(desc(handoffs.createdAt));
+  const rows = await (clientId ? q.where(eq(handoffs.clientId, clientId)) : q).orderBy(
+    desc(handoffs.createdAt),
+  );
   return rows.map(toView);
 }
 
 export async function acceptHandoff(db: Db, id: string): Promise<HandoffView | undefined> {
-  const [row] = await db.update(handoffs).set({ status: 'accepted' }).where(eq(handoffs.id, id)).returning();
+  const [row] = await db
+    .update(handoffs)
+    .set({ status: 'accepted' })
+    .where(eq(handoffs.id, id))
+    .returning();
   return row ? toView(row) : undefined;
 }
 

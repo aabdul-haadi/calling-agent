@@ -39,7 +39,14 @@ const PLANS = [
   { name: 'Nova Plus', monthlyPrice: 40, dataGb: 50 },
   { name: 'Nova Max', monthlyPrice: 65, dataGb: 200 },
 ];
-export const AREAS = ['Northgate', 'Riverside', 'Old Harbour', 'Maple Hill', 'Eastfield', 'Westmere'];
+export const AREAS = [
+  'Northgate',
+  'Riverside',
+  'Old Harbour',
+  'Maple Hill',
+  'Eastfield',
+  'Westmere',
+];
 
 export function buildTelecomSeed(): TelecomSeed {
   const rng = createRng(2001);
@@ -73,7 +80,12 @@ export function buildTelecomSeed(): TelecomSeed {
     });
   }
   const outages: Outage[] = [
-    { area: 'Northgate', status: 'OUTAGE', message: 'Fibre cut under repair', etaRestored: '2026-11-11T18:00:00Z' },
+    {
+      area: 'Northgate',
+      status: 'OUTAGE',
+      message: 'Fibre cut under repair',
+      etaRestored: '2026-11-11T18:00:00Z',
+    },
     { area: 'Riverside', status: 'OK', message: 'All services normal' },
     { area: 'Old Harbour', status: 'DEGRADED', message: 'Slow mobile data during maintenance' },
     { area: 'Maple Hill', status: 'OK', message: 'All services normal' },

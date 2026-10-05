@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { maskEmail, maskName, maskPII, maskPhone, maskRef, maskText } from '@backend/tools/security';
+import {
+  maskEmail,
+  maskName,
+  maskPII,
+  maskPhone,
+  maskRef,
+  maskText,
+} from '@backend/tools/security';
 
 describe('PII masking', () => {
   it('masks references keeping prefix and suffix', () => {
@@ -22,7 +29,12 @@ describe('PII masking', () => {
   it('deep-masks objects by key name', () => {
     const out = maskPII({
       bookingRef: 'SK1001',
-      passenger: { firstName: 'Amira', lastName: 'Rahman', email: 'a@x.test', phone: '+15550100001' },
+      passenger: {
+        firstName: 'Amira',
+        lastName: 'Rahman',
+        email: 'a@x.test',
+        phone: '+15550100001',
+      },
       list: [{ accountId: 'NT2001' }],
       note: 'ok',
     });

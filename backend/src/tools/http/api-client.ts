@@ -49,7 +49,10 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
   const random = opts.random ?? Math.random;
   const timeoutMs = opts.timeoutMs ?? 5000;
 
-  async function attemptOnce(url: string, init: RequestInit): Promise<Response | 'TIMEOUT' | 'NETWORK'> {
+  async function attemptOnce(
+    url: string,
+    init: RequestInit,
+  ): Promise<Response | 'TIMEOUT' | 'NETWORK'> {
     try {
       return await doFetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     } catch (err) {
@@ -63,7 +66,8 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     async request<T>(req: ApiRequest<T>): Promise<ToolResult<T>> {
       const method = req.method ?? 'GET';
       const url = new URL(req.path, opts.baseUrl.endsWith('/') ? opts.baseUrl : `${opts.baseUrl}/`);
-      for (const [k, v] of Object.entries(req.query ?? {})) if (v !== undefined) url.searchParams.set(k, v);
+      for (const [k, v] of Object.entries(req.query ?? {}))
+        if (v !== undefined) url.searchParams.set(k, v);
 
       // Repeating a POST is only safe when the server can de-duplicate it.
       const headersLower = Object.keys(req.headers ?? {}).map((h) => h.toLowerCase());
@@ -102,18 +106,25 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
           await sleep(backoffDelay(attempt, policy, random));
           continue;
         }
-        if (typeof res === 'string') return fail('UNAVAILABLE', 'The company system did not respond in time');
+        if (typeof res === 'string')
+          return fail('UNAVAILABLE', 'The company system did not respond in time');
 
         if (!res.ok) {
           const parsed = errorBody.safeParse(await res.json().catch(() => ({})));
           const code = mapStatus(res.status);
           const serverMessage = parsed.success ? parsed.data.error?.message : undefined;
-          return fail(code, code === 'UNAVAILABLE' ? 'The company system is unavailable' : (serverMessage ?? 'Request rejected'));
+          return fail(
+            code,
+            code === 'UNAVAILABLE'
+              ? 'The company system is unavailable'
+              : (serverMessage ?? 'Request rejected'),
+          );
         }
 
         const json: unknown = await res.json().catch(() => undefined);
         const envelope = z.object({ data: req.schema }).safeParse(json);
-        if (!envelope.success) return fail('UNAVAILABLE', 'The company system returned an unexpected response');
+        if (!envelope.success)
+          return fail('UNAVAILABLE', 'The company system returned an unexpected response');
         return ok(envelope.data.data);
       }
     },

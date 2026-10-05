@@ -14,7 +14,10 @@ export function AppShell() {
   const { theme, toggle } = useTheme();
   return (
     <div className="min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-xl focus:bg-card focus:px-3 focus:py-2">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-xl focus:bg-card focus:px-3 focus:py-2"
+      >
         Skip to content
       </a>
       <header className="border-b border-border bg-card/80 backdrop-blur">
@@ -29,7 +32,10 @@ export function AppShell() {
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  cn('flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-muted', isActive && 'bg-muted')
+                  cn(
+                    'flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-muted',
+                    isActive && 'bg-muted',
+                  )
                 }
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
@@ -37,8 +43,17 @@ export function AppShell() {
                 <span className="sr-only sm:hidden">{label}</span>
               </NavLink>
             ))}
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggle}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Moon className="h-4 w-4" aria-hidden="true" />
+              )}
             </Button>
           </nav>
         </div>

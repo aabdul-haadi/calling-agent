@@ -46,7 +46,10 @@ function Console({ client }: { client: ClientDetail }) {
           <Link to="/" aria-label="Back to all agents" className="rounded-xl p-2 hover:bg-muted">
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
-          <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground"
+          >
             {client.initials}
           </span>
           <div>
@@ -60,7 +63,11 @@ function Console({ client }: { client: ClientDetail }) {
         <DemoControls value={chat.simulator} onChange={chat.updateSimulator} onReset={chat.reset} />
       </div>
 
-      <div role="tablist" aria-label="Console sections" className="flex gap-1 rounded-xl bg-muted p-1 lg:hidden">
+      <div
+        role="tablist"
+        aria-label="Console sections"
+        className="flex gap-1 rounded-xl bg-muted p-1 lg:hidden"
+      >
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -69,7 +76,10 @@ function Console({ client }: { client: ClientDetail }) {
             aria-controls={`panel-${t.id}`}
             id={`tab-${t.id}`}
             onClick={() => setTab(t.id)}
-            className={cn('flex-1 rounded-lg px-2 py-1.5 text-sm font-medium', tab === t.id ? 'bg-card shadow-soft' : 'text-muted-foreground')}
+            className={cn(
+              'flex-1 rounded-lg px-2 py-1.5 text-sm font-medium',
+              tab === t.id ? 'bg-card shadow-soft' : 'text-muted-foreground',
+            )}
           >
             {t.label}
           </button>
@@ -77,7 +87,12 @@ function Console({ client }: { client: ClientDetail }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
-        <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" className={cn('space-y-3', tab !== 'chat' && 'hidden lg:block')}>
+        <div
+          id="panel-chat"
+          role="tabpanel"
+          aria-labelledby="tab-chat"
+          className={cn('space-y-3', tab !== 'chat' && 'hidden lg:block')}
+        >
           {hasVoice && (
             <VoiceControls
               supported={voice.supported}
@@ -99,10 +114,20 @@ function Console({ client }: { client: ClientDetail }) {
             onSend={(t) => void chat.send(t)}
           />
         </div>
-        <div id="panel-trace" role="tabpanel" aria-labelledby="tab-trace" className={cn(tab !== 'trace' && 'hidden lg:block')}>
+        <div
+          id="panel-trace"
+          role="tabpanel"
+          aria-labelledby="tab-trace"
+          className={cn(tab !== 'trace' && 'hidden lg:block')}
+        >
           <LiveTrace trace={chat.trace} />
         </div>
-        <div id="panel-state" role="tabpanel" aria-labelledby="tab-state" className={cn('space-y-4', tab !== 'state' && 'hidden lg:block')}>
+        <div
+          id="panel-state"
+          role="tabpanel"
+          aria-labelledby="tab-state"
+          className={cn('space-y-4', tab !== 'state' && 'hidden lg:block')}
+        >
           <StateCard state={chat.state} client={client} />
           <KnowledgeCard citations={chat.citations} />
         </div>
@@ -123,7 +148,7 @@ export function AgentConsolePage() {
         <Skeleton className="h-[32rem]" />
       </div>
     );
-  if (client.error || !client.data) return <ErrorState message={client.error ?? 'Client not found'} onRetry={client.reload} />;
+  if (client.error || !client.data)
+    return <ErrorState message={client.error ?? 'Client not found'} onRetry={client.reload} />;
   return <Console key={clientId} client={client.data} />;
 }
-

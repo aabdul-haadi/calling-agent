@@ -6,7 +6,11 @@ export async function postJson(
   url: string,
   headers: Record<string, string>,
   body: unknown,
-  opts: { fetchImpl?: typeof fetch; timeoutMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+  opts: {
+    fetchImpl?: typeof fetch;
+    timeoutMs?: number;
+    sleep?: (ms: number) => Promise<void>;
+  } = {},
 ): Promise<ToolResult<unknown>> {
   const doFetch = opts.fetchImpl ?? fetch;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));

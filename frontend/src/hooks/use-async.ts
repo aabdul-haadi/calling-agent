@@ -12,7 +12,11 @@ export interface AsyncState<T> {
  * the inbox fresh. `loading` is derived (result belongs to a different key), so no state is set
  * synchronously inside the effect.
  */
-export function useAsync<T>(load: () => Promise<T>, deps: unknown[] = [], pollMs?: number): AsyncState<T> {
+export function useAsync<T>(
+  load: () => Promise<T>,
+  deps: unknown[] = [],
+  pollMs?: number,
+): AsyncState<T> {
   const key = JSON.stringify(deps);
   const [result, setResult] = useState<{ key: string; data?: T; error?: string }>();
   const [tick, setTick] = useState(0);
@@ -46,5 +50,10 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[] = [], pollMs
   }, [key, tick, pollMs]);
 
   const current = result?.key === key ? result : undefined;
-  return { data: current?.data, error: current?.error, loading: current === undefined, reload: () => setTick((t) => t + 1) };
+  return {
+    data: current?.data,
+    error: current?.error,
+    loading: current === undefined,
+    reload: () => setTick((t) => t + 1),
+  };
 }

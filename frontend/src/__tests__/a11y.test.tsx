@@ -40,16 +40,42 @@ beforeEach(() => {
   mocked.chat.mockResolvedValue({
     conversationId: 'c1',
     reply: 'Happy to help. What is your booking reference?',
-    state: { verified: false, journeyId: 'rebooking', journeyStep: 'identify_intent', collected: {}, handedOff: false },
-    trace: [{ id: 't1', at: '2026-11-10T10:00:00.000Z', type: 'intent', label: 'Understood intent: rebooking', status: 'ok', detail: { intent: 'rebooking' } }],
-    citations: [{ source: 'checked-baggage', heading: 'Checked baggage', snippet: 'One bag free in Economy.', score: 0.8 }],
+    state: {
+      verified: false,
+      journeyId: 'rebooking',
+      journeyStep: 'identify_intent',
+      collected: {},
+      handedOff: false,
+    },
+    trace: [
+      {
+        id: 't1',
+        at: '2026-11-10T10:00:00.000Z',
+        type: 'intent',
+        label: 'Understood intent: rebooking',
+        status: 'ok',
+        detail: { intent: 'rebooking' },
+      },
+    ],
+    citations: [
+      {
+        source: 'checked-baggage',
+        heading: 'Checked baggage',
+        snippet: 'One bag free in Economy.',
+        score: 0.8,
+      },
+    ],
   });
 });
 
 /** Serious/critical axe violations fail the test. (Colour contrast is checked separately in contrast.test.ts, jsdom cannot.) */
 async function expectNoSeriousA11yIssues(container: HTMLElement) {
-  const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
-  const serious = result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  const result = await axe.run(container, {
+    rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+  });
+  const serious = result.violations.filter(
+    (v) => v.impact === 'serious' || v.impact === 'critical',
+  );
   expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.html).join(' | ')}`)).toEqual([]);
 }
 
@@ -97,7 +123,9 @@ describe('accessibility (axe)', () => {
   });
 
   it('error state is announced with role=alert and offers a retry', async () => {
-    mocked.clients.mockRejectedValueOnce(new Error("Can't reach the server. Is the backend running?"));
+    mocked.clients.mockRejectedValueOnce(
+      new Error("Can't reach the server. Is the backend running?"),
+    );
     renderAt('/');
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent("Can't reach the server");

@@ -5,9 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatTime } from '@/lib/utils';
 
-const sentimentTone = { positive: 'ok', neutral: 'neutral', frustrated: 'warn', angry: 'danger' } as const;
+const sentimentTone = {
+  positive: 'ok',
+  neutral: 'neutral',
+  frustrated: 'warn',
+  angry: 'danger',
+} as const;
 
-export function HandoffCard({ handoff, onAccept, accepting }: { handoff: HandoffView; onAccept: (id: string) => void; accepting?: boolean }) {
+export function HandoffCard({
+  handoff,
+  onAccept,
+  accepting,
+}: {
+  handoff: HandoffView;
+  onAccept: (id: string) => void;
+  accepting?: boolean;
+}) {
   const accepted = handoff.status === 'accepted';
   return (
     <Card className="space-y-3 p-5">
@@ -32,7 +45,9 @@ export function HandoffCard({ handoff, onAccept, accepting }: { handoff: Handoff
       </ul>
 
       <div>
-        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">What the AI already tried</p>
+        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          What the AI already tried
+        </p>
         {handoff.summary.tried.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing yet.</p>
         ) : (
@@ -48,14 +63,20 @@ export function HandoffCard({ handoff, onAccept, accepting }: { handoff: Handoff
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
-          Intent: {handoff.summary.intent.replace(/_/g, ' ')} · Identity {handoff.summary.verified ? 'verified' : 'not verified'}
+          Intent: {handoff.summary.intent.replace(/_/g, ' ')} · Identity{' '}
+          {handoff.summary.verified ? 'verified' : 'not verified'}
         </span>
         {accepted ? (
           <Badge tone="ok">
             <Check className="h-3 w-3" aria-hidden="true" /> Accepted
           </Badge>
         ) : (
-          <Button size="sm" onClick={() => onAccept(handoff.id)} disabled={accepting} aria-label={`Accept handoff from ${handoff.customerMasked}`}>
+          <Button
+            size="sm"
+            onClick={() => onAccept(handoff.id)}
+            disabled={accepting}
+            aria-label={`Accept handoff from ${handoff.customerMasked}`}
+          >
             Accept
           </Button>
         )}

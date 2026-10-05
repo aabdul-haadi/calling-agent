@@ -49,7 +49,10 @@ export function createEvalService(deps: EvalServiceDeps): EvalRunner {
 
   async function resetMock() {
     try {
-      await fetch(`${deps.mockServicesUrl}/admin/reset`, { method: 'POST', signal: AbortSignal.timeout(3000) });
+      await fetch(`${deps.mockServicesUrl}/admin/reset`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(3000),
+      });
     } catch {
       deps.logger.warn('could not reset mock services before the run');
     }
@@ -59,7 +62,8 @@ export function createEvalService(deps: EvalServiceDeps): EvalRunner {
     const module = deps.registry.get(clientId);
     if (!module) throw new HttpError(404, 'NOT_FOUND', `Unknown client "${clientId}"`);
     const scenarios = await loadScenarios(resolve(clientDir(module), module.config.scenariosDir));
-    if (scenarios.length === 0) throw new HttpError(400, 'NO_SCENARIOS', 'This client has no scenarios yet');
+    if (scenarios.length === 0)
+      throw new HttpError(400, 'NO_SCENARIOS', 'This client has no scenarios yet');
     const runId = await evalsRepo.createRun(deps.db, clientId, scenarios.length);
     return { scenarios, runId };
   }
@@ -81,7 +85,10 @@ export function createEvalService(deps: EvalServiceDeps): EvalRunner {
       }
       await evalsRepo.finishRun(deps.db, runId, passed, 'done');
     } catch (err) {
-      deps.logger.error({ err: err instanceof Error ? err.message : String(err) }, 'eval run failed');
+      deps.logger.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        'eval run failed',
+      );
       await evalsRepo.finishRun(deps.db, runId, passed, 'error');
     } finally {
       active.delete(clientId);

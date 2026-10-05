@@ -30,7 +30,9 @@ export function HandoffInboxPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Human handoff inbox</h1>
         <p className="text-sm text-muted-foreground" aria-live="polite">
-          {handoffs.data ? `${pending} waiting for a human` : 'Customers the AI passed to a person appear here.'}
+          {handoffs.data
+            ? `${pending} waiting for a human`
+            : 'Customers the AI passed to a person appear here.'}
         </p>
       </div>
       {actionError && <ErrorState message={actionError} />}
@@ -42,7 +44,10 @@ export function HandoffInboxPage() {
       ) : handoffs.error ? (
         <ErrorState message={handoffs.error} onRetry={handoffs.reload} />
       ) : handoffs.data?.length === 0 ? (
-        <EmptyState title="Nobody is waiting" hint="When the agent hands a customer over, they will show up here with a summary." />
+        <EmptyState
+          title="Nobody is waiting"
+          hint="When the agent hands a customer over, they will show up here with a summary."
+        />
       ) : (
         <ul className="grid gap-4 lg:grid-cols-2">
           {handoffs.data?.map((h) => (

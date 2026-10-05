@@ -6,7 +6,8 @@ export const novatel: ClientConfig = {
   displayName: 'NovaTel',
   initials: 'NT',
   accent: 'violet',
-  tagline: 'Understand your bill, check outages in your area, or talk to a person about cancelling.',
+  tagline:
+    'Understand your bill, check outages in your area, or talk to a person about cancelling.',
   channels: ['chat'],
   persona: {
     name: 'Nia',
@@ -15,8 +16,21 @@ export const novatel: ClientConfig = {
   },
   scope: ['bill explanations', 'outage and coverage checks', 'billing and cancellation policy'],
   outOfScope: ['legal disputes', 'device repairs', 'payment plan negotiation'],
-  intents: ['bill_question', 'outage_check', 'cancellation_request', 'billing_policy', 'complaint', 'greeting', 'out_of_scope'],
-  starterPrompts: ['Why is my bill higher this month?', 'Is there an outage in Northgate?', 'I want to cancel my plan', 'When is my bill due?'],
+  intents: [
+    'bill_question',
+    'outage_check',
+    'cancellation_request',
+    'billing_policy',
+    'complaint',
+    'greeting',
+    'out_of_scope',
+  ],
+  starterPrompts: [
+    'Why is my bill higher this month?',
+    'Is there an outage in Northgate?',
+    'I want to cancel my plan',
+    'When is my bill due?',
+  ],
   journeys: [
     {
       id: 'bill-help',
@@ -34,7 +48,8 @@ export const novatel: ClientConfig = {
     {
       id: 'requires-verification',
       kind: 'requiresVerification',
-      description: 'Bill details can only be shown after the customer is verified (account number + last name). Outage status is public.',
+      description:
+        'Bill details can only be shown after the customer is verified (account number + last name). Outage status is public.',
       tools: ['get_bill'],
     },
   ],

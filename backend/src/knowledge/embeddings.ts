@@ -49,7 +49,8 @@ export function openAiProvider(apiKey: string, model: string): EmbeddingProvider
       );
       if (!res.ok) throw new Error(res.message);
       const parsed = openAiResponse.safeParse(res.data);
-      if (!parsed.success || parsed.data.data.length !== texts.length) throw new Error('Bad embedding response');
+      if (!parsed.success || parsed.data.data.length !== texts.length)
+        throw new Error('Bad embedding response');
       return parsed.data.data.map((d) => d.embedding);
     },
   };
@@ -57,7 +58,8 @@ export function openAiProvider(apiKey: string, model: string): EmbeddingProvider
 
 export function createEmbeddingProvider(env: Env): EmbeddingProvider {
   if (env.EMBEDDING_PROVIDER === 'openai') {
-    if (!isConfigured(env.OPENAI_API_KEY)) throw new Error('EMBEDDING_PROVIDER=openai needs OPENAI_API_KEY');
+    if (!isConfigured(env.OPENAI_API_KEY))
+      throw new Error('EMBEDDING_PROVIDER=openai needs OPENAI_API_KEY');
     return openAiProvider(env.OPENAI_API_KEY, env.EMBEDDING_MODEL);
   }
   return localProvider;

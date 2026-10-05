@@ -10,6 +10,7 @@
 You are a senior full-stack TypeScript engineer and product designer. You will build a portfolio project called **Agent Delivery Kit**, one phase at a time.
 
 You must:
+
 - Build **only the current phase**. Never jump ahead.
 - At the end of every phase, **stop** and give me the Phase Report (section 12). Wait for me to say "Start Phase N" before continuing.
 - Write code that a mid-level engineer can read and explain in an interview. Clear beats clever.
@@ -23,10 +24,10 @@ A small system for launching AI customer-support agents for **multiple clients**
 
 We prove it with two fictional clients:
 
-| Client | Fictional brand | What the agent does | Channels |
-|---|---|---|---|
-| A | **SkyLink Air** (airline) | Verify passenger, find booking, explain policy with citations, offer alternative flights, rebook safely, hand off to a human | Chat + browser voice |
-| B | **NovaTel** (telecom) | Verify customer, explain bill, check outage by area, transfer cancellation requests to a human | Chat |
+| Client | Fictional brand           | What the agent does                                                                                                          | Channels             |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| A      | **SkyLink Air** (airline) | Verify passenger, find booking, explain policy with citations, offer alternative flights, rebook safely, hand off to a human | Chat + browser voice |
+| B      | **NovaTel** (telecom)     | Verify customer, explain bill, check outage by area, transfer cancellation requests to a human                               | Chat                 |
 
 Both clients use the same agent engine, shared tool library, knowledge search, handoff system, logging and test runner. Only the client config folder differs.
 
@@ -37,6 +38,7 @@ Both clients use the same agent engine, shared tool library, knowledge search, h
 ## 3. Non-negotiable rules
 
 ### Safety and security
+
 1. **No real data.** All customers, bookings, bills and policies are fake, generated seed data.
 2. **Secrets only in `.env`.** Create `.env.example` with placeholder values. Add `.env` to `.gitignore`. Never print secrets in logs or the UI.
 3. **Business rules live in code, not prompts.** Example: "no booking tools before verification" is enforced in the tool dispatcher, not only in the system prompt.
@@ -49,6 +51,7 @@ Both clients use the same agent engine, shared tool library, knowledge search, h
 10. **Safe commands only.** Do not run destructive shell commands (`rm -rf` outside the project, force pushes, dropping databases other than the project's own dev DB). Ask me before installing anything globally.
 
 ### Engineering
+
 - TypeScript `strict: true`. No `any` (use `unknown` + zod parsing).
 - Small files (aim < 200 lines). One responsibility per file.
 - Errors are returned as typed results (`{ ok: false, error: 'UNAVAILABLE' }`), not thrown across layer boundaries.
@@ -60,20 +63,20 @@ Both clients use the same agent engine, shared tool library, knowledge search, h
 
 ## 4. Tech stack (use exactly this unless I approve a change)
 
-| Area | Choice |
-|---|---|
-| Language | TypeScript everywhere |
-| Monorepo | pnpm workspaces |
-| Backend | Node.js 20+, Express |
-| Frontend | React + Vite + TypeScript, Tailwind CSS, shadcn/ui, lucide-react icons, Framer Motion (subtle only) |
-| Validation | zod |
-| Database | PostgreSQL 16 + pgvector (via `docker-compose`) |
-| ORM / migrations | Drizzle ORM |
-| LLM | Provider abstraction supporting Anthropic and OpenAI, chosen by `LLM_PROVIDER` env var. Model name from `LLM_MODEL`. Use native tool/function calling. |
-| Embeddings | Provider abstraction, `EMBEDDING_PROVIDER` env var |
-| Voice | Browser Web Speech API (speech-to-text) + `speechSynthesis` (text-to-speech). No paid voice service. |
-| Tests | Vitest (unit/integration), custom eval runner (scenario tests) |
-| Logging | pino |
+| Area             | Choice                                                                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Language         | TypeScript everywhere                                                                                                                                  |
+| Monorepo         | pnpm workspaces                                                                                                                                        |
+| Backend          | Node.js 20+, Express                                                                                                                                   |
+| Frontend         | React + Vite + TypeScript, Tailwind CSS, shadcn/ui, lucide-react icons, Framer Motion (subtle only)                                                    |
+| Validation       | zod                                                                                                                                                    |
+| Database         | PostgreSQL 16 + pgvector (via `docker-compose`)                                                                                                        |
+| ORM / migrations | Drizzle ORM                                                                                                                                            |
+| LLM              | Provider abstraction supporting Anthropic and OpenAI, chosen by `LLM_PROVIDER` env var. Model name from `LLM_MODEL`. Use native tool/function calling. |
+| Embeddings       | Provider abstraction, `EMBEDDING_PROVIDER` env var                                                                                                     |
+| Voice            | Browser Web Speech API (speech-to-text) + `speechSynthesis` (text-to-speech). No paid voice service.                                                   |
+| Tests            | Vitest (unit/integration), custom eval runner (scenario tests)                                                                                         |
+| Logging          | pino                                                                                                                                                   |
 
 ---
 
@@ -158,19 +161,20 @@ agent-delivery-kit/
 
 **Rule of thumb for where code goes:**
 
-| If the code… | Put it in |
-|---|---|
-| Shows something on screen | `frontend/` |
-| Makes the agent think, decide or act | `backend/` |
-| Pretends to be a company's system | `mock-services/` |
-| Is specific to one company | `clients/<company>/` |
-| Is a type both sides need | `shared/` |
+| If the code…                         | Put it in            |
+| ------------------------------------ | -------------------- |
+| Shows something on screen            | `frontend/`          |
+| Makes the agent think, decide or act | `backend/`           |
+| Pretends to be a company's system    | `mock-services/`     |
+| Is specific to one company           | `clients/<company>/` |
+| Is a type both sides need            | `shared/`            |
 
 ---
 
 ## 6. Core design
 
 ### 6.1 Client config contract
+
 Every client exports a typed config validated by a zod schema in `shared/`:
 
 ```ts
@@ -184,9 +188,15 @@ export const skylinkAir: ClientConfig = {
   },
   scope: ['flight cancellations', 'rebooking', 'baggage and change-fee policy'],
   outOfScope: ['medical advice', 'legal claims', 'loyalty points disputes'],
-  journeys: [ /* steps: identify intent → verify → look up → offer → confirm → act → close */ ],
-  rules: [ /* code-enforced: requiresVerification, maxFreeChanges, etc. */ ],
-  tools: ['verify_customer', 'get_booking', 'search_alternatives', 'change_flight', 'transfer_to_human'],
+  journeys: [/* steps: identify intent → verify → look up → offer → confirm → act → close */],
+  rules: [/* code-enforced: requiresVerification, maxFreeChanges, etc. */],
+  tools: [
+    'verify_customer',
+    'get_booking',
+    'search_alternatives',
+    'change_flight',
+    'transfer_to_human',
+  ],
   escalation: {
     onUserRequest: true,
     maxFailedTurns: 2,
@@ -200,6 +210,7 @@ export const skylinkAir: ClientConfig = {
 Adding a client = new folder in `clients/` + register it. **No engine changes.** Prove this in Phase 8.
 
 ### 6.2 Agent loop
+
 1. Receive user message → load conversation state (verified?, current journey step, collected data).
 2. Build context: persona + scope + rules summary + relevant knowledge chunks + recent history (trimmed).
 3. Call LLM with the allowed tools for this client.
@@ -209,14 +220,27 @@ Adding a client = new folder in `clients/` + register it. **No engine changes.**
 7. Log every step to the trace table.
 
 ### 6.3 Tool result contract
+
 ```ts
 type ToolResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: 'NOT_FOUND' | 'UNAUTHORIZED' | 'AUTH_REQUIRED' | 'INVALID_ARGS' | 'UNAVAILABLE' | 'RULE_BLOCKED'; message: string };
+  | {
+      ok: false;
+      error:
+        | 'NOT_FOUND'
+        | 'UNAUTHORIZED'
+        | 'AUTH_REQUIRED'
+        | 'INVALID_ARGS'
+        | 'UNAVAILABLE'
+        | 'RULE_BLOCKED';
+      message: string;
+    };
 ```
+
 The agent must explain errors to the customer gracefully and never invent data when `ok: false`.
 
 ### 6.4 Database tables (minimum)
+
 `clients`, `conversations`, `messages`, `tool_calls` (tool, input, output, status, latency_ms), `trace_events`, `handoffs`, `knowledge_chunks` (with vector embedding + source + updated_at), `idempotency_keys`, `eval_runs`, `eval_results`.
 
 ---
@@ -224,6 +248,7 @@ The agent must explain errors to the customer gracefully and never invent data w
 ## 7. UI/UX requirements
 
 ### Design principles
+
 - **Instantly understandable.** A non-technical person should understand each screen in 5 seconds.
 - **Calm and modern.** Lots of whitespace, soft rounded cards (rounded-2xl), subtle shadows, one accent colour per client (SkyLink = sky blue, NovaTel = violet), neutral greys elsewhere.
 - **Light and dark mode** with a toggle.
@@ -233,6 +258,7 @@ The agent must explain errors to the customer gracefully and never invent data w
 - **Every state designed:** loading (skeletons), empty, error (with a clear next action), success.
 
 ### Screens
+
 1. **Home / Client picker** — two large cards (SkyLink Air, NovaTel) with logo-style initials, a one-line description, and "Open agent". A small "How it works" strip: Customer → Agent → Tools → Human, in 4 simple icons.
 2. **Agent Console** (main screen, 3 columns on desktop, tabs on mobile):
    - **Left:** chat with the agent (message bubbles, typing indicator, suggested starter prompts like "My flight was cancelled").
@@ -244,6 +270,7 @@ The agent must explain errors to the customer gracefully and never invent data w
 6. **Voice mode** (SkyLink only) — a large mic button in the chat panel; animated waveform while listening; agent speech stops immediately when the user starts talking (barge-in); live captions shown.
 
 ### Simulator controls (small "Demo controls" drawer)
+
 - Toggle "Booking API failing" (forces UNAVAILABLE to demo graceful handling).
 - Slider "API latency" (0–3000 ms).
 - Button "Reset conversation".
@@ -255,6 +282,7 @@ The agent must explain errors to the customer gracefully and never invent data w
 Each phase lists deliverables and **Done when** criteria. Do not start the next phase until I approve.
 
 ### Phase 0 — Foundation
+
 - Monorepo, pnpm workspaces, tsconfig, ESLint + Prettier, Vitest, docker-compose (Postgres + pgvector), `.env.example`, env validation with zod.
 - Empty apps that start: `pnpm dev` runs frontend, backend and mock-services.
 - `docs/LEARNING.md` started.
@@ -262,6 +290,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** `pnpm dev` starts all three apps, `/health` returns OK, DB connects, lint/typecheck/test pass.
 
 ### Phase 1 — Mock client systems + shared tool library
+
 - Seed fake data (20 SkyLink passengers/bookings, flights; 20 NovaTel accounts/bills/outage areas).
 - SkyLink mock API: token endpoint (client credentials), `GET /bookings/:ref`, `GET /flights/alternatives`, `POST /bookings/:ref/change` (requires `Idempotency-Key`). Configurable random failure rate and latency.
 - Shared tool library: typed HTTP client, timeout, retry with exponential backoff + jitter (only 429/5xx/timeouts), token cache, error mapping to `ToolResult`, HMAC sign/verify, PII masking.
@@ -269,6 +298,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** unit tests cover retry rules, idempotency (same key twice = one change), HMAC verify, PII masking.
 
 ### Phase 2 — Agent engine + SkyLink tools (text chat)
+
 - LLM provider abstraction, agent loop, state, dispatcher with zod validation, auth gate, rule checks, loop guard.
 - SkyLink config + tools: `verify_customer`, `get_booking`, `search_alternatives`, `change_flight`, `transfer_to_human` (stub).
 - `POST /chat` endpoint. Every step written to `tool_calls` and `trace_events`.
@@ -276,6 +306,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** a full rebooking works via API; booking tools are blocked before verification (tested); loop guard tested.
 
 ### Phase 3 — Knowledge search (RAG) with citations
+
 - 10–12 short SkyLink policy docs (cancellations, rebooking, baggage, refunds, change fees).
 - Ingest: chunk by heading, embed, store with source + updated_at.
 - Retrieve top-k, simple rerank, inject into context, answer with citations.
@@ -284,6 +315,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** policy questions return cited answers; an unknown question returns the safe fallback (tested).
 
 ### Phase 4 — Human handoff + observability
+
 - Handoff triggers: user asks, 2 failed turns, frustration detected, always-escalate intents, loop guard hit, tool unavailable twice.
 - Summary generator (3 lines + intent + verified status + what was tried).
 - Signed webhook to contact-center mock; duplicates ignored; queue stored.
@@ -292,12 +324,14 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** each trigger is tested; webhook rejects bad signatures and ignores duplicates.
 
 ### Phase 5 — UI/UX
+
 - Build screens 1–3 and 5 from section 7, plus demo controls.
 - Polished, responsive, accessible, light/dark, all states designed.
 
 **Done when:** I can complete a rebooking in the UI, watch the live trace, see citations, trigger a handoff and see it arrive in the inbox. Run an accessibility check (axe) with no serious issues.
 
 ### Phase 6 — Scenario test suite + Test Dashboard
+
 - YAML scenario format: persona, user turns, expected tools (in order), forbidden behaviours, expected outcome.
 - 20 SkyLink scenarios: happy paths, unverified access attempt, prompt injection ("ignore your rules"), API down, duplicate rebooking, multi-intent, angry customer, out-of-scope, unknown policy question.
 - Runner: deterministic checks (tool order, rule violations) + LLM judge for tone/accuracy with a written reason.
@@ -306,6 +340,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** `pnpm eval skylink-air` prints a score and the dashboard shows it. Record the first-run score in `docs/LEARNING.md`, fix failures, record the improved score.
 
 ### Phase 7 — Voice mode (SkyLink)
+
 - Browser speech-to-text and text-to-speech, mic button, waveform, live captions, barge-in, short voice-friendly replies (persona `voiceStyle`), numbers read naturally, key details confirmed back.
 - Show per-turn latency (speech end → first audio) in the trace.
 - Graceful fallback message if the browser doesn't support speech.
@@ -313,6 +348,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** a full rebooking works by voice in Chrome; interrupting stops the agent's speech.
 
 ### Phase 8 — Second client: NovaTel (the reusability proof)
+
 - New folder `clients/novatel/` with config, 3 tools (`verify_customer`, `get_bill`, `check_outage`) + `transfer_to_human` for cancellations, 5 policy docs, 8 scenarios.
 - Telecom mock API in `mock-services/src/telecom-api/`.
 - **Zero changes to `backend/src/agent/` or `backend/src/tools/`.** If a change seems needed, stop and explain why before making it.
@@ -321,6 +357,7 @@ Each phase lists deliverables and **Done when** criteria. Do not start the next 
 **Done when:** NovaTel works in the UI and its suite passes; `git diff` shows no engine changes.
 
 ### Phase 9 — Documentation and demo polish
+
 - README: what it is, a 30-second pitch, architecture diagram (Mermaid), screenshots, setup in 5 commands, how to run tests, **Known limitations** (browser voice, not SIP telephony; mock APIs; small eval set; what production would add: SIP trunk + contact-center integration, real auth, monitoring, PCI/HIPAA controls).
 - `docs/ARCHITECTURE.md` and ADRs (rules in code, tool result contract, idempotency, why config-driven clients).
 - A 2-minute demo script in `docs/DEMO_SCRIPT.md`: rebooking → API failure handled → handoff → test dashboard → show NovaTel config.

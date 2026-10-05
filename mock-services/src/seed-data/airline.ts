@@ -30,8 +30,12 @@ export interface AirlineSeed {
 }
 
 const ROUTES: [string, string, string, number][] = [
-  ['JFK', 'LHR', 'SK100', 7], ['LHR', 'JFK', 'SK101', 8], ['JFK', 'CDG', 'SK200', 7],
-  ['CDG', 'JFK', 'SK201', 8], ['SFO', 'SIN', 'SK300', 16], ['SIN', 'SFO', 'SK301', 16],
+  ['JFK', 'LHR', 'SK100', 7],
+  ['LHR', 'JFK', 'SK101', 8],
+  ['JFK', 'CDG', 'SK200', 7],
+  ['CDG', 'JFK', 'SK201', 8],
+  ['SFO', 'SIN', 'SK300', 16],
+  ['SIN', 'SFO', 'SK301', 16],
 ];
 const DEPARTURE_HOURS = [7, 11, 15, 19];
 const BASE_DATE = Date.UTC(2026, 10, 10); // 10 Nov 2026
@@ -43,7 +47,7 @@ export function buildAirlineSeed(): AirlineSeed {
     for (let day = 0; day < 6; day++) {
       DEPARTURE_HOURS.forEach((hour, slot) => {
         const dep = BASE_DATE + day * 86_400_000 + hour * 3_600_000;
-        const flightNumber = `${prefix.slice(0, 2)}${Number(prefix.slice(2)) + slot * 10 + routeIdx % 2}`;
+        const flightNumber = `${prefix.slice(0, 2)}${Number(prefix.slice(2)) + slot * 10 + (routeIdx % 2)}`;
         flights.push({
           id: `${flightNumber}-${new Date(dep).toISOString().slice(0, 10)}`,
           flightNumber,
@@ -67,14 +71,19 @@ export function buildAirlineSeed(): AirlineSeed {
     }
   }
   // Guarantee alternatives exist for the first demo route.
-  for (const f of flights) if (f.origin === 'JFK' && f.destination === 'LHR' && f.status === 'SCHEDULED') f.seatsLeft = Math.max(f.seatsLeft, 3);
+  for (const f of flights)
+    if (f.origin === 'JFK' && f.destination === 'LHR' && f.status === 'SCHEDULED')
+      f.seatsLeft = Math.max(f.seatsLeft, 3);
 
   const bookings: Booking[] = [];
   for (let i = 0; i < 20; i++) {
     const first = FIRST_NAMES[i]!;
     const last = LAST_NAMES[i]!;
     // First 6 bookings sit on cancelled flights; the rest are on healthy flights.
-    const flight = i < 6 ? flights.find((f) => f.id === cancelledIds[i])! : flights.filter((f) => f.status === 'SCHEDULED')[i * 3]!;
+    const flight =
+      i < 6
+        ? flights.find((f) => f.id === cancelledIds[i])!
+        : flights.filter((f) => f.status === 'SCHEDULED')[i * 3]!;
     bookings.push({
       ref: `SK${1001 + i}`,
       passengerId: `P${String(i + 1).padStart(3, '0')}`,

@@ -71,7 +71,10 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
 
   async function view(conversationId: string): Promise<ConversationView> {
     const convo = await load(conversationId);
-    const [messages, trace] = await Promise.all([repo.listMessages(db, conversationId), repo.listTrace(db, conversationId)]);
+    const [messages, trace] = await Promise.all([
+      repo.listMessages(db, conversationId),
+      repo.listTrace(db, conversationId),
+    ]);
     return {
       conversationId,
       clientId: convo.clientId,
@@ -88,18 +91,27 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     if (!module) throw new HttpError(404, 'NOT_FOUND', `Unknown client "${req.clientId}"`);
     const channel = req.channel ?? 'chat';
     if (!module.config.channels.includes(channel)) {
-      throw new HttpError(400, 'CHANNEL_NOT_SUPPORTED', `${module.config.displayName} does not support ${channel}`);
+      throw new HttpError(
+        400,
+        'CHANNEL_NOT_SUPPORTED',
+        `${module.config.displayName} does not support ${channel}`,
+      );
     }
 
     let convo = req.conversationId ? await load(req.conversationId) : undefined;
-    if (convo && convo.clientId !== req.clientId) throw new HttpError(400, 'CLIENT_MISMATCH', 'Conversation belongs to another client');
+    if (convo && convo.clientId !== req.clientId)
+      throw new HttpError(400, 'CLIENT_MISMATCH', 'Conversation belongs to another client');
     if (!convo) {
       const newId = await repo.createConversation(db, req.clientId, newState(module.config));
-      if (req.simulator) await repo.saveConversation(db, newId, newState(module.config), req.simulator);
+      if (req.simulator)
+        await repo.saveConversation(db, newId, newState(module.config), req.simulator);
       convo = await load(newId);
     }
     const id = convo.id;
-    const history = (await repo.listMessages(db, id)).map(({ role, content }) => ({ role, content }));
+    const history = (await repo.listMessages(db, id)).map(({ role, content }) => ({
+      role,
+      content,
+    }));
 
     const base = `${env.MOCK_SERVICES_URL}${module.apiBasePath}`;
     const tokens = tokensFor(req.clientId, module.apiBasePath);
@@ -122,7 +134,15 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
             }),
           }),
       },
-      { conversationId: id, module, state: convo.state, history, userMessage: req.message, channel, simulator: convo.simulator },
+      {
+        conversationId: id,
+        module,
+        state: convo.state,
+        history,
+        userMessage: req.message,
+        channel,
+        simulator: convo.simulator,
+      },
     );
 
     await repo.addMessage(db, id, 'user', req.message);

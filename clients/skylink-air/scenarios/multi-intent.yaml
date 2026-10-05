@@ -7,5 +7,5 @@ turns:
 expectedTools:
   - verify_customer
   - get_booking
-expectedOutcome: "Agent addresses both: looks up the cancelled flight and states the checked baggage
-  allowance from policy (1 bag in Economy, 23 kg) with a source."
+expectedOutcome: 'Agent addresses both: looks up the cancelled flight and states the checked baggage
+  allowance from policy (1 bag in Economy, 23 kg) with a source.'

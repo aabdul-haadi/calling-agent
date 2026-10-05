@@ -61,12 +61,14 @@ export interface TurnOutput {
   handoff?: HandoffView;
 }
 
-const HANDOFF_NOTICE = "I'm handing you over to a human colleague now. They'll see a summary, so you won't need to repeat yourself.";
+const HANDOFF_NOTICE =
+  "I'm handing you over to a human colleague now. They'll see a summary, so you won't need to repeat yourself.";
 const LOOP_GUARD_REPLY =
   "I'm sorry, I'm having trouble completing this on my own. I'm passing you to a human colleague who can help.";
 const AI_DOWN_REPLY =
   "I'm sorry, I'm having technical trouble right now. I'm passing you to a human colleague who can help.";
-const ALREADY_HANDED_OFF = "You're already in the queue for a human colleague. They have a summary of this chat and will be with you shortly.";
+const ALREADY_HANDED_OFF =
+  "You're already in the queue for a human colleague. They have a summary of this chat and will be with you shortly.";
 
 function toolSpecs(tools: AnyToolDefinition[]): LlmToolSpec[] {
   return tools.map((t) => {
@@ -81,7 +83,10 @@ function applyPatch(
   patch: StatePatch,
   module: ClientModule,
 ): ConversationState {
-  const next: ConversationState = { ...state, collected: { ...state.collected, ...patch.collected } };
+  const next: ConversationState = {
+    ...state,
+    collected: { ...state.collected, ...patch.collected },
+  };
   if (patch.verified !== undefined) next.verified = patch.verified;
   if (patch.customerId !== undefined) next.customerId = patch.customerId;
   if (patch.pendingHandoff) next.pendingHandoff = patch.pendingHandoff;
@@ -122,13 +127,25 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     detail?: unknown,
   ) => {
     lastAt = Math.max(Date.now(), lastAt + 1);
-    trace.push({ id: randomUUID(), at: new Date(lastAt).toISOString(), type, label, status, latencyMs, detail });
+    trace.push({
+      id: randomUUID(),
+      at: new Date(lastAt).toISOString(),
+      type,
+      label,
+      status,
+      latencyMs,
+      detail,
+    });
   };
 
   let state = stepHook(input.state, module, 'afterUserReply');
   let citations: Citation[] = [];
 
-  const finish = async (reply: string, reason: HandoffReason | null, detail?: string): Promise<TurnOutput> => {
+  const finish = async (
+    reply: string,
+    reason: HandoffReason | null,
+    detail?: string,
+  ): Promise<TurnOutput> => {
     let handoff: HandoffView | undefined;
     let finalReply = reply;
     if (reason) {
@@ -140,7 +157,11 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         reason,
         detail,
         state,
-        transcript: [...input.history, { role: 'user', content: input.userMessage }, { role: 'assistant', content: reply }],
+        transcript: [
+          ...input.history,
+          { role: 'user', content: input.userMessage },
+          { role: 'assistant', content: reply },
+        ],
         tried,
       });
       state = { ...state, handedOff: true, pendingHandoff: undefined };
@@ -159,7 +180,13 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   // 1. Understand the message (intent + mood), then check the "before we even try" handoff triggers.
   const classification = await classifyTurn(deps.llm, config, input.history, input.userMessage);
   state = { ...state, lastIntent: classification.intent, lastSentiment: classification.sentiment };
-  addTrace('intent', `Understood intent: ${classification.intent.replace(/_/g, ' ')}`, 'ok', undefined, classification);
+  addTrace(
+    'intent',
+    `Understood intent: ${classification.intent.replace(/_/g, ' ')}`,
+    'ok',
+    undefined,
+    classification,
+  );
 
   const preReason = evaluatePreTurn(config, classification);
   if (preReason) {
@@ -171,7 +198,13 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     const found = await deps.retrieve(config.id, input.userMessage);
     citations = found.citations;
     if (found.relevant) {
-      addTrace('knowledge', `Looked up policy: ${[...new Set(citations.map((c) => c.source))].join(', ')}`, 'ok', undefined, citations);
+      addTrace(
+        'knowledge',
+        `Looked up policy: ${[...new Set(citations.map((c) => c.source))].join(', ')}`,
+        'ok',
+        undefined,
+        citations,
+      );
     } else if (classification.isPolicyQuestion) {
       addTrace('knowledge', 'Searched policies, found nothing relevant', 'warn');
       return finish(NO_POLICY_REPLY, null);
@@ -201,7 +234,12 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       loopGuardHit = true;
       break;
     }
-    const system = buildSystemPrompt({ config, state, channel: input.channel, knowledge: citations });
+    const system = buildSystemPrompt({
+      config,
+      state,
+      channel: input.channel,
+      knowledge: citations,
+    });
     const started = Date.now();
     const res = await deps.llm.complete({ system, messages, tools: specs });
     if (!res.ok) {
@@ -239,10 +277,13 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         status: r.ok ? 'ok' : 'error',
         latencyMs: outcome.latencyMs,
       });
-      const failedStatus: TraceStatus = !r.ok && (r.error === 'AUTH_REQUIRED' || r.error === 'RULE_BLOCKED') ? 'warn' : 'error';
+      const failedStatus: TraceStatus =
+        !r.ok && (r.error === 'AUTH_REQUIRED' || r.error === 'RULE_BLOCKED') ? 'warn' : 'error';
       addTrace(
         'tool',
-        r.ok ? `${outcome.label}${outcome.summary ? ` — ${outcome.summary}` : ''}` : `${outcome.label} — ${r.message}`,
+        r.ok
+          ? `${outcome.label}${outcome.summary ? ` — ${outcome.summary}` : ''}`
+          : `${outcome.label} — ${r.message}`,
         r.ok ? 'ok' : failedStatus,
         outcome.latencyMs,
         { tool: call.name, input: safeInput, output: safeOutput },
@@ -254,7 +295,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
           {
             ...state,
             unavailableStreak: 0,
-            toolCallCounts: { ...state.toolCallCounts, [call.name]: (state.toolCallCounts[call.name] ?? 0) + 1 },
+            toolCallCounts: {
+              ...state.toolCallCounts,
+              [call.name]: (state.toolCallCounts[call.name] ?? 0) + 1,
+            },
           },
           outcome.patch,
           module,
@@ -264,14 +308,17 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       } else {
         lastToolFailed = 'error';
         lastErrorCode = r.error;
-        if (r.error === 'UNAVAILABLE') state = { ...state, unavailableStreak: state.unavailableStreak + 1 };
+        if (r.error === 'UNAVAILABLE')
+          state = { ...state, unavailableStreak: state.unavailableStreak + 1 };
       }
       // What the model sees is small and flat: result data, or a typed error it must explain gracefully.
       messages.push({
         role: 'tool',
         toolCallId: call.id,
         name: call.name,
-        content: JSON.stringify(r.ok ? { ok: true, data: r.data } : { ok: false, error: r.error, message: r.message }),
+        content: JSON.stringify(
+          r.ok ? { ok: true, data: r.data } : { ok: false, error: r.error, message: r.message },
+        ),
       });
     }
     // Stop calling tools once two systems in a row are down: handing off beats hammering a dead API.
@@ -280,17 +327,20 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
 
   // 4. Failed-turn accounting + post-turn handoff triggers.
   const toolFailureCounts =
-    lastToolFailed === 'error' && ['UNAVAILABLE', 'NOT_FOUND', 'UNAUTHORIZED', 'INVALID_ARGS'].includes(lastErrorCode);
+    lastToolFailed === 'error' &&
+    ['UNAVAILABLE', 'NOT_FOUND', 'UNAUTHORIZED', 'INVALID_ARGS'].includes(lastErrorCode);
   const turnFailed = classification.intent === 'unknown' || toolFailureCounts;
   state = { ...state, failedTurns: turnFailed ? state.failedTurns + 1 : 0 };
 
-  if (aiUnavailable) return finish(AI_DOWN_REPLY, evaluatePostTurn(config, state, { loopGuardHit, aiUnavailable }));
+  if (aiUnavailable)
+    return finish(AI_DOWN_REPLY, evaluatePostTurn(config, state, { loopGuardHit, aiUnavailable }));
   if (loopGuardHit) {
     addTrace('guard', 'Stopped after too many steps', 'warn');
     return finish(LOOP_GUARD_REPLY, 'loop_guard');
   }
   if (!reply && state.unavailableStreak >= 2) {
-    reply = "I'm sorry, the company's systems aren't responding right now, so I can't finish this myself.";
+    reply =
+      "I'm sorry, the company's systems aren't responding right now, so I can't finish this myself.";
   }
   if (!reply) reply = "Sorry, I didn't quite get that. Could you tell me a bit more?";
   const post = evaluatePostTurn(config, state, { loopGuardHit, aiUnavailable });

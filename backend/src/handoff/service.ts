@@ -29,8 +29,12 @@ export function createHandoffService(deps: HandoffServiceDeps): HandoffService {
       // The row above IS the queue the UI reads, so a webhook failure never loses a handoff.
       const delivered = await deliverHandoff(handoff, deps.webhook);
       if (delivered) await handoffsRepo.markDelivered(deps.db, handoff.id);
-      else deps.logger.warn({ conversationId: input.conversationId }, 'handoff webhook not delivered');
-      deps.logger.info({ conversationId: input.conversationId, reason: input.reason, delivered }, 'handoff created');
+      else
+        deps.logger.warn({ conversationId: input.conversationId }, 'handoff webhook not delivered');
+      deps.logger.info(
+        { conversationId: input.conversationId, reason: input.reason, delivered },
+        'handoff created',
+      );
       return handoff;
     },
   };

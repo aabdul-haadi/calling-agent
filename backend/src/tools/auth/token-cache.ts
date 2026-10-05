@@ -72,7 +72,8 @@ export function clientCredentialsFetcher(creds: ClientCredentials) {
         }),
         signal: AbortSignal.timeout(creds.timeoutMs ?? 5000),
       });
-      if (res.status === 401) return fail('UNAUTHORIZED', 'The company system rejected our credentials');
+      if (res.status === 401)
+        return fail('UNAUTHORIZED', 'The company system rejected our credentials');
       if (!res.ok) return fail('UNAVAILABLE', 'The company system could not issue a token');
       const parsed = tokenResponse.safeParse(await res.json());
       if (!parsed.success) return fail('UNAVAILABLE', 'Unexpected token response');

@@ -27,11 +27,16 @@ export function createMockApp(opts: MockOptions): Express {
     contact: createContactCenter(opts),
   });
   let systems = build();
-  const via = (pick: (s: ReturnType<typeof build>) => express.Router): RequestHandler => (req, res, next) =>
-    pick(systems)(req, res, next);
+  const via =
+    (pick: (s: ReturnType<typeof build>) => express.Router): RequestHandler =>
+    (req, res, next) =>
+      pick(systems)(req, res, next);
 
   // The contact-center needs raw text bodies, so JSON parsing is scoped to the other APIs.
-  app.use('/contact-center', via((s) => s.contact));
+  app.use(
+    '/contact-center',
+    via((s) => s.contact),
+  );
   app.use(express.json(), express.urlencoded({ extended: false }));
   app.get('/health', (_req, res) => res.json({ data: { status: 'ok' } }));
   // Test helper: lets scenario runs start from a clean world. Dev tool only.
@@ -39,7 +44,13 @@ export function createMockApp(opts: MockOptions): Express {
     systems = build();
     res.json({ data: { reset: true } });
   });
-  app.use('/airline', via((s) => s.airline));
-  app.use('/telecom', via((s) => s.telecom));
+  app.use(
+    '/airline',
+    via((s) => s.airline),
+  );
+  app.use(
+    '/telecom',
+    via((s) => s.telecom),
+  );
   return app;
 }

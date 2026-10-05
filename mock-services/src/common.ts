@@ -22,16 +22,19 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Injects realistic misbehaviour: latency and 503s. The backend's demo controls drive the
  * x-sim-* headers; MOCK_FAILURE_RATE / MOCK_LATENCY_MS drive the background noise.
  */
-export const simulate = (opts: MockOptions): RequestHandler => async (req, res, next) => {
-  const headerLatency = Number(req.header('x-sim-latency-ms') ?? 0);
-  const delay = opts.latencyMs + (Number.isFinite(headerLatency) ? Math.min(headerLatency, 10_000) : 0);
-  if (delay > 0) await sleep(delay);
-  const forced = req.header('x-sim-fail') === '1';
-  if (forced || opts.random() < opts.failureRate) {
-    return sendError(res, 503, 'SERVICE_UNAVAILABLE', 'Upstream system temporarily unavailable');
-  }
-  next();
-};
+export const simulate =
+  (opts: MockOptions): RequestHandler =>
+  async (req, res, next) => {
+    const headerLatency = Number(req.header('x-sim-latency-ms') ?? 0);
+    const delay =
+      opts.latencyMs + (Number.isFinite(headerLatency) ? Math.min(headerLatency, 10_000) : 0);
+    if (delay > 0) await sleep(delay);
+    const forced = req.header('x-sim-fail') === '1';
+    if (forced || opts.random() < opts.failureRate) {
+      return sendError(res, 503, 'SERVICE_UNAVAILABLE', 'Upstream system temporarily unavailable');
+    }
+    next();
+  };
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);

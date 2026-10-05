@@ -13,7 +13,9 @@ export interface ChunkRow {
 export async function replaceChunks(db: Db, clientId: string, chunks: ChunkRow[]): Promise<void> {
   await db.delete(knowledgeChunks).where(eq(knowledgeChunks.clientId, clientId));
   if (chunks.length === 0) return;
-  await db.insert(knowledgeChunks).values(chunks.map((c) => ({ clientId, ...c, updatedAt: new Date() })));
+  await db
+    .insert(knowledgeChunks)
+    .values(chunks.map((c) => ({ clientId, ...c, updatedAt: new Date() })));
 }
 
 export interface SearchHit {
@@ -24,10 +26,20 @@ export interface SearchHit {
   similarity: number;
 }
 
-export async function searchChunks(db: Db, clientId: string, embedding: number[], limit: number): Promise<SearchHit[]> {
+export async function searchChunks(
+  db: Db,
+  clientId: string,
+  embedding: number[],
+  limit: number,
+): Promise<SearchHit[]> {
   const similarity = sql<number>`1 - (${cosineDistance(knowledgeChunks.embedding, embedding)})`;
   const rows = await db
-    .select({ source: knowledgeChunks.source, heading: knowledgeChunks.heading, content: knowledgeChunks.content, similarity })
+    .select({
+      source: knowledgeChunks.source,
+      heading: knowledgeChunks.heading,
+      content: knowledgeChunks.content,
+      similarity,
+    })
     .from(knowledgeChunks)
     .where(eq(knowledgeChunks.clientId, clientId))
     .orderBy(desc(similarity))
@@ -36,6 +48,9 @@ export async function searchChunks(db: Db, clientId: string, embedding: number[]
 }
 
 export async function countChunks(db: Db, clientId: string): Promise<number> {
-  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(knowledgeChunks).where(eq(knowledgeChunks.clientId, clientId));
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(knowledgeChunks)
+    .where(eq(knowledgeChunks.clientId, clientId));
   return row?.n ?? 0;
 }

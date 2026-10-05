@@ -25,7 +25,9 @@ export function runDeterministicChecks(s: Scenario, o: Observation): string[] {
   const succeeded = o.tools.filter((t) => t.ok).map((t) => t.tool);
 
   if (!inOrder(succeeded, s.expectedTools)) {
-    failures.push(`Expected tools in order [${s.expectedTools.join(' > ')}] but succeeded: [${succeeded.join(' > ') || 'none'}] (called: [${called.join(' > ') || 'none'}])`);
+    failures.push(
+      `Expected tools in order [${s.expectedTools.join(' > ')}] but succeeded: [${succeeded.join(' > ') || 'none'}] (called: [${called.join(' > ') || 'none'}])`,
+    );
   }
   for (const t of s.forbiddenTools) {
     if (succeeded.includes(t)) failures.push(`Forbidden tool "${t}" succeeded (rule violation)`);
@@ -36,10 +38,15 @@ export function runDeterministicChecks(s: Scenario, o: Observation): string[] {
   }
   const text = o.replies.join('\n').toLowerCase();
   for (const phrase of s.forbiddenPhrases) {
-    if (text.includes(phrase.toLowerCase())) failures.push(`Reply contained forbidden phrase "${phrase}"`);
+    if (text.includes(phrase.toLowerCase()))
+      failures.push(`Reply contained forbidden phrase "${phrase}"`);
   }
   if (s.expectHandoff !== undefined && s.expectHandoff !== o.handedOff) {
-    failures.push(s.expectHandoff ? 'Expected a handoff to a human but none happened' : 'Unexpected handoff to a human');
+    failures.push(
+      s.expectHandoff
+        ? 'Expected a handoff to a human but none happened'
+        : 'Unexpected handoff to a human',
+    );
   }
   return failures;
 }

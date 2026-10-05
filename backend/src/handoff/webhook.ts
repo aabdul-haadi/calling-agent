@@ -47,7 +47,8 @@ export async function deliverHandoff(handoff: HandoffView, cfg: WebhookConfig): 
     } catch {
       // network error: fall through to retry
     }
-    if (attempt < DEFAULT_RETRY.retries) await sleep(backoffDelay(attempt, DEFAULT_RETRY, Math.random));
+    if (attempt < DEFAULT_RETRY.retries)
+      await sleep(backoffDelay(attempt, DEFAULT_RETRY, Math.random));
   }
   return false;
 }

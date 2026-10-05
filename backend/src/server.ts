@@ -18,13 +18,28 @@ try {
   // Keep the policy index in sync with the files on disk (cheap: a few dozen chunks).
   const embeddings = createEmbeddingProvider(env);
   for (const m of services.registry.list()) {
-    const n = await ingestClient(handle.db, embeddings, m.config.id, resolve(clientDir(m), m.config.knowledgeDir)).catch(() => 0);
+    const n = await ingestClient(
+      handle.db,
+      embeddings,
+      m.config.id,
+      resolve(clientDir(m), m.config.knowledgeDir),
+    ).catch(() => 0);
     logger.info({ client: m.config.id, chunks: n }, 'knowledge ingested');
   }
 } catch (err) {
   // Keep serving /health so the UI shows "degraded" and the developer sees what to fix.
-  logger.error({ err: err instanceof Error ? err.message : String(err) }, 'database unavailable (is docker compose up?)');
+  logger.error(
+    { err: err instanceof Error ? err.message : String(err) },
+    'database unavailable (is docker compose up?)',
+  );
 }
 
-const app = createApp({ env, logger, db: handle.db, registry: services.registry, chat: services.chat, evals: services.evals });
+const app = createApp({
+  env,
+  logger,
+  db: handle.db,
+  registry: services.registry,
+  chat: services.chat,
+  evals: services.evals,
+});
 app.listen(env.BACKEND_PORT, () => logger.info(`backend listening on :${env.BACKEND_PORT}`));

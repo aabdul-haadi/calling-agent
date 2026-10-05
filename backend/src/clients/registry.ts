@@ -15,12 +15,18 @@ export function createRegistry(modules: ClientModule[]): ClientRegistry {
     if (byId.has(config.id)) throw new Error(`Duplicate client id: ${config.id}`);
     const toolNames = new Set(m.tools.map((t) => t.name));
     for (const name of config.tools) {
-      if (!toolNames.has(name)) throw new Error(`Client ${config.id}: config lists tool "${name}" but no such tool is registered`);
+      if (!toolNames.has(name))
+        throw new Error(
+          `Client ${config.id}: config lists tool "${name}" but no such tool is registered`,
+        );
     }
     for (const rule of config.rules) {
       const referenced = rule.kind === 'requiresVerification' ? rule.tools : [rule.tool];
       for (const name of referenced) {
-        if (!config.tools.includes(name)) throw new Error(`Client ${config.id}: rule "${rule.id}" references unknown tool "${name}"`);
+        if (!config.tools.includes(name))
+          throw new Error(
+            `Client ${config.id}: rule "${rule.id}" references unknown tool "${name}"`,
+          );
       }
     }
     byId.set(config.id, m);

@@ -12,12 +12,18 @@ export function checkRules(
 ): ToolResult<null> {
   for (const rule of rules) {
     if (rule.kind === 'requiresVerification' && rule.tools.includes(tool) && !state.verified) {
-      return fail('AUTH_REQUIRED', 'The customer must be verified before this action. Ask for their details.');
+      return fail(
+        'AUTH_REQUIRED',
+        'The customer must be verified before this action. Ask for their details.',
+      );
     }
     if (rule.kind === 'maxCallsPerConversation' && rule.tool === tool) {
       const used = state.toolCallCounts[tool] ?? 0;
       if (used >= rule.limit) {
-        return fail('RULE_BLOCKED', `${rule.description} Offer to transfer the customer to a human agent.`);
+        return fail(
+          'RULE_BLOCKED',
+          `${rule.description} Offer to transfer the customer to a human agent.`,
+        );
       }
     }
   }

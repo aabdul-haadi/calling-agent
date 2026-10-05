@@ -8,13 +8,18 @@ import { createHarness, say, type Harness } from '../helpers/harness';
 
 describe('chunking', () => {
   it('splits by heading and keeps the document title in the heading', () => {
-    const chunks = chunkMarkdown('doc', '# Title\n\n## A\nFirst section has enough text to keep.\n\n## B\nSecond section also long enough.');
+    const chunks = chunkMarkdown(
+      'doc',
+      '# Title\n\n## A\nFirst section has enough text to keep.\n\n## B\nSecond section also long enough.',
+    );
     expect(chunks.map((c) => c.heading)).toEqual(['Title > A', 'Title > B']);
     expect(chunks.every((c) => c.source === 'doc')).toBe(true);
   });
 
   it('drops empty sections and splits very long ones', () => {
-    const long = Array.from({ length: 30 }, (_, i) => `Paragraph ${i} ${'word '.repeat(30)}`).join('\n\n');
+    const long = Array.from({ length: 30 }, (_, i) => `Paragraph ${i} ${'word '.repeat(30)}`).join(
+      '\n\n',
+    );
     const chunks = chunkMarkdown('doc', `# T\n\n## Empty\n\n## Long\n${long}`);
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.every((c) => c.content.length <= 1400)).toBe(true);
@@ -23,7 +28,10 @@ describe('chunking', () => {
 
 let h: Harness;
 beforeAll(async () => {
-  h = await createHarness({ ingestKnowledge: true, classify: (m) => ({ intent: 'baggage_policy', isPolicyQuestion: /\?/.test(m) }) });
+  h = await createHarness({
+    ingestKnowledge: true,
+    classify: (m) => ({ intent: 'baggage_policy', isPolicyQuestion: /\?/.test(m) }),
+  });
 });
 afterAll(() => h.close());
 
@@ -31,7 +39,14 @@ describe('retrieval (RAG)', () => {
   const retrieve = () => createRetriever(h.db.db, localProvider, createLogger('silent'));
 
   it('ingested 10-12 policy documents with source and updated_at', async () => {
-    const sources = new Set((await h.db.db.execute((await import('drizzle-orm')).sql`SELECT DISTINCT source FROM knowledge_chunks WHERE client_id = 'skylink-air'`) as unknown as { rows: unknown[] }).rows.map((r) => (r as { source: string }).source));
+    const sources = new Set(
+      (
+        (await h.db.db.execute(
+          (await import('drizzle-orm'))
+            .sql`SELECT DISTINCT source FROM knowledge_chunks WHERE client_id = 'skylink-air'`,
+        )) as unknown as { rows: unknown[] }
+      ).rows.map((r) => (r as { source: string }).source),
+    );
     expect(sources.size).toBeGreaterThanOrEqual(10);
     expect(sources.size).toBeLessThanOrEqual(12);
     expect(await knowledgeRepo.countChunks(h.db.db, 'skylink-air')).toBeGreaterThan(15);
@@ -65,7 +80,10 @@ describe('retrieval (RAG)', () => {
   it('puts retrieved policy and its source into the model prompt and returns citations', async () => {
     h.llm.reset();
     h.llm.script(say('You can check one bag in Economy [Source: checked-baggage].'));
-    const res = await h.chat.chat({ clientId: 'skylink-air', message: 'How many bags can I check?' });
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'How many bags can I check?',
+    });
     expect(h.llm.calls[0]!.system).toContain('[Source: checked-baggage]');
     expect(res.citations.map((c) => c.source)).toContain('checked-baggage');
     expect(res.reply).toContain('checked-baggage');
@@ -76,7 +94,10 @@ describe('retrieval (RAG)', () => {
   it('answers an unknown policy question with the safe fallback and never calls the model to improvise', async () => {
     h.llm.reset();
     h.llm.script(say('Sure! Rockets are free on Tuesdays.')); // must never be used
-    const res = await h.chat.chat({ clientId: 'skylink-air', message: 'Do you offer free rocket rides to the moon?' });
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'Do you offer free rocket rides to the moon?',
+    });
     expect(res.reply).toBe(NO_POLICY_REPLY);
     expect(res.reply).toMatch(/not sure/i);
     expect(res.reply).toMatch(/human agent/i);
@@ -84,4 +105,3 @@ describe('retrieval (RAG)', () => {
     expect(res.citations).toHaveLength(0);
   });
 });
-

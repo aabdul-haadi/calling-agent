@@ -23,7 +23,10 @@ interface RecognitionLike {
 type RecognitionCtor = new () => RecognitionLike;
 
 function getRecognitionCtor(): RecognitionCtor | undefined {
-  const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
+  const w = window as unknown as {
+    SpeechRecognition?: RecognitionCtor;
+    webkitSpeechRecognition?: RecognitionCtor;
+  };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 }
 
@@ -49,7 +52,9 @@ export function useVoice({ onUtterance }: VoiceOptions) {
   useEffect(() => {
     onUtteranceRef.current = onUtterance;
   });
-  const audioRef = useRef<{ ctx: AudioContext; stream: MediaStream; raf: number } | undefined>(undefined);
+  const audioRef = useRef<{ ctx: AudioContext; stream: MediaStream; raf: number } | undefined>(
+    undefined,
+  );
 
   const cancelSpeech = useCallback(() => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -70,7 +75,9 @@ export function useVoice({ onUtterance }: VoiceOptions) {
   /** Drives the waveform from the real microphone level. Optional: captions work without it. */
   const startMeter = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true },
+      });
       const ctx = new AudioContext();
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
@@ -96,7 +103,9 @@ export function useVoice({ onUtterance }: VoiceOptions) {
   const start = useCallback(() => {
     const Ctor = getRecognitionCtor();
     if (!Ctor) {
-      setError('Voice needs a browser with speech recognition, such as Chrome or Edge. You can keep using text chat.');
+      setError(
+        'Voice needs a browser with speech recognition, such as Chrome or Edge. You can keep using text chat.',
+      );
       return;
     }
     setError(undefined);
@@ -120,7 +129,9 @@ export function useVoice({ onUtterance }: VoiceOptions) {
     };
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        setError('Microphone access was blocked. Allow it in the browser address bar to use voice.');
+        setError(
+          'Microphone access was blocked. Allow it in the browser address bar to use voice.',
+        );
         activeRef.current = false;
         setActive(false);
       }
@@ -151,27 +162,34 @@ export function useVoice({ onUtterance }: VoiceOptions) {
     stopMeter();
   }, [cancelSpeech, stopMeter]);
 
-  const speak = useCallback(
-    (text: string, onFirstAudio?: (at: number) => void) => {
-      if (!('speechSynthesis' in window)) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(formatForSpeech(text));
-      utterance.onstart = () => {
-        speakingRef.current = true;
-        setSpeaking(true);
-        onFirstAudio?.(performance.now());
-      };
-      utterance.onend = utterance.onerror = () => {
-        speakingRef.current = false;
-        setSpeaking(false);
-      };
-      window.speechSynthesis.speak(utterance);
-    },
-    [],
-  );
+  const speak = useCallback((text: string, onFirstAudio?: (at: number) => void) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(formatForSpeech(text));
+    utterance.onstart = () => {
+      speakingRef.current = true;
+      setSpeaking(true);
+      onFirstAudio?.(performance.now());
+    };
+    utterance.onend = utterance.onerror = () => {
+      speakingRef.current = false;
+      setSpeaking(false);
+    };
+    window.speechSynthesis.speak(utterance);
+  }, []);
 
   useEffect(() => () => stop(), [stop]);
 
-  return { supported: isVoiceSupported(), active, speaking, caption, level, error, start, stop, speak, cancelSpeech };
+  return {
+    supported: isVoiceSupported(),
+    active,
+    speaking,
+    caption,
+    level,
+    error,
+    start,
+    stop,
+    speak,
+    cancelSpeech,
+  };
 }
-

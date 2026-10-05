@@ -30,7 +30,14 @@ function Suite({ clientId }: { clientId: string }) {
   const running = run?.status === 'running';
   useEffect(() => {
     if (!runId || !running) return;
-    const t = setInterval(() => api.run(runId).then(setRun).catch(() => undefined), 2000);
+    const t = setInterval(
+      () =>
+        api
+          .run(runId)
+          .then(setRun)
+          .catch(() => undefined),
+      2000,
+    );
     return () => clearInterval(t);
   }, [runId, running]);
 
@@ -59,14 +66,19 @@ function Suite({ clientId }: { clientId: string }) {
           <Skeleton className="h-28" />
         </div>
       ) : !run ? (
-        <EmptyState title="No test runs yet" hint="Press “Run tests” to run the scenarios. It uses the real AI model, so it can take a minute." />
+        <EmptyState
+          title="No test runs yet"
+          hint="Press “Run tests” to run the scenarios. It uses the real AI model, so it can take a minute."
+        />
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-4">
             <ScoreCard run={run} />
             <ScenarioList results={run.results} onOpen={setSelected} selectedId={selected?.id} />
           </div>
-          <div>{selected && <FailurePanel result={selected} onClose={() => setSelected(undefined)} />}</div>
+          <div>
+            {selected && <FailurePanel result={selected} onClose={() => setSelected(undefined)} />}
+          </div>
         </div>
       )}
     </div>
@@ -83,7 +95,9 @@ export function TestDashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Test dashboard</h1>
-          <p className="text-sm text-muted-foreground">Run the scenario suite against the real agent and see what passes.</p>
+          <p className="text-sm text-muted-foreground">
+            Run the scenario suite against the real agent and see what passes.
+          </p>
         </div>
         <label className="text-sm">
           <span className="mb-1 block text-muted-foreground">Client</span>

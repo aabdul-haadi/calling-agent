@@ -36,11 +36,17 @@ export async function classifyTurn(
   history: { role: 'user' | 'assistant'; content: string }[],
   userMessage: string,
 ): Promise<TurnClassification> {
-  const recent = history.slice(-4).map((m) => `${m.role}: ${m.content}`).join('\n');
+  const recent = history
+    .slice(-4)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join('\n');
   const res = await llm.complete({
     system: systemPrompt(config),
     messages: [
-      { role: 'user', content: `Recent conversation:\n${recent || '(none)'}\n\nLatest customer message:\n"""${userMessage}"""` },
+      {
+        role: 'user',
+        content: `Recent conversation:\n${recent || '(none)'}\n\nLatest customer message:\n"""${userMessage}"""`,
+      },
     ],
     maxTokens: 200,
   });
@@ -51,7 +57,10 @@ export async function classifyTurn(
     const parsed = classificationSchema.safeParse(JSON.parse(match[0]));
     if (!parsed.success) return NEUTRAL;
     const known = new Set([...config.intents, 'unknown']);
-    return { ...parsed.data, intent: known.has(parsed.data.intent) ? parsed.data.intent : 'unknown' };
+    return {
+      ...parsed.data,
+      intent: known.has(parsed.data.intent) ? parsed.data.intent : 'unknown',
+    };
   } catch {
     return NEUTRAL;
   }

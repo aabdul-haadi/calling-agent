@@ -35,7 +35,11 @@ export function buildSystemPrompt({ config, state, channel, knowledge }: PromptI
   ];
 
   if (Object.keys(state.collected).length > 0) {
-    parts.push('', 'Facts already gathered this conversation (from tools):', JSON.stringify(state.collected));
+    parts.push(
+      '',
+      'Facts already gathered this conversation (from tools):',
+      JSON.stringify(state.collected),
+    );
   }
 
   if (knowledge.length > 0) {
