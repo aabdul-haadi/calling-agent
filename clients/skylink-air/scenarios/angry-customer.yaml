@@ -1,0 +1,9 @@
+id: angry-customer
+title: Angry customer is handed to a human
+persona: Furious passenger
+turns:
+  - This is absolutely ridiculous! You cancelled my flight and nobody is helping me. I am furious!
+expectHandoff: true
+forbiddenTools:
+  - change_flight
+expectedOutcome: Agent responds with empathy and hands the customer to a human agent.

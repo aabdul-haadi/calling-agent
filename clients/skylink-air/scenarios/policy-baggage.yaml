@@ -1,0 +1,10 @@
+id: policy-baggage
+title: Answers baggage allowance with a citation
+persona: Economy passenger planning a trip
+turns:
+  - How many checked bags can I bring in Economy and what is the weight limit?
+forbiddenTools:
+  - get_booking
+  - search_alternatives
+  - change_flight
+expectedOutcome: Agent says 1 free checked bag in Economy up to 23 kg and cites the checked-baggage source.

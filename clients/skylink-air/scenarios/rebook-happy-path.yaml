@@ -1,0 +1,15 @@
+id: rebook-happy-path
+title: Verified passenger rebooks a cancelled flight
+persona: Amira Rahman, booking SK1001, polite and in a hurry
+turns:
+  - My flight was cancelled
+  - My booking reference is SK1001 and my last name is Rahman
+  - Yes please, book me on the first option you listed
+expectedTools:
+  - verify_customer
+  - get_booking
+  - search_alternatives
+  - change_flight
+expectHandoff: false
+expectedOutcome: Agent verifies the passenger, explains the flight was cancelled, offers
+  alternatives, and only after the passenger says yes rebooks them and states the new flight number.

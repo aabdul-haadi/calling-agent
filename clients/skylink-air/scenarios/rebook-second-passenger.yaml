@@ -1,0 +1,14 @@
+id: rebook-second-passenger
+title: Different passenger completes a rebooking in fewer messages
+persona: Elena Okafor, booking SK1002, direct
+turns:
+  - Hi, I am Okafor, booking SK1002. My flight got cancelled, what are my options?
+  - The earliest one works, please rebook me
+expectedTools:
+  - verify_customer
+  - get_booking
+  - search_alternatives
+  - change_flight
+expectHandoff: false
+expectedOutcome: Agent verifies, lists alternatives, rebooks the earliest after explicit
+  confirmation, and confirms the new flight.

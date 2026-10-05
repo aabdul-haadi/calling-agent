@@ -31,6 +31,7 @@ interface Classification {
 export function createScriptedLlm(classify: (userMessage: string) => Partial<Classification> = () => ({})) {
   const queue: ScriptStep[] = [];
   const calls: LlmRequest[] = [];
+  const judgeVerdict = { pass: true, reason: 'Looks good.' };
   let toolId = 0;
 
   const client: LlmClient = {
@@ -43,6 +44,9 @@ export function createScriptedLlm(classify: (userMessage: string) => Partial<Cla
         return ok({ text: JSON.stringify(c), toolCalls: [] });
       }
       if (req.system.startsWith('Summarise')) return fail('UNAVAILABLE', 'no summariser in tests');
+      if (req.system.startsWith('You are a strict QA')) {
+        return ok({ text: JSON.stringify(judgeVerdict), toolCalls: [] });
+      }
       calls.push(req);
       const step = queue.shift();
       if (!step) return ok({ text: 'OK (script exhausted)', toolCalls: [] });
@@ -59,7 +63,10 @@ export function createScriptedLlm(classify: (userMessage: string) => Partial<Cla
     calls,
     script: (...steps: ScriptStep[]) => queue.push(...steps),
     remaining: () => queue.length,
+    judgeVerdict,
     reset: () => {
+      judgeVerdict.pass = true;
+      judgeVerdict.reason = 'Looks good.';
       queue.length = 0;
       calls.length = 0;
     },

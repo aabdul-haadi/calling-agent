@@ -1,0 +1,7 @@
+id: user-asks-human
+title: Customer asks for a human
+persona: Passenger who prefers talking to a person
+turns:
+  - I would like to talk to a human agent please
+expectHandoff: true
+expectedOutcome: Agent politely confirms it is transferring the customer to a human agent.

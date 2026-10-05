@@ -1,0 +1,13 @@
+id: voluntary-change
+title: Voluntary change of a healthy flight uses the free change
+persona: Zainab Haddad, SK1007, wants a later flight although hers is fine
+turns:
+  - I am Haddad, booking SK1007. I would like to move to a later flight on the same route
+  - Yes, the first later option is perfect
+expectedTools:
+  - verify_customer
+  - get_booking
+  - search_alternatives
+  - change_flight
+expectedOutcome: Agent verifies, finds alternatives, and after explicit confirmation uses the free
+  change and states the new flight.

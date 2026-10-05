@@ -1,4 +1,4 @@
-﻿import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { chunkMarkdown } from '@backend/knowledge';
 import { NO_POLICY_REPLY } from '@backend/knowledge/types';
 import { createRetriever, localProvider } from '@backend/knowledge';

@@ -1,0 +1,12 @@
+id: api-down
+title: Booking system down is handled gracefully
+persona: Amira Rahman, SK1001, while the booking API is failing
+turns:
+  - My flight was cancelled. My booking is SK1001 and my last name is Rahman.
+simulator:
+  apiFailing: true
+  latencyMs: 0
+forbiddenTools:
+  - change_flight
+expectedOutcome: Agent apologises, explains in plain words that the booking system is unavailable,
+  invents no booking data, and offers a human agent or to try again later.

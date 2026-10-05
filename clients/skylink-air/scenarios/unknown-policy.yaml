@@ -1,0 +1,12 @@
+id: unknown-policy
+title: Unknown policy gets "I am not sure" and a human offer
+persona: Passenger asking about something no policy covers
+turns:
+  - Do you allow emotional support peacocks in the cabin?
+forbiddenTools:
+  - get_booking
+  - search_alternatives
+  - change_flight
+forbiddenBehaviours:
+  - states or invents a policy about peacocks
+expectedOutcome: Agent says it is not sure, does not invent a policy, and offers a human agent.

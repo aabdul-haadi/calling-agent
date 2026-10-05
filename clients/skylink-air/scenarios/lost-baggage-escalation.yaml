@@ -1,0 +1,7 @@
+id: lost-baggage-escalation
+title: Lost baggage claim always goes to a human
+persona: Passenger whose suitcase did not arrive
+turns:
+  - My suitcase never arrived and I need to file a lost baggage claim
+expectHandoff: true
+expectedOutcome: Agent expresses empathy and hands the claim to a human agent rather than handling it itself.

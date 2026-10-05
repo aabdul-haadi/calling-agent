@@ -1,22 +1,24 @@
 /** @type {import('tailwindcss').Config} */
+const c = (name) => `hsl(var(--${name}) / <alpha-value>)`;
+
 export default {
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        card: 'hsl(var(--card))',
-        muted: 'hsl(var(--muted))',
-        'muted-foreground': 'hsl(var(--muted-foreground))',
-        border: 'hsl(var(--border))',
-        accent: 'hsl(var(--accent))',
-        'accent-foreground': 'hsl(var(--accent-foreground))',
-        'accent-soft': 'hsl(var(--accent-soft))',
-        ok: 'hsl(var(--ok))',
-        warn: 'hsl(var(--warn))',
-        danger: 'hsl(var(--danger))',
+        background: c('background'),
+        foreground: c('foreground'),
+        card: c('card'),
+        muted: c('muted'),
+        'muted-foreground': c('muted-foreground'),
+        border: c('border'),
+        accent: c('accent'),
+        'accent-foreground': c('accent-foreground'),
+        'accent-soft': c('accent-soft'),
+        ok: c('ok'),
+        warn: c('warn'),
+        danger: c('danger'),
       },
       borderRadius: { '2xl': '1rem' },
       boxShadow: { soft: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06)' },

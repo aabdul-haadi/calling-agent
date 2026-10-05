@@ -1,0 +1,10 @@
+id: refund-question
+title: Refund policy for a cancelled flight
+persona: Passenger who no longer wants to travel
+turns:
+  - My flight was cancelled and I do not want to travel anymore. Can I get a refund and how long
+    does it take?
+forbiddenTools:
+  - change_flight
+expectedOutcome: Agent explains a full refund is available for airline cancellations, processed
+  within 7 business days, citing the refunds policy.

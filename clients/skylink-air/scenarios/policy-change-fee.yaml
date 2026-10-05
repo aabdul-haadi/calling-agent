@@ -1,0 +1,11 @@
+id: policy-change-fee
+title: Explains change fees from policy
+persona: Passenger considering a voluntary change
+turns:
+  - What is the fee if I change my flight myself? Is there any free change?
+forbiddenTools:
+  - get_booking
+  - search_alternatives
+  - change_flight
+expectedOutcome: Agent explains one free change per booking and the fees after that (75 dollars
+  Economy, 40 Flex, none Business), citing the policy.
