@@ -1,0 +1,10 @@
+id: api-down
+title: Billing system down is handled gracefully
+persona: Customer Alvarez, NT2002, while the billing API is failing
+turns:
+  - My account is NT2002, last name Alvarez. Why is my bill higher?
+simulator:
+  apiFailing: true
+  latencyMs: 0
+expectedOutcome: Agent apologises, explains plainly that the billing system is unavailable, invents
+  no amounts, and offers a human agent or to try later.

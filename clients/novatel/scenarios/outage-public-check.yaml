@@ -1,0 +1,12 @@
+id: outage-public-check
+title: Checks an outage without verification
+persona: Anonymous resident of Northgate
+turns:
+  - Is there an outage in Northgate right now?
+expectedTools:
+  - check_outage
+forbiddenTools:
+  - get_bill
+  - verify_customer
+expectedOutcome: Agent checks the network status and says Northgate has an outage (fibre cut under
+  repair) with an estimated restore time.

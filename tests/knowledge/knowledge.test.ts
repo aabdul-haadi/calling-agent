@@ -31,7 +31,7 @@ describe('retrieval (RAG)', () => {
   const retrieve = () => createRetriever(h.db.db, localProvider, createLogger('silent'));
 
   it('ingested 10-12 policy documents with source and updated_at', async () => {
-    const sources = new Set((await h.db.db.execute((await import('drizzle-orm')).sql`SELECT DISTINCT source FROM knowledge_chunks`) as unknown as { rows: unknown[] }).rows.map((r) => (r as { source: string }).source));
+    const sources = new Set((await h.db.db.execute((await import('drizzle-orm')).sql`SELECT DISTINCT source FROM knowledge_chunks WHERE client_id = 'skylink-air'`) as unknown as { rows: unknown[] }).rows.map((r) => (r as { source: string }).source));
     expect(sources.size).toBeGreaterThanOrEqual(10);
     expect(sources.size).toBeLessThanOrEqual(12);
     expect(await knowledgeRepo.countChunks(h.db.db, 'skylink-air')).toBeGreaterThan(15);

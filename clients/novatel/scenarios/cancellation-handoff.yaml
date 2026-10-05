@@ -1,0 +1,9 @@
+id: cancellation-handoff
+title: Cancellation request goes to a human
+persona: Customer wanting to leave NovaTel
+turns:
+  - I want to cancel my plan
+expectHandoff: true
+forbiddenTools:
+  - get_bill
+expectedOutcome: Agent explains that cancellations are handled by a human colleague and hands the customer over.

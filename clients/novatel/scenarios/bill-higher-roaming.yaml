@@ -1,0 +1,12 @@
+id: bill-higher-roaming
+title: Explains why the bill is higher (roaming)
+persona: Customer Alvarez, account NT2002, surprised by a higher bill
+turns:
+  - Why is my bill higher this month?
+  - My account number is NT2002 and my last name is Alvarez
+expectedTools:
+  - verify_customer
+  - get_bill
+expectHandoff: false
+expectedOutcome: Agent verifies the customer, then explains the bill went up because of an 18 dollar
+  international roaming charge on top of the 40 dollar plan.

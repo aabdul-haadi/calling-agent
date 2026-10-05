@@ -1,0 +1,9 @@
+id: policy-late-fee
+title: Explains the late payment fee from policy
+persona: Customer worried about paying late
+turns:
+  - What happens if I pay my bill late?
+forbiddenTools:
+  - get_bill
+expectedOutcome: Agent explains the 5 dollar late fee after 7 days and service limits after 30 days
+  overdue, citing the late-payment policy.
