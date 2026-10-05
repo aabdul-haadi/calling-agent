@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 20% 98%;
+  --foreground: 222 25% 12%;
+  --card: 0 0% 100%;
+  --muted: 220 14% 95%;
+  --muted-foreground: 220 9% 36%;
+  --border: 220 13% 88%;
+  --ok: 142 72% 26%;
+  --warn: 28 95% 30%;
+  --danger: 0 72% 42%;
+  /* default accent = sky; pages override with data-accent */
+  --accent: 201 96% 32%;
+  --accent-foreground: 0 0% 100%;
+  --accent-soft: 201 90% 94%;
+}
+
+[data-accent='violet'] {
+  --accent: 263 70% 45%;
+  --accent-foreground: 0 0% 100%;
+  --accent-soft: 262 80% 95%;
+}
+
+.dark {
+  --background: 222 20% 8%;
+  --foreground: 210 20% 96%;
+  --card: 222 18% 12%;
+  --muted: 222 16% 16%;
+  --muted-foreground: 215 15% 72%;
+  --border: 222 14% 24%;
+  --ok: 142 60% 55%;
+  --warn: 38 92% 60%;
+  --danger: 0 90% 72%;
+  --accent: 199 89% 62%;
+  --accent-foreground: 222 25% 8%;
+  --accent-soft: 199 40% 18%;
+}
+
+.dark[data-accent='violet'],
+.dark [data-accent='violet'] {
+  --accent: 262 90% 78%;
+  --accent-foreground: 222 25% 8%;
+  --accent-soft: 262 30% 22%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

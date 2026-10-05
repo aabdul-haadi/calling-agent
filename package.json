@@ -1,0 +1,39 @@
+{
+  "name": "agent-delivery-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @adk/frontend --filter @adk/backend --filter @adk/mock-services dev",
+    "build": "pnpm -r --filter @adk/frontend build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run && pnpm -r --if-present test",
+    "eval": "pnpm --filter @adk/backend eval",
+    "db:migrate": "pnpm --filter @adk/backend db:migrate",
+    "db:generate": "pnpm --filter @adk/backend db:generate",
+    "ingest": "pnpm --filter @adk/backend ingest"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "@types/supertest": "^7.2.1",
+    "drizzle-orm": "^0.45.3",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.9.9",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  }
+}
