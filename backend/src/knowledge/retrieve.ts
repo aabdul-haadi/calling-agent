@@ -7,7 +7,7 @@ import { tokenize } from './text';
 import type { Retriever } from './types';
 
 export const TOP_K = 8;
-export const MAX_RESULTS = 3;
+export const MAX_RESULTS = 5;
 /** Below this combined score we say "I'm not sure" instead of guessing. */
 export const MIN_SCORE = 0.3;
 

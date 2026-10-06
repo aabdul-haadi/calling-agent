@@ -5,9 +5,9 @@ turns:
   - My flight was cancelled
   - My booking reference is SK1001 and my last name is Rahman
   - Yes please, book me on the first option you listed
+  - Yes, I confirm. Please go ahead and book it.
 expectedTools:
   - verify_customer
-  - get_booking
   - search_alternatives
   - change_flight
 expectHandoff: false

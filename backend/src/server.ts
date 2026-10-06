@@ -42,4 +42,22 @@ const app = createApp({
   chat: services.chat,
   evals: services.evals,
 });
-app.listen(env.BACKEND_PORT, () => logger.info(`backend listening on :${env.BACKEND_PORT}`));
+const server = app.listen(env.BACKEND_PORT, () =>
+  logger.info(`backend listening on :${env.BACKEND_PORT}`),
+);
+
+// Close the database cleanly on Ctrl+C / stop so the local database needs no crash recovery.
+let stopping = false;
+const shutdown = (signal: string) => {
+  if (stopping) return;
+  stopping = true;
+  logger.info({ signal }, 'shutting down');
+  server.close();
+  handle
+    .close()
+    .catch(() => undefined)
+    .finally(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000).unref();
+};
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

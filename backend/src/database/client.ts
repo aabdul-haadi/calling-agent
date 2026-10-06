@@ -76,6 +76,16 @@ export async function createLocalFileDb(dir: string): Promise<DbHandle> {
     if (err instanceof Error && err.message.startsWith('The local database')) throw err;
   }
   writeFileSync(lockFile, String(process.pid));
+  // We now own the folder. A process that was killed hard (Ctrl+C, `tsx watch` restart, crash)
+  // leaves Postgres' own `postmaster.pid` behind, and PGlite aborts on startup when it sees one.
+  rmSync(resolve(dataDir, 'postmaster.pid'), { force: true });
+  // After an unclean exit Postgres runs crash recovery, whose checkpoint renames
+  // `replorigin_checkpoint.tmp` over `replorigin_checkpoint`. Windows refuses to rename over an
+  // existing file, which makes Postgres PANIC and PGlite abort. These files only hold logical
+  // replication progress, which this app never uses, so removing them is safe.
+  for (const f of ['replorigin_checkpoint', 'replorigin_checkpoint.tmp']) {
+    rmSync(resolve(dataDir, 'pg_logical', f), { force: true });
+  }
   const handle = await createMemoryDb(dataDir);
   return {
     ...handle,

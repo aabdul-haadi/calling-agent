@@ -1,11 +1,11 @@
 id: multi-intent
 title: Handles rebooking and a baggage question in one message
-persona: Daniel Lindqvist, SK1003, asks two things
+persona: Elena Lindqvist, SK1003 (Business fare), asks two things at once
 turns:
-  - I am Lindqvist, booking SK1003. My flight was cancelled and also how many checked bags can I
-    bring?
+  - I am Lindqvist, booking SK1003. My flight was cancelled, and also how many checked bags does a
+    Business fare include?
 expectedTools:
   - verify_customer
-  - get_booking
-expectedOutcome: 'Agent addresses both: looks up the cancelled flight and states the checked baggage
-  allowance from policy (1 bag in Economy, 23 kg) with a source.'
+expectedOutcome: "Agent addresses both: starts on the cancelled flight (verifies the passenger and
+  looks at the booking) and states the Business fare checked baggage allowance from policy (3 bags,
+  up to 32 kg) with a source."

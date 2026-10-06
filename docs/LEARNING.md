@@ -147,11 +147,13 @@ Plain-English notes, one section per phase.
 1. _Deterministic checks first, judge second._ Tool order and rule violations never flake; the judge only covers tone and accuracy.
 2. _"Forbidden" means "must not succeed"._ The model may try a blocked tool; what matters is that the rule stopped it.
 3. _The mock world is reset before each run and test handoffs stay out of the real inbox._
+**Scores.** Measured against a real model (Groq free tier, `openai/gpt-oss-120b`, reasoning effort low) with the LLM judge on the same model:
 
-**Scores.** First-run and improved scores against the real LLM are **not recorded: no model API key was available in the build environment**, so the suite was verified only with a scripted model (runner, checks and loader are covered by `tests/evals/`). After you run `pnpm eval skylink-air`, write the first-run score here, fix failures, and write the improved score:
+- First run: **12/20**. Causes: five scenarios had wrong test data (wrong persona or a missing confirmation turn), the classifier called neutral customers "frustrated" (false handoffs), the agent booked a flight in the same turn it first listed options, and policy questions were answered with "give me your booking number".
+- After fixes: **17/20** (best run), then **16/20** on an identical re-run. The 3-4 remaining failures move around between runs: a vague policy answer ("a few business days" instead of the "7 business days" in the excerpt) and judge strictness on small wording issues. Afterwards the prompt was changed to quote exact numbers and retrieval now returns 5 excerpts instead of 3.
+- The run after that was cut short: Groq's free tier allows 200,000 tokens per day and three suite runs used them up, so the effect of that last change is not measured. Run `pnpm eval skylink-air` again after the daily limit resets.
 
-- First run: _not yet run_
-- After fixes: _not yet run_
+Fixes worth remembering: the engine rejects a booking whose options were not shown in an earlier message, the local database removes the leftovers of a hard kill (Windows would otherwise abort on restart), and rate-limit errors wait and retry using the provider's "try again in Xs" hint.
 
 **What could go wrong.** The judge is itself an LLM and can be wrong or unavailable. Judge failures count as test failures with the reason shown, so a bad judge is visible rather than silently passing.
 

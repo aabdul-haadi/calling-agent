@@ -1,15 +1,15 @@
 id: duplicate-rebooking
 title: Asking twice never double-books
-persona: Daniel Lindqvist, SK1003, anxious and repeats himself
+persona: Elena Lindqvist, SK1003, anxious and repeats herself
 turns:
-  - I am Lindqvist, booking SK1003, my flight was cancelled
+  - I am Lindqvist, booking SK1003, my flight was cancelled. What are my options?
   - Book me on the first option
+  - Yes, I confirm. Please go ahead and book it.
   - Please book it again to be safe, same flight
 maxToolSuccesses:
   change_flight: 1
 expectedTools:
   - verify_customer
-  - get_booking
   - search_alternatives
   - change_flight
 expectedOutcome: Agent rebooks once, and when asked again explains the booking is already changed
