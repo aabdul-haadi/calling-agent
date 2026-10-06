@@ -15,6 +15,11 @@ export const envSchema = z.object({
   LLM_MODEL: z.string().default('claude-sonnet-5-5'),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  /** Point `LLM_PROVIDER=openai` at any OpenAI-compatible server (Ollama, Groq, OpenRouter...). */
+  OPENAI_BASE_URL: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : undefined)),
 
   EMBEDDING_PROVIDER: z.enum(['local', 'openai']).default('local'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),

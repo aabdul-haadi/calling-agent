@@ -52,16 +52,21 @@ export function toOpenAiMessages(
 export function createOpenAiClient(opts: {
   apiKey: string;
   model: string;
+  /** Any OpenAI-compatible server (Ollama, Groq, OpenRouter...). Defaults to OpenAI itself. */
+  baseUrl?: string;
   fetchImpl?: typeof fetch;
 }): LlmClient {
+  const baseUrl = (opts.baseUrl ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
+  // OpenAI's newer models want max_completion_tokens; other servers only understand max_tokens.
+  const tokenField = opts.baseUrl ? 'max_tokens' : 'max_completion_tokens';
   return {
     async complete(req: LlmRequest) {
       const res = await postJson(
-        'https://api.openai.com/v1/chat/completions',
+        `${baseUrl}/chat/completions`,
         { authorization: `Bearer ${opts.apiKey}` },
         {
           model: opts.model,
-          max_completion_tokens: req.maxTokens ?? 1024,
+          [tokenField]: req.maxTokens ?? 1024,
           messages: toOpenAiMessages(req.system, req.messages),
           ...(req.tools?.length
             ? {
