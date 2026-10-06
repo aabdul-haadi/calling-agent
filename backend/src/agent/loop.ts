@@ -244,7 +244,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     const res = await deps.llm.complete({ system, messages, tools: specs });
     if (!res.ok) {
       aiUnavailable = true;
-      addTrace('llm', 'The AI model was unavailable', 'error', Date.now() - started);
+      log.error({ reason: res.message }, 'llm call failed');
+      addTrace('llm', 'The AI model was unavailable', 'error', Date.now() - started, {
+        reason: res.message,
+      });
       break;
     }
     if (res.data.toolCalls.length === 0) {
@@ -261,6 +264,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
           conversationId,
           clientId: config.id,
           state,
+          stateAtTurnStart: input.state,
           logger: log,
           api,
           idempotency: deps.idempotency,

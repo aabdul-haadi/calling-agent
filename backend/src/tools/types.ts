@@ -21,6 +21,11 @@ export interface ToolContext {
   clientId: string;
   /** Read-only snapshot taken before the call. */
   state: Readonly<ConversationState>;
+  /**
+   * State as it was BEFORE this customer message. Tools use it to require that something (like
+   * flight options) was already shown to the customer in an earlier reply, not just fetched now.
+   */
+  stateAtTurnStart: Readonly<ConversationState>;
   logger: Logger;
   /** Already bound to this client's API base URL, auth and demo-simulator headers. */
   api: ApiClient;

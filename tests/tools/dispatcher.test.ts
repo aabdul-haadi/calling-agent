@@ -45,6 +45,7 @@ function ctx(state: Partial<ConversationState> = {}): ToolContext {
     conversationId: 'c1',
     clientId: 'x',
     state: { ...newState(skylinkModule.config), ...state },
+    stateAtTurnStart: { ...newState(skylinkModule.config), ...state },
     logger: createLogger('silent'),
     api: { request: vi.fn() },
     idempotency: createMemoryIdempotencyStore(),

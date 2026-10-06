@@ -54,6 +54,8 @@ export function createOpenAiClient(opts: {
   model: string;
   /** Any OpenAI-compatible server (Ollama, Groq, OpenRouter...). Defaults to OpenAI itself. */
   baseUrl?: string;
+  /** Sent as `reasoning_effort` (supported by reasoning models such as gpt-oss). */
+  reasoningEffort?: 'low' | 'medium' | 'high';
   fetchImpl?: typeof fetch;
 }): LlmClient {
   const baseUrl = (opts.baseUrl ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
@@ -67,6 +69,7 @@ export function createOpenAiClient(opts: {
         {
           model: opts.model,
           [tokenField]: req.maxTokens ?? 1024,
+          ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
           messages: toOpenAiMessages(req.system, req.messages),
           ...(req.tools?.length
             ? {

@@ -167,38 +167,71 @@ describe('agent engine: code-enforced safety', () => {
   });
 
   it('only one flight change per conversation (rule in code)', async () => {
-    const id = { v: '' };
+    const pick = (req: { system: string }) => /"flightId":"([^"]+)"/.exec(req.system)?.[1] ?? '';
     h.llm.script(
       callTool('verify_customer', { bookingRef: 'SK1004', lastName: 'Tanaka' }),
       callTool('search_alternatives', { bookingRef: 'SK1004' }),
-      (req) => {
-        id.v = /"flightId":"([^"]+)"/.exec(req.system)?.[1] ?? '';
-        return {
-          toolCalls: [
-            {
-              id: '',
-              name: 'change_flight',
-              input: { bookingRef: 'SK1004', newFlightId: id.v, customerConfirmed: true },
-            },
-          ],
-        };
-      },
-      callTool('change_flight', {
-        bookingRef: 'SK1004',
-        newFlightId: 'whatever-1',
-        customerConfirmed: true,
+      say('Here are your options. Which one would you like?'),
+      (req) => ({
+        toolCalls: [
+          {
+            id: '',
+            name: 'change_flight',
+            input: { bookingRef: 'SK1004', newFlightId: pick(req), customerConfirmed: true },
+          },
+        ],
+      }),
+      (req) => ({
+        toolCalls: [
+          {
+            id: '',
+            name: 'change_flight',
+            input: { bookingRef: 'SK1004', newFlightId: pick(req), customerConfirmed: true },
+          },
+        ],
       }),
       say('done'),
     );
+    const first = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'Tanaka SK1004, I need another flight',
+    });
     const res = await h.chat.chat({
       clientId: 'skylink-air',
-      message: 'Tanaka SK1004 rebook me to the first option',
+      conversationId: first.conversationId,
+      message: 'The first option please',
     });
-    // First two loop turns only expose the flight id after search; the 3rd call changes; the 4th is blocked.
     const view = await h.chat.view(res.conversationId);
     const tools = view.trace.filter((t) => t.type === 'tool');
     expect(tools.map((t) => t.status)).toEqual(['ok', 'ok', 'ok', 'warn']);
     expect(tools[3]!.label).toContain('Only one flight change');
+  });
+
+  it('cannot search and book in the same turn: options must be shown to the customer first', async () => {
+    const pick = (req: { system: string }) => /"flightId":"([^"]+)"/.exec(req.system)?.[1] ?? '';
+    h.llm.script(
+      callTool('verify_customer', { bookingRef: 'SK1002', lastName: 'Okafor' }),
+      callTool('search_alternatives', { bookingRef: 'SK1002' }),
+      (req) => ({
+        toolCalls: [
+          {
+            id: '',
+            name: 'change_flight',
+            input: { bookingRef: 'SK1002', newFlightId: pick(req), customerConfirmed: true },
+          },
+        ],
+      }),
+      say('Here are the options, which would you like?'),
+    );
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'Okafor SK1002 book me the first option',
+    });
+    const view = await h.chat.view(res.conversationId);
+    const tools = view.trace.filter((t) => t.type === 'tool');
+    expect(tools.map((t) => t.status)).toEqual(['ok', 'ok', 'warn']);
+    expect(tools[2]!.label).toContain('not been shown these options yet');
+    expect(res.state.collected.rebooked).toBeUndefined();
   });
 });
 

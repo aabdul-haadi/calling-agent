@@ -15,6 +15,11 @@ export const envSchema = z.object({
   LLM_MODEL: z.string().default('claude-sonnet-5-5'),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  /** For reasoning models (e.g. gpt-oss on Groq): "low" spends far fewer tokens per reply. */
+  LLM_REASONING_EFFORT: z
+    .enum(['low', 'medium', 'high'])
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   /** Point `LLM_PROVIDER=openai` at any OpenAI-compatible server (Ollama, Groq, OpenRouter...). */
   OPENAI_BASE_URL: z
     .string()

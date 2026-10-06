@@ -18,6 +18,7 @@ export function createLlm(env: Env): LlmClient {
       apiKey: isConfigured(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : 'not-needed',
       model: env.LLM_MODEL,
       baseUrl: env.OPENAI_BASE_URL,
+      reasoningEffort: env.LLM_REASONING_EFFORT,
     });
   }
   const key = env.LLM_PROVIDER === 'anthropic' ? env.ANTHROPIC_API_KEY : env.OPENAI_API_KEY;
@@ -29,5 +30,9 @@ export function createLlm(env: Env): LlmClient {
   }
   return env.LLM_PROVIDER === 'anthropic'
     ? createAnthropicClient({ apiKey: key, model: env.LLM_MODEL })
-    : createOpenAiClient({ apiKey: key, model: env.LLM_MODEL });
+    : createOpenAiClient({
+        apiKey: key,
+        model: env.LLM_MODEL,
+        reasoningEffort: env.LLM_REASONING_EFFORT,
+      });
 }

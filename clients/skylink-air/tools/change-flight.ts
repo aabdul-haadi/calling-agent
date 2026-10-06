@@ -29,6 +29,15 @@ export const changeFlight = defineTool({
         'That flight was not one of the options offered. Search alternatives first.',
       );
     }
+    // The options must have been shown in an EARLIER reply. Searching and booking inside one turn
+    // would let the model pick a flight the customer never saw.
+    const shownBefore = offered.safeParse(ctx.stateAtTurnStart.collected.alternatives);
+    if (!shownBefore.success || !shownBefore.data.some((f) => f.flightId === newFlightId)) {
+      return fail(
+        'RULE_BLOCKED',
+        'The customer has not been shown these options yet. List the alternative flights in your reply, then wait for them to choose one.',
+      );
+    }
     const booking = await fetchOwnedBooking(ref, ctx);
     if (!booking.ok) return booking;
     const cancelled = booking.data.flight.status === 'CANCELLED';
