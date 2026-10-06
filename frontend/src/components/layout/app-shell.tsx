@@ -1,4 +1,4 @@
-import { Bot, Inbox, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { Bot, Info, Inbox, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -8,6 +8,7 @@ const links = [
   { to: '/', label: 'Agents', icon: Bot, end: true },
   { to: '/inbox', label: 'Handoff inbox', icon: Inbox },
   { to: '/tests', label: 'Tests', icon: ShieldCheck },
+  { to: '/about', label: 'About', icon: Info },
 ];
 
 export function AppShell() {

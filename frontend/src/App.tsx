@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/components/layout/app-shell';
+import { AboutPage } from '@/pages/about';
 import { AgentConsolePage } from '@/pages/agent-console';
 import { ClientConfigPage } from '@/pages/client-config';
 import { HandoffInboxPage } from '@/pages/handoff-inbox';
@@ -13,6 +14,7 @@ export const AppRoutes = () => (
       <Route path="agent/:clientId" element={<AgentConsolePage />} />
       <Route path="clients/:clientId" element={<ClientConfigPage />} />
       <Route path="inbox" element={<HandoffInboxPage />} />
+      <Route path="about" element={<AboutPage />} />
       <Route path="tests" element={<TestDashboardPage />} />
       <Route
         path="*"
