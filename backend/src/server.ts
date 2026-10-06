@@ -1,7 +1,7 @@
 import './config/load-dotenv';
 import { loadEnv } from './config';
 import { createLogger } from './logger';
-import { createPostgresDb, runMigrations } from './database';
+import { connectDb, runMigrations } from './database';
 import { createApp } from './app';
 import { createServices } from './container';
 import { clientDir } from './clients';
@@ -10,11 +10,11 @@ import { resolve } from 'node:path';
 
 const env = loadEnv();
 const logger = createLogger(env.LOG_LEVEL);
-const handle = await createPostgresDb(env.DATABASE_URL);
+const handle = await connectDb(env.DATABASE_URL, env.DATABASE_SSL);
 const services = createServices(env, handle.db, logger);
 
 try {
-  await runMigrations(handle, 'postgres');
+  await runMigrations(handle);
   // Keep the policy index in sync with the files on disk (cheap: a few dozen chunks).
   const embeddings = createEmbeddingProvider(env);
   for (const m of services.registry.list()) {

@@ -5,6 +5,11 @@ export const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.string().default('postgres://adk:adk@localhost:5432/adk'),
+  /** Set to "true" for hosted Postgres such as Supabase. */
+  DATABASE_SSL: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 
   LLM_PROVIDER: z.enum(['anthropic', 'openai']).default('anthropic'),
   LLM_MODEL: z.string().default('claude-sonnet-5-5'),

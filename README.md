@@ -39,24 +39,34 @@ flowchart LR
 
 ## Setup in 5 commands
 
-Requires Node 20+, pnpm 9, and Docker (for Postgres + pgvector).
+Requires Node 20+ and pnpm 9. Docker is **optional** (see "Choosing a database" below).
 
 ```bash
 pnpm install
 cp .env.example .env            # then set ANTHROPIC_API_KEY (or OPENAI_API_KEY + LLM_PROVIDER=openai)
-docker compose up -d            # Postgres 16 + pgvector
-pnpm db:migrate                 # creates the tables
+docker compose up -d            # Postgres 16 + pgvector (skip if you use a local or hosted database)
+pnpm db:migrate                 # creates the tables (the backend also migrates on start)
 pnpm dev                        # frontend :5173, backend :4000, mock systems :4100
 ```
 
+### Choosing a database
+
+Set `DATABASE_URL` in `.env`:
+
+| Option                 | `DATABASE_URL`                              | Notes                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker Postgres        | `postgres://adk:adk@localhost:5432/adk`     | Default in `.env.example`. Run `docker compose up -d`.                                                                                                                                                                                 |
+| Local, zero install    | `pglite:.pglite/data`                       | Postgres + pgvector running inside Node, saved to a folder. No Docker. **One process at a time**: stop `pnpm dev` before running `pnpm eval` (a lock file refuses a second process).                                                   |
+| Hosted (e.g. Supabase) | `postgresql://...` plus `DATABASE_SSL=true` | Use the **Postgres connection string** (not the REST/API keys). On networks without IPv6 use the **session pooler** host. Percent-encode special characters in the password (`#` → `%23`, `$` → `%24`). Enable the `vector` extension. |
+
 Open <http://localhost:5173>. Try booking **SK1001**, last name **Rahman** (flight cancelled, alternatives available). NovaTel: account **NT2002**, last name **Alvarez** (bill is higher because of roaming). More fake customers are in `mock-services/src/seed-data/`.
 
-The backend still starts without Docker and reports `/health` as `degraded` instead of crashing.
+If the configured database is unreachable, the backend still starts and reports `/health` as `degraded` instead of crashing.
 
 ## Running tests
 
 ```bash
-pnpm test        # 113 backend/integration tests + 50 frontend tests (incl. axe accessibility + WCAG contrast)
+pnpm test        # 116 backend/integration tests + 50 frontend tests (incl. axe accessibility + WCAG contrast)
 pnpm typecheck
 pnpm lint
 pnpm eval skylink-air     # scenario suite against the REAL LLM (needs an API key and `pnpm dev` mock services running)

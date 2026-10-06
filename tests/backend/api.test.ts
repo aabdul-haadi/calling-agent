@@ -34,14 +34,12 @@ describe('HTTP API', () => {
     expect(
       (await request(h.app).post('/chat').send({ clientId: 'nope', message: 'hi' })).status,
     ).toBe(404);
-    const res = await request(h.app)
-      .post('/chat')
-      .send({
-        clientId: 'skylink-air',
-        message: 'hi',
-        channel: 'voice',
-        conversationId: '00000000-0000-0000-0000-000000000000',
-      });
+    const res = await request(h.app).post('/chat').send({
+      clientId: 'skylink-air',
+      message: 'hi',
+      channel: 'voice',
+      conversationId: '00000000-0000-0000-0000-000000000000',
+    });
     expect(res.status).toBe(404); // unknown conversation
   });
 

@@ -1,14 +1,14 @@
 import '../config/load-dotenv';
 import { resolve } from 'node:path';
 import { loadEnv } from '../config';
-import { createPostgresDb, runMigrations } from '../database';
+import { connectDb, runMigrations } from '../database';
 import { clientDir, loadClients } from '../clients';
 import { createEmbeddingProvider } from './embeddings';
 import { ingestClient } from './ingest';
 
 const env = loadEnv();
-const handle = await createPostgresDb(env.DATABASE_URL);
-await runMigrations(handle, 'postgres');
+const handle = await connectDb(env.DATABASE_URL, env.DATABASE_SSL);
+await runMigrations(handle);
 const embeddings = createEmbeddingProvider(env);
 const wanted = process.argv[2];
 

@@ -1,7 +1,7 @@
 import '../config/load-dotenv';
 import { loadEnv } from '../config';
 import { createServices } from '../container';
-import { createPostgresDb, runMigrations } from '../database';
+import { connectDb, runMigrations } from '../database';
 import { ingestClient, createEmbeddingProvider } from '../knowledge';
 import { clientDir } from '../clients';
 import { createLogger } from '../logger';
@@ -16,8 +16,8 @@ if (!clientId) {
 
 const env = loadEnv();
 const logger = createLogger('warn');
-const handle = await createPostgresDb(env.DATABASE_URL);
-await runMigrations(handle, 'postgres');
+const handle = await connectDb(env.DATABASE_URL, env.DATABASE_SSL);
+await runMigrations(handle);
 const services = createServices(env, handle.db, logger);
 
 const module = services.registry.get(clientId);
