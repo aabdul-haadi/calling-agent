@@ -66,7 +66,7 @@ If the configured database is unreachable, the backend still starts and reports 
 ## Running tests
 
 ```bash
-pnpm test        # 128 backend/integration tests + 50 frontend tests (incl. axe accessibility + WCAG contrast)
+pnpm test        # 145 backend/integration tests + 50 frontend tests (incl. axe accessibility + WCAG contrast)
 pnpm typecheck
 pnpm lint
 pnpm eval skylink-air     # scenario suite against the REAL LLM (needs an API key and `pnpm dev` mock services running)

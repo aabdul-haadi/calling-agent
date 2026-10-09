@@ -6,6 +6,6 @@ turns:
     Business fare include?
 expectedTools:
   - verify_customer
-expectedOutcome: "Agent addresses both: starts on the cancelled flight (verifies the passenger and
+expectedOutcome: 'Agent addresses both: starts on the cancelled flight (verifies the passenger and
   looks at the booking) and states the Business fare checked baggage allowance from policy (3 bags,
-  up to 32 kg) with a source."
+  up to 32 kg) with a source.'

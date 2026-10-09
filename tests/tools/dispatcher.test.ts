@@ -49,6 +49,7 @@ function ctx(state: Partial<ConversationState> = {}): ToolContext {
     logger: createLogger('silent'),
     api: { request: vi.fn() },
     idempotency: createMemoryIdempotencyStore(),
+    audit: vi.fn(),
   };
 }
 

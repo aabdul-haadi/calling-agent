@@ -147,7 +147,7 @@ Plain-English notes, one section per phase.
 1. _Deterministic checks first, judge second._ Tool order and rule violations never flake; the judge only covers tone and accuracy.
 2. _"Forbidden" means "must not succeed"._ The model may try a blocked tool; what matters is that the rule stopped it.
 3. _The mock world is reset before each run and test handoffs stay out of the real inbox._
-**Scores.** Measured against a real model (Groq free tier, `openai/gpt-oss-120b`, reasoning effort low) with the LLM judge on the same model:
+   **Scores.** Measured against a real model (Groq free tier, `openai/gpt-oss-120b`, reasoning effort low) with the LLM judge on the same model:
 
 - First run: **12/20**. Causes: five scenarios had wrong test data (wrong persona or a missing confirmation turn), the classifier called neutral customers "frustrated" (false handoffs), the agent booked a flight in the same turn it first listed options, and policy questions were answered with "give me your booking number".
 - After fixes: **17/20** (best run), then **16/20** on an identical re-run. The 3-4 remaining failures move around between runs: a vague policy answer ("a few business days" instead of the "7 business days" in the excerpt) and judge strictness on small wording issues. Afterwards the prompt was changed to quote exact numbers and retrieval now returns 5 excerpts instead of 3.

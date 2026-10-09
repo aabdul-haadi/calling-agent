@@ -14,6 +14,7 @@ const base = {
   sentiment: 'neutral' as const,
   wantsHuman: false,
   isPolicyQuestion: false,
+  confirmation: 'none' as const,
 };
 
 describe('handoff triggers (pure)', () => {

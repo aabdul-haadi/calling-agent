@@ -23,6 +23,7 @@ interface Classification {
   sentiment: string;
   wantsHuman: boolean;
   isPolicyQuestion: boolean;
+  confirmation: 'yes' | 'no' | 'none';
 }
 
 /**
@@ -48,6 +49,12 @@ export function createScriptedLlm(
           sentiment: 'neutral',
           wantsHuman: false,
           isPolicyQuestion: false,
+          // Stand-in for the real classifier reading a clear yes / no in the customer's message.
+          confirmation: /^\s*(yes|yeah|yep|confirm)\b/i.test(msg)
+            ? 'yes'
+            : /^\s*(no|nope|cancel)\b/i.test(msg)
+              ? 'no'
+              : 'none',
           ...classify(msg),
         };
         return ok({ text: JSON.stringify(c), toolCalls: [] });

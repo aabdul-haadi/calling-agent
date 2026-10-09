@@ -38,8 +38,9 @@ export async function runScenario(
       );
       replies.push(res.reply);
       for (const ev of res.trace) {
-        const detail = ev.detail as { tool?: string } | undefined;
-        if (ev.type === 'tool' && detail?.tool)
+        const detail = ev.detail as { tool?: string; awaitingApproval?: boolean } | undefined;
+        // A proposal is not a change: it only counts once the customer approved and the tool ran.
+        if (ev.type === 'tool' && detail?.tool && !detail.awaitingApproval)
           tools.push({ tool: detail.tool, ok: ev.status === 'ok' });
       }
       if (res.handoff) handedOff = true;

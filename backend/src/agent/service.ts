@@ -8,7 +8,12 @@ import type {
 } from '@adk/shared';
 import type { ClientRegistry } from '../clients';
 import type { Env } from '../config';
-import { conversationsRepo as repo, createDbIdempotencyStore, type Db } from '../database';
+import {
+  auditRepo,
+  conversationsRepo as repo,
+  createDbIdempotencyStore,
+  type Db,
+} from '../database';
 import type { HandoffService } from '../handoff';
 import type { Retriever } from '../knowledge/types';
 import type { LlmClient } from '../llm';
@@ -149,6 +154,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     await repo.addMessage(db, id, 'assistant', out.reply);
     await repo.addToolCalls(db, id, out.toolCalls);
     await repo.addTraceEvents(db, id, out.trace);
+    await auditRepo.addAuditEvents(db, id, req.clientId, out.audit);
     await repo.saveConversation(db, id, out.state);
 
     return {

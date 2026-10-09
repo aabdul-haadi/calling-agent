@@ -8,6 +8,7 @@ import type { Logger } from './logger';
 import { errorHandler, notFound, rateLimit, requestId } from './middleware';
 import { chatRouter } from './routes/chat';
 import { clientsRouter } from './routes/clients';
+import { auditRouter } from './routes/audit';
 import { handoffsRouter } from './routes/handoffs';
 import { healthRouter } from './routes/health';
 import { testsRouter, type EvalService } from './routes/tests';
@@ -33,6 +34,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(clientsRouter(deps.registry));
   app.use(chatRouter(deps.chat));
   app.use(handoffsRouter(deps.db));
+  app.use(auditRouter(deps.db));
   app.use(testsRouter(deps.evals));
 
   app.use(notFound);

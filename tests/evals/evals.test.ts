@@ -141,10 +141,23 @@ describe('scenario runner', () => {
   const rebook: Scenario = {
     ...base,
     id: 'mini-rebook',
-    turns: ['Rahman SK1001 my flight was cancelled', 'yes the first one'],
+    turns: ['Rahman SK1001 my flight was cancelled', 'the first one', 'yes please'],
     expectedTools: ['verify_customer', 'get_booking', 'search_alternatives', 'change_flight'],
     maxToolSuccesses: { change_flight: 1 },
   };
+
+  const changeCall = (req: { system: string }) => ({
+    toolCalls: [
+      {
+        id: '',
+        name: 'change_flight',
+        input: {
+          bookingRef: 'SK1001',
+          newFlightId: /"flightId":"([^"]+)"/.exec(req.system)?.[1],
+        },
+      },
+    ],
+  });
 
   const script = () =>
     h.llm.script(
@@ -152,19 +165,9 @@ describe('scenario runner', () => {
       callTool('get_booking', { bookingRef: 'SK1001' }),
       callTool('search_alternatives', { bookingRef: 'SK1001' }),
       say('Here are your options.'),
-      (req) => ({
-        toolCalls: [
-          {
-            id: '',
-            name: 'change_flight',
-            input: {
-              bookingRef: 'SK1001',
-              newFlightId: /"flightId":"([^"]+)"/.exec(req.system)?.[1],
-              customerConfirmed: true,
-            },
-          },
-        ],
-      }),
+      changeCall,
+      say('Shall I rebook you? Reply yes to confirm.'),
+      changeCall,
       say('You are rebooked.'),
     );
 
@@ -183,7 +186,7 @@ describe('scenario runner', () => {
       'search_alternatives',
       'change_flight',
     ]);
-    expect(r.transcript).toHaveLength(4);
+    expect(r.transcript).toHaveLength(6);
   });
 
   it('fails with the judge reason written down when the judge disagrees', async () => {

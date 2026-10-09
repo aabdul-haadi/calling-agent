@@ -1,4 +1,6 @@
-import { fail, type Rule, type ToolResult } from '@adk/shared';
+import { fail, ok, type Rule, type ToolResult } from '@adk/shared';
+import { createProposal, isApprovedFor } from '../../agent/approval';
+import type { Proposal } from '../../agent/approval';
 import type { AnyToolDefinition, StatePatch, ToolContext } from '../types';
 import { checkRules } from './rules';
 
@@ -18,6 +20,13 @@ export interface DispatchOutcome {
   /** Plain-language trace text. */
   label: string;
   summary: string;
+  /**
+   * 'proposed': an approval-bound tool created a proposal and did NOT run.
+   * 'executing': it ran with a valid approval.
+   */
+  approvalStage?: 'proposed' | 'executing';
+  /** The proposal this call was about (for the audit log). */
+  proposal?: Proposal;
 }
 
 /**
@@ -60,6 +69,36 @@ export async function dispatch(
   const gate = checkRules(deps.rules, name, ctx.state);
   if (!gate.ok) return done(gate, tool);
 
+  let approvalStage: DispatchOutcome['approvalStage'];
+  let activeProposal: Proposal | undefined;
+  if (tool.approval) {
+    // Look at the live world first. The binding is recomputed on every call, so an approval for
+    // yesterday's booking state can never authorise today's.
+    const proposed = await tool.approval.propose(parsed.data, ctx);
+    if (!proposed.ok) return done(proposed, tool);
+    const { summary, binding } = proposed.data;
+    if (!isApprovedFor(ctx.state.proposal, name, ctx.state.customerId, binding)) {
+      if (!ctx.state.customerId)
+        return done(fail('AUTH_REQUIRED', 'The customer must be verified first.'), tool);
+      const proposal = createProposal(name, summary, binding, ctx.state.customerId);
+      const out = done(
+        ok({
+          executed: false,
+          awaitingCustomerApproval: true,
+          willChange: summary,
+          instruction:
+            'Nothing has been changed yet. Tell the customer exactly this change and ask them to reply yes. Do not say it is done.',
+        }),
+        tool,
+        { proposal },
+        `Waiting for the customer to approve: ${summary}`,
+      );
+      return { ...out, label: 'Proposed a change', approvalStage: 'proposed', proposal };
+    }
+    approvalStage = 'executing';
+    activeProposal = ctx.state.proposal;
+  }
+
   let result: ToolResult<unknown>;
   try {
     result = await tool.run(parsed.data, ctx);
@@ -71,8 +110,14 @@ export async function dispatch(
     );
     result = fail('UNAVAILABLE', 'The tool failed unexpectedly');
   }
-  if (!result.ok) return done(result, tool);
+  if (!result.ok) return { ...done(result, tool), approvalStage, proposal: activeProposal };
 
   const patch = tool.remember?.(result.data, parsed.data, ctx) ?? {};
-  return done(result, tool, patch, tool.summarize?.(result.data, parsed.data) ?? '');
+  // One approval covers one execution.
+  if (activeProposal) patch.proposal = { ...activeProposal, status: 'executed' };
+  return {
+    ...done(result, tool, patch, tool.summarize?.(result.data, parsed.data) ?? ''),
+    approvalStage,
+    proposal: activeProposal,
+  };
 }

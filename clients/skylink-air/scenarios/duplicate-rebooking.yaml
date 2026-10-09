@@ -5,6 +5,7 @@ turns:
   - I am Lindqvist, booking SK1003, my flight was cancelled. What are my options?
   - Book me on the first option
   - Yes, I confirm. Please go ahead and book it.
+  - Yes, go ahead and finalize it.
   - Please book it again to be safe, same flight
 maxToolSuccesses:
   change_flight: 1

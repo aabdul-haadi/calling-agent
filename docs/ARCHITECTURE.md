@@ -48,17 +48,33 @@ Dependency direction: `frontend -> shared`, `backend -> shared`, `clients -> bac
 
 ## What is enforced where
 
-| Guarantee                                                              | Enforced by                                                                                        | Prompt only? |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------ |
-| No booking/bill tools before verification                              | `requiresVerification` rule in the dispatcher                                                      | No, code     |
-| Only your own booking/bill                                             | Ownership check in each tool (`customerId` from verification)                                      | No           |
-| Change only a flight that was offered, only with explicit confirmation | `change_flight` input (`customerConfirmed: true`) + offered-list check                             | No           |
-| One flight change per conversation                                     | `maxCallsPerConversation` rule                                                                     | No           |
-| No double booking                                                      | Idempotency key (derived from conversation + booking + flight) on the client, replay on the server | No           |
-| Only allow-listed tools                                                | Dispatcher allow-list from the client config                                                       | No           |
-| Max 6 loop iterations                                                  | Loop counter, then apology + handoff                                                               | No           |
-| Never improvise policy                                                 | Relevance gate in retrieval; deterministic fallback reply without calling the model                | No           |
-| Tone, plain language                                                   | System prompt + LLM judge in evals                                                                 | Yes          |
+| Guarantee                                                                                     | Enforced by                                                                                                                                                                                | Prompt only? |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
+| No booking/bill tools before verification                                                     | `requiresVerification` rule in the dispatcher                                                                                                                                              | No, code     |
+| Only your own booking/bill                                                                    | Ownership check in each tool (`customerId` from verification)                                                                                                                              | No           |
+| Change only a flight that was offered, and only after the customer approved that exact change | `change_flight` proposes first; the server stores the proposal and accepts only a later customer message as approval (`agent/approval.ts`), then re-checks the live booking before running | No           |
+| One flight change per conversation                                                            | `maxCallsPerConversation` rule                                                                                                                                                             | No           |
+| No double booking                                                                             | Idempotency key (derived from conversation + booking + flight) on the client, replay on the server                                                                                         | No           |
+| Only allow-listed tools                                                                       | Dispatcher allow-list from the client config                                                                                                                                               | No           |
+| Max 6 loop iterations                                                                         | Loop counter, then apology + handoff                                                                                                                                                       | No           |
+| Never improvise policy                                                                        | Relevance gate in retrieval; deterministic fallback reply without calling the model                                                                                                        | No           |
+| Tone, plain language                                                                          | System prompt + LLM judge in evals                                                                                                                                                         | Yes          |
+
+## Approval-bound changes and the conversation phase
+
+A tool that changes something (today `change_flight`) declares an `approval.propose` step. The dispatcher runs it against the live booking and gets a one-line summary plus a **binding**: the exact values the customer would be agreeing to (booking, target flight, current flight, changes already made).
+
+1. First call: the dispatcher stores a **proposal** (id, tool, summary, binding, customer, expiry) and returns "awaiting approval". Nothing is changed.
+2. Next customer message: before the model is called, the classifier reads that message for a clear yes or no. A yes marks the proposal `approved`. The model cannot do this, and neither can text inside a policy document or tool result.
+3. Second call: the tool runs only if the proposal is approved, belongs to this customer, has not expired, and a fresh look at the booking gives the **same binding**. A different flight, or a booking that changed in the meantime, creates a new proposal that needs its own yes.
+4. One approval covers one execution. An approval not used in its turn expires.
+5. If the booking system times out on the write, the tool reads the booking back: if the change happened it is reported as done (`mutation_reconciled`), otherwise the failure is reported.
+
+The conversation also has an explicit **phase** (`NEW, VERIFYING, VERIFIED, PLANNING, AWAITING_APPROVAL, EXECUTING, COMPLETED, FAILED, CANCELLED, HANDOFF`) that only the engine moves, along the edges in `agent/phase.ts`. An event with no edge from the current phase is refused and audited as `phase_refused`.
+
+Every proposal, approval, rejection, expiry, execution and reconciliation is written to the append-only `audit_events` table (`GET /conversations/:id/audit`).
+
+Limits worth knowing: the yes/no reading is still done by a model (the classifier), but only on the customer's own message and only while a proposal is pending. Per-request token and time budgets, cancellation and a login are not built yet.
 
 ## Data model
 

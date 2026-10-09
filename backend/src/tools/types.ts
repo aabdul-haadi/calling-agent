@@ -1,5 +1,7 @@
 import type { ZodType } from 'zod';
 import type { ToolResult } from '@adk/shared';
+import type { AuditType } from '../agent/audit';
+import type { Binding, Proposal } from '../agent/approval';
 import type { ConversationState } from '../agent/state';
 import type { Logger } from '../logger';
 import type { ApiClient } from './http';
@@ -14,6 +16,8 @@ export interface StatePatch {
   /** Journey step reached (the bar never moves backwards). */
   step?: string;
   pendingHandoff?: { reason: string };
+  /** Set by the dispatcher for approval-bound tools; tools themselves never touch it. */
+  proposal?: Proposal;
 }
 
 export interface ToolContext {
@@ -30,6 +34,21 @@ export interface ToolContext {
   /** Already bound to this client's API base URL, auth and demo-simulator headers. */
   api: ApiClient;
   idempotency: IdempotencyStore;
+  /** Write a decision to the audit log (for example that a timed-out change was reconciled). */
+  audit: (type: AuditType, data?: Record<string, unknown>) => void;
+}
+
+/**
+ * Marks a tool as a change that needs the customer's approval of the EXACT change. `propose` looks at
+ * the live world and returns what would change plus a binding of the values that matter. The
+ * dispatcher stores it as a proposal, and only runs the tool once a later customer message approved
+ * a proposal with an identical binding.
+ */
+export interface ApprovalSpec<I> {
+  propose: (
+    input: I,
+    ctx: ToolContext,
+  ) => Promise<ToolResult<{ summary: string; binding: Binding }>>;
 }
 
 export interface ToolDefinition<I = unknown, O = unknown> {
@@ -42,6 +61,8 @@ export interface ToolDefinition<I = unknown, O = unknown> {
   /** Plain-language summary of a successful result for the trace, e.g. "Found 3 alternative flights". */
   // NoInfer: O and I must be inferred from `input` and `run`, not from these callbacks.
   summarize?: (data: NoInfer<O>, input: NoInfer<I>) => string;
+  /** Present on tools that change something. */
+  approval?: ApprovalSpec<I>;
   run: (input: I, ctx: ToolContext) => Promise<ToolResult<O>>;
   remember?: (data: NoInfer<O>, input: NoInfer<I>, ctx: ToolContext) => StatePatch;
 }
@@ -59,6 +80,7 @@ export function defineTool<I, O>(def: ToolDefinition<I, O>): AnyToolDefinition {
     description: def.description,
     label: def.label,
     input: def.input as ZodType<unknown>,
+    approval: def.approval && { propose: (input, ctx) => def.approval!.propose(input as I, ctx) },
     run: (input, ctx) => def.run(input as I, ctx),
     summarize: def.summarize && ((data, input) => def.summarize!(data as O, input as I)),
     remember: def.remember && ((data, input, ctx) => def.remember!(data as O, input as I, ctx)),

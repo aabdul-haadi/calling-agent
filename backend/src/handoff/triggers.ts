@@ -16,6 +16,8 @@ export interface TurnClassification {
   sentiment: Sentiment;
   wantsHuman: boolean;
   isPolicyQuestion: boolean;
+  /** Does the message agree (yes) or refuse (no) the change awaiting approval? */
+  confirmation: 'yes' | 'no' | 'none';
 }
 
 /** Plain-language reason shown to the human agent and in the UI. */

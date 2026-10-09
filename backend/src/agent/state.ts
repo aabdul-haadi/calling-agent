@@ -1,7 +1,13 @@
 import { z } from 'zod';
+import { PHASES, type Phase } from './phase';
+import { proposalSchema } from './approval';
 import { SENTIMENTS, type ConversationStateView, type ParsedClientConfig } from '@adk/shared';
 
 export const conversationStateSchema = z.object({
+  /** Where the conversation is in its life cycle. Moved only by the engine (see phase.ts). */
+  phase: z.enum(PHASES).default('NEW'),
+  /** The change waiting for (or just given) the customer's approval. Never set by the model. */
+  proposal: proposalSchema.optional(),
   verified: z.boolean(),
   /** Id of the verified customer; tools compare it to the record they fetch (ownership check). */
   customerId: z.string().optional(),
@@ -25,6 +31,7 @@ export type ConversationState = z.infer<typeof conversationStateSchema>;
 export function newState(config: ParsedClientConfig): ConversationState {
   const journey = config.journeys[0]!;
   return {
+    phase: 'NEW' as Phase,
     verified: false,
     journeyId: journey.id,
     journeyStep: journey.steps[0]!.id,
@@ -39,6 +46,7 @@ export function newState(config: ParsedClientConfig): ConversationState {
 }
 
 export const toStateView = (s: ConversationState): ConversationStateView => ({
+  phase: s.phase,
   verified: s.verified,
   journeyId: s.journeyId,
   journeyStep: s.journeyStep,

@@ -8,6 +8,13 @@
       "when": 1791235968796,
       "tag": "0000_public_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791575120367,
+      "tag": "0001_lovely_diamondback",
+      "breakpoints": true
     }
   ]
 }

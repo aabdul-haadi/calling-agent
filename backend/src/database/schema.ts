@@ -75,6 +75,20 @@ export const traceEvents = pgTable(
   (t) => [index('trace_events_conversation_idx').on(t.conversationId)],
 );
 
+/** Append-only record of decisions that mattered (proposals, approvals, changes). Never updated. */
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id').notNull(),
+    clientId: text('client_id').notNull(),
+    type: text('type').notNull(),
+    data: jsonb('data').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('audit_events_conversation_idx').on(t.conversationId)],
+);
+
 export const handoffs = pgTable('handoffs', {
   id: uuid('id').primaryKey().defaultRandom(),
   conversationId: uuid('conversation_id').notNull(),

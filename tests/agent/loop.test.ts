@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { conversationsRepo, handoffsRepo } from '@backend/database';
+import { auditRepo, conversationsRepo, handoffsRepo } from '@backend/database';
 import { MAX_LOOP_ITERATIONS } from '@backend/agent';
-import { createHarness, say, callTool, type Harness } from '../helpers/harness';
+import { createHarness, say, callTool, type Harness, type ScriptStep } from '../helpers/harness';
 
 let h: Harness;
 beforeAll(async () => {
@@ -11,6 +11,18 @@ afterAll(() => h.close());
 beforeEach(() => {
   h.llm.reset();
 });
+
+/** The model asks for the first offered flight, reading its id from the facts in the prompt. */
+const change = (bookingRef = 'SK1001') =>
+  ((req: { system: string }) => ({
+    toolCalls: [
+      {
+        id: '',
+        name: 'change_flight',
+        input: { bookingRef, newFlightId: /"flightId":"([^"]+)"/.exec(req.system)?.[1] },
+      },
+    ],
+  })) as ScriptStep;
 
 const toolEvents = (trace: { type: string; status: string; detail?: unknown }[]) =>
   trace
@@ -25,19 +37,9 @@ describe('agent engine: full rebooking', () => {
       callTool('get_booking', { bookingRef: 'SK1001' }),
       callTool('search_alternatives', { bookingRef: 'SK1001' }),
       say('Your flight was cancelled. I found options. Which one would you like?'),
-      (req) => {
-        // The model reads the offered flight ids from the facts the engine put in the prompt.
-        const id = /"flightId":"([^"]+)"/.exec(req.system)?.[1];
-        return {
-          toolCalls: [
-            {
-              id: '',
-              name: 'change_flight',
-              input: { bookingRef: 'SK1001', newFlightId: id, customerConfirmed: true },
-            },
-          ],
-        };
-      },
+      change(),
+      say('Shall I move you to that flight? Please reply yes to confirm.'),
+      change(),
       say('All done, you are rebooked.'),
     );
 
@@ -58,19 +60,37 @@ describe('agent engine: full rebooking', () => {
     expect(t2.state.journeyStep).toBe('offer');
     expect(JSON.stringify(t2.state.collected)).toContain('FLIGHT_CANCELLED_BY_AIRLINE');
 
+    // Picking a flight only PROPOSES the change: nothing is booked yet.
     const t3 = await h.chat.chat({
       clientId: 'skylink-air',
       conversationId: t1.conversationId,
-      message: 'Yes, the first one please',
+      message: 'The first one please',
     });
     expect(toolEvents(t3.trace)).toEqual([{ tool: 'change_flight', status: 'ok' }]);
-    expect(t3.state.collected.rebooked).toBe(true);
-    expect(t3.state.journeyStep).toBe('close'); // act -> close at end of turn
-    expect(t3.reply).toContain('rebooked');
+    expect(t3.state.collected.rebooked).toBeUndefined();
+    expect(t3.state.phase).toBe('AWAITING_APPROVAL');
+
+    // The customer's later "yes" approves that exact change, and the agent then makes it.
+    const t4 = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: t1.conversationId,
+      message: 'Yes, please go ahead',
+    });
+    expect(toolEvents(t4.trace)).toEqual([{ tool: 'change_flight', status: 'ok' }]);
+    expect(t4.state.collected.rebooked).toBe(true);
+    expect(t4.state.phase).toBe('COMPLETED');
+    expect(t4.state.journeyStep).toBe('close'); // act -> close at end of turn
+    expect(t4.reply).toContain('rebooked');
+    const audit = await auditRepo.listAuditEvents(h.db.db, t1.conversationId);
+    expect(audit.map((a) => a.type)).toEqual([
+      'proposal_created',
+      'approval_granted',
+      'mutation_executed',
+    ]);
 
     // Everything is persisted: messages, tool calls and the trace.
     const view = await h.chat.view(t1.conversationId);
-    expect(view.messages).toHaveLength(6);
+    expect(view.messages).toHaveLength(8);
     expect(view.trace.some((e) => e.label === 'Customer identity verified')).toBe(true);
   });
 });
@@ -116,19 +136,10 @@ describe('agent engine: code-enforced safety', () => {
     expect(blocked?.label).toContain('does not belong');
   });
 
-  it('refuses to change a flight that was never offered, and requires explicit confirmation', async () => {
+  it('refuses to change a flight that was never offered', async () => {
     h.llm.script(
       callTool('verify_customer', { bookingRef: 'SK1003', lastName: 'Lindqvist' }),
-      callTool('change_flight', {
-        bookingRef: 'SK1003',
-        newFlightId: 'SK999-2026-11-10',
-        customerConfirmed: true,
-      }),
-      callTool('change_flight', {
-        bookingRef: 'SK1003',
-        newFlightId: 'SK999-2026-11-10',
-        customerConfirmed: false,
-      }),
+      callTool('change_flight', { bookingRef: 'SK1003', newFlightId: 'SK999-2026-11-10' }),
       say('I could not do that.'),
     );
     const res = await h.chat.chat({
@@ -138,7 +149,6 @@ describe('agent engine: code-enforced safety', () => {
     const view = await h.chat.view(res.conversationId);
     const labels = view.trace.filter((t) => t.type === 'tool').map((t) => t.label);
     expect(labels[1]).toContain('not one of the options offered');
-    expect(labels[2]).toContain('Invalid arguments');
   });
 
   it('ignores prompt-injected tool names: only allow-listed tools run', async () => {
@@ -167,60 +177,37 @@ describe('agent engine: code-enforced safety', () => {
   });
 
   it('only one flight change per conversation (rule in code)', async () => {
-    const pick = (req: { system: string }) => /"flightId":"([^"]+)"/.exec(req.system)?.[1] ?? '';
     h.llm.script(
       callTool('verify_customer', { bookingRef: 'SK1004', lastName: 'Tanaka' }),
       callTool('search_alternatives', { bookingRef: 'SK1004' }),
       say('Here are your options. Which one would you like?'),
-      (req) => ({
-        toolCalls: [
-          {
-            id: '',
-            name: 'change_flight',
-            input: { bookingRef: 'SK1004', newFlightId: pick(req), customerConfirmed: true },
-          },
-        ],
-      }),
-      (req) => ({
-        toolCalls: [
-          {
-            id: '',
-            name: 'change_flight',
-            input: { bookingRef: 'SK1004', newFlightId: pick(req), customerConfirmed: true },
-          },
-        ],
-      }),
-      say('done'),
+      change('SK1004'),
+      say('Reply yes to confirm.'),
+      change('SK1004'),
+      say('Done.'),
+      change('SK1004'),
+      say('I cannot change it twice.'),
     );
     const first = await h.chat.chat({
       clientId: 'skylink-air',
       message: 'Tanaka SK1004, I need another flight',
     });
-    const res = await h.chat.chat({
-      clientId: 'skylink-air',
-      conversationId: first.conversationId,
-      message: 'The first option please',
-    });
+    const say1 = (message: string) =>
+      h.chat.chat({ clientId: 'skylink-air', conversationId: first.conversationId, message });
+    await say1('The first option please');
+    await say1('Yes');
+    const res = await say1('Please change it again');
     const view = await h.chat.view(res.conversationId);
-    const tools = view.trace.filter((t) => t.type === 'tool');
-    expect(tools.map((t) => t.status)).toEqual(['ok', 'ok', 'ok', 'warn']);
-    expect(tools[3]!.label).toContain('Only one flight change');
+    const last = view.trace.filter((t) => t.type === 'tool').at(-1)!;
+    expect(last.status).toBe('warn');
+    expect(last.label).toContain('Only one flight change');
   });
 
-  it('cannot search and book in the same turn: options must be shown to the customer first', async () => {
-    const pick = (req: { system: string }) => /"flightId":"([^"]+)"/.exec(req.system)?.[1] ?? '';
+  it('cannot search and propose in the same turn: options must be shown to the customer first', async () => {
     h.llm.script(
       callTool('verify_customer', { bookingRef: 'SK1002', lastName: 'Okafor' }),
       callTool('search_alternatives', { bookingRef: 'SK1002' }),
-      (req) => ({
-        toolCalls: [
-          {
-            id: '',
-            name: 'change_flight',
-            input: { bookingRef: 'SK1002', newFlightId: pick(req), customerConfirmed: true },
-          },
-        ],
-      }),
+      change('SK1002'),
       say('Here are the options, which would you like?'),
     );
     const res = await h.chat.chat({

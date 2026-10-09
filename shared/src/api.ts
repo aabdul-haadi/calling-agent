@@ -20,6 +20,7 @@ export interface TraceEvent {
 }
 
 export interface ConversationStateView {
+  phase?: string;
   verified: boolean;
   journeyId: string;
   journeyStep: string;

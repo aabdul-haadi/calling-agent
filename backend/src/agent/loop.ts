@@ -18,6 +18,9 @@ import { dispatch } from '../tools/dispatcher';
 import type { ApiClient } from '../tools/http';
 import { maskPII, type IdempotencyStore } from '../tools/security';
 import type { AnyToolDefinition, StatePatch } from '../tools/types';
+import { auditEvent, type AuditEvent, type AuditType } from './audit';
+import { resolveProposal } from './approval';
+import { transition, type PhaseEvent } from './phase';
 import { classifyTurn } from './classify';
 import { buildSystemPrompt } from './prompt';
 import { stepIndex, type ConversationState } from './state';
@@ -58,6 +61,8 @@ export interface TurnOutput {
   trace: TraceEvent[];
   citations: Citation[];
   toolCalls: ToolCallRecord[];
+  /** Decisions that mattered this turn (proposals, approvals, executions), for the audit log. */
+  audit: AuditEvent[];
   handoff?: HandoffView;
 }
 
@@ -90,6 +95,7 @@ function applyPatch(
   if (patch.verified !== undefined) next.verified = patch.verified;
   if (patch.customerId !== undefined) next.customerId = patch.customerId;
   if (patch.pendingHandoff) next.pendingHandoff = patch.pendingHandoff;
+  if (patch.proposal) next.proposal = patch.proposal;
   if (patch.step) next.journeyStep = furthest(next, patch.step, module);
   return next;
 }
@@ -116,6 +122,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   const { config } = module;
   const trace: TraceEvent[] = [];
   const toolCalls: ToolCallRecord[] = [];
+  const audit: AuditEvent[] = [];
   const log = deps.logger.child({ conversationId });
   // Strictly increasing timestamps keep the trace in order even when events share a millisecond.
   let lastAt = 0;
@@ -141,6 +148,26 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   let state = stepHook(input.state, module, 'afterUserReply');
   let citations: Citation[] = [];
 
+  const record = (type: AuditType, data: Record<string, unknown> = {}) =>
+    audit.push(
+      auditEvent(type, {
+        conversationId,
+        clientId: config.id,
+        customerId: state.customerId,
+        ...data,
+      }),
+    );
+  /** Move the conversation phase along an allowed edge; an illegal move is refused and audited. */
+  const move = (event: PhaseEvent, quiet = false) => {
+    const next = transition(state.phase, event);
+    if (next) {
+      state = { ...state, phase: next };
+    } else if (!quiet) {
+      record('phase_refused', { from: state.phase, event });
+      addTrace('state', `Ignored an unexpected step (${event} while ${state.phase})`, 'warn');
+    }
+  };
+
   const finish = async (
     reply: string,
     reason: HandoffReason | null,
@@ -164,21 +191,34 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         ],
         tried,
       });
+      move('handoff', true);
       state = { ...state, handedOff: true, pendingHandoff: undefined };
       addTrace('handoff', `Handed over to a human: ${handoff.reason}`, 'warn');
       if (!finalReply.includes('human')) finalReply = `${finalReply}\n\n${HANDOFF_NOTICE}`.trim();
     }
     state = stepHook(state, module, 'afterTurn');
-    return { reply: finalReply, state, trace, citations, toolCalls, handoff };
+    return { reply: finalReply, state, trace, citations, toolCalls, audit, handoff };
   };
 
   if (state.handedOff) {
     addTrace('handoff', 'Customer is already waiting for a human', 'warn');
-    return { reply: ALREADY_HANDED_OFF, state, trace, citations, toolCalls };
+    return { reply: ALREADY_HANDED_OFF, state, trace, citations, toolCalls, audit };
   }
 
-  // 1. Understand the message (intent + mood), then check the "before we even try" handoff triggers.
-  const classification = await classifyTurn(deps.llm, config, input.history, input.userMessage);
+  // A finished conversation can start a new request; a brand-new one is now being worked on.
+  if (state.phase === 'NEW') move('message', true);
+  else move('reopened', true);
+
+  // 1. Understand the message (intent + mood + does it approve the pending change?), then check the
+  // "before we even try" handoff triggers.
+  const pendingChange = state.proposal?.status === 'pending' ? state.proposal.summary : undefined;
+  const classification = await classifyTurn(
+    deps.llm,
+    config,
+    input.history,
+    input.userMessage,
+    pendingChange,
+  );
   state = { ...state, lastIntent: classification.intent, lastSentiment: classification.sentiment };
   addTrace(
     'intent',
@@ -187,6 +227,28 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     undefined,
     classification,
   );
+
+  // Settle the pending proposal from the CUSTOMER's message only. This runs before the model is called
+  // for the turn, so nothing the model says (or a document it read) can approve anything.
+  const settled = resolveProposal(state.proposal, classification.confirmation);
+  if (settled.event && state.proposal) {
+    const proposal = settled.proposal!;
+    state = { ...state, proposal };
+    const audited = { proposalId: proposal.id, tool: proposal.tool, binding: proposal.binding };
+    if (settled.event === 'approved') {
+      record('approval_granted', audited);
+      move('approval_granted');
+      addTrace('approval', `Customer approved: ${proposal.summary}`, 'ok');
+    } else if (settled.event === 'rejected') {
+      record('approval_rejected', audited);
+      move('approval_rejected');
+      addTrace('approval', 'Customer declined the proposed change', 'warn');
+    } else {
+      record('approval_expired', audited);
+      move('approval_expired', true);
+      addTrace('approval', 'The earlier proposal expired and needs a new approval', 'warn');
+    }
+  }
 
   const preReason = evaluatePreTurn(config, classification);
   if (preReason) {
@@ -268,6 +330,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
           logger: log,
           api,
           idempotency: deps.idempotency,
+          audit: record,
         },
         deps2,
       );
@@ -290,26 +353,66 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
           : `${outcome.label} — ${r.message}`,
         r.ok ? 'ok' : failedStatus,
         outcome.latencyMs,
-        { tool: call.name, input: safeInput, output: safeOutput },
+        {
+          tool: call.name,
+          input: safeInput,
+          output: safeOutput,
+          awaitingApproval: outcome.approvalStage === 'proposed',
+        },
       );
       log.info({ tool: call.name, ok: r.ok, latencyMs: outcome.latencyMs }, 'tool call');
 
+      const wasVerified = state.verified;
       if (r.ok) {
+        // A proposal is not a change, so it must not use up the "one change per conversation" rule.
+        const counted = outcome.approvalStage !== 'proposed';
         state = applyPatch(
           {
             ...state,
             unavailableStreak: 0,
-            toolCallCounts: {
-              ...state.toolCallCounts,
-              [call.name]: (state.toolCallCounts[call.name] ?? 0) + 1,
-            },
+            toolCallCounts: counted
+              ? {
+                  ...state.toolCallCounts,
+                  [call.name]: (state.toolCallCounts[call.name] ?? 0) + 1,
+                }
+              : state.toolCallCounts,
           },
           outcome.patch,
           module,
         );
         lastToolFailed = 'ok';
         if (outcome.patch.verified) addTrace('state', 'Customer identity verified', 'ok');
+        if (!wasVerified && state.verified) move('identity_verified', true);
+        if (outcome.approvalStage === 'proposed' && outcome.proposal) {
+          record('proposal_created', {
+            proposalId: outcome.proposal.id,
+            tool: call.name,
+            summary: outcome.proposal.summary,
+            binding: outcome.proposal.binding,
+            expiresAt: outcome.proposal.expiresAt,
+          });
+          move('proposal_created');
+        } else if (outcome.approvalStage === 'executing' && outcome.proposal) {
+          record('mutation_executed', {
+            proposalId: outcome.proposal.id,
+            tool: call.name,
+            summary: outcome.proposal.summary,
+            binding: outcome.proposal.binding,
+          });
+          move('executed');
+        } else {
+          move('tool_ok', true);
+        }
       } else {
+        if (outcome.approvalStage === 'executing' && outcome.proposal) {
+          record('mutation_failed', {
+            proposalId: outcome.proposal.id,
+            tool: call.name,
+            error: r.error,
+            message: r.message,
+          });
+          move('execution_failed');
+        }
         lastToolFailed = 'error';
         lastErrorCode = r.error;
         if (r.error === 'UNAVAILABLE')
