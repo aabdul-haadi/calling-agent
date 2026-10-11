@@ -12,6 +12,7 @@ import {
   auditRepo,
   conversationsRepo as repo,
   createDbIdempotencyStore,
+  handoffsRepo,
   type Db,
 } from '../database';
 import type { HandoffService } from '../handoff';
@@ -21,7 +22,7 @@ import type { Logger } from '../logger';
 import { HttpError } from '../middleware/error-handler';
 import { clientCredentialsFetcher, createTokenCache, type TokenCache } from '../tools/auth';
 import { createApiClient, type RetryPolicy } from '../tools/http';
-import { runTurn } from './loop';
+import { ALREADY_HANDED_OFF, runTurn } from './loop';
 import { newState, toStateView } from './state';
 
 export interface ChatServiceDeps {
@@ -113,8 +114,26 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       convo = await load(newId);
     }
     const id = convo.id;
+
+    // Already with a person: the agent stays out of it. The customer's words are kept for the
+    // human. Until a human has accepted, the customer is told they are in the queue; after that
+    // the human answers, so the agent says nothing.
+    if (convo.state.handedOff) {
+      const handoff = await handoffsRepo.latestForConversation(db, id);
+      const waiting = !handoff || handoff.status === 'pending';
+      await repo.addMessage(db, id, 'user', req.message);
+      if (waiting) await repo.addMessage(db, id, 'assistant', ALREADY_HANDED_OFF);
+      return {
+        conversationId: id,
+        reply: waiting ? ALREADY_HANDED_OFF : '',
+        state: toStateView(convo.state),
+        trace: [],
+        citations: [],
+      };
+    }
+
     const history = (await repo.listMessages(db, id)).map(({ role, content }) => ({
-      role,
+      role: role === 'user' ? ('user' as const) : ('assistant' as const),
       content,
     }));
 

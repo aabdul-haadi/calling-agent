@@ -72,7 +72,7 @@ Open <http://localhost:5173>. The dark theme is the default; the toggle in the t
 | Overview       | `/`                | Conversations, handoffs, approvals, tool outcomes and latency, eval pass rate, recent activity       |
 | Agent Console  | `/agent/:tenant`   | Chat with a live 3D agent, inline citations, approval card, live trace, state, audit log             |
 | Traces         | `/traces`          | Any conversation, turn by turn, with search, filters, expandable JSON and the audit log              |
-| Human Handoffs | `/handoffs`        | Queue with filters, reason, derived priority, tool history, policy concerns                          |
+| Human Handoffs | `/handoffs`        | Queue and filters, reason, summary, conversation, **accept, reply to the customer, resolve**         |
 | Evaluations    | `/evaluations`     | Run a suite, per-category pass rates, run-to-run comparison, expected vs actual, judge kept separate |
 | Knowledge      | `/knowledge`       | The policy documents the agent can cite                                                              |
 | Tenants        | `/tenants/:tenant` | Persona, tools, rules, escalation, journeys, validation, runtime status (change controls disabled)   |
@@ -90,7 +90,7 @@ New read-only backend endpoints that feed it: `GET /overview`, `GET /conversatio
 ## Running tests
 
 ```bash
-pnpm test        # 152 backend/integration tests + 84 frontend tests (incl. axe accessibility + WCAG contrast)
+pnpm test        # 185 backend/integration tests + 88 frontend tests (incl. axe accessibility + WCAG contrast)
 pnpm typecheck
 pnpm lint
 pnpm eval skylink-air     # scenario suite against the REAL LLM (needs an API key and `pnpm dev` mock services running)

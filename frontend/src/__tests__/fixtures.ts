@@ -137,7 +137,7 @@ export const overview: OverviewMetrics = {
     awaitingApproval: 1,
     byPhase: { COMPLETED: 2, AWAITING_APPROVAL: 1, HANDOFF: 1 },
   },
-  handoffs: { pending: 1, accepted: 0 },
+  handoffs: { pending: 1, accepted: 0, resolved: 0 },
   tools: {
     total: 9,
     failed: 2,

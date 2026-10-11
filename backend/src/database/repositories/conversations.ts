@@ -56,7 +56,7 @@ export async function saveConversation(
 export async function addMessage(
   db: Db,
   conversationId: string,
-  role: 'user' | 'assistant',
+  role: 'user' | 'assistant' | 'human',
   content: string,
 ) {
   await db.insert(messages).values({ conversationId, role, content });
@@ -69,7 +69,12 @@ export async function listMessages(db: Db, conversationId: string) {
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.createdAt));
   return rows.map((r) => ({
-    role: r.role === 'user' ? ('user' as const) : ('assistant' as const),
+    role:
+      r.role === 'user'
+        ? ('user' as const)
+        : r.role === 'human'
+          ? ('human' as const)
+          : ('assistant' as const),
     content: r.content,
     createdAt: r.createdAt.toISOString(),
   }));

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Channel,
   Citation,
@@ -11,9 +11,12 @@ import { api } from '@/services/api';
 
 export interface UiMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'human';
   content: string;
 }
+
+/** How often a handed-over conversation checks for the human's replies. */
+export const HUMAN_POLL_MS = 3000;
 
 let counter = 0;
 const nextId = () => `m${++counter}`;
@@ -49,7 +52,10 @@ export function useChat(clientId: string) {
         });
         idRef.current = res.conversationId;
         setConversationId(res.conversationId);
-        setMessages((m) => [...m, { id: nextId(), role: 'assistant', content: res.reply }]);
+        // After a handoff the agent is silent once a human has accepted: an empty reply adds nothing.
+        if (res.reply) {
+          setMessages((m) => [...m, { id: nextId(), role: 'assistant', content: res.reply }]);
+        }
         setTrace((t) => [...t, ...res.trace]);
         setState(res.state);
         if (res.citations.length > 0) setCitations(res.citations);
@@ -64,6 +70,28 @@ export function useChat(clientId: string) {
     },
     [clientId, sending, simulator],
   );
+
+  // Once a person has the conversation, their replies are saved on the server: fetch them.
+  const handedOff = Boolean(state?.handedOff) || Boolean(handoff);
+  const sendingRef = useRef(false);
+  useEffect(() => {
+    sendingRef.current = sending;
+  });
+  useEffect(() => {
+    if (!handedOff || !conversationId) return;
+    const timer = setInterval(() => {
+      if (sendingRef.current) return;
+      api
+        .conversation(conversationId)
+        .then((view) =>
+          setMessages(
+            view.messages.map((m, i) => ({ id: `srv-${i}`, role: m.role, content: m.content })),
+          ),
+        )
+        .catch(() => undefined);
+    }, HUMAN_POLL_MS);
+    return () => clearInterval(timer);
+  }, [handedOff, conversationId]);
 
   const reset = useCallback(async () => {
     const id = idRef.current;

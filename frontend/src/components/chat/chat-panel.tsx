@@ -18,18 +18,30 @@ function Bubble({
   citations: Citation[];
 }) {
   const mine = message.role === 'user';
+  const human = message.role === 'human';
   return (
     <li className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
           'max-w-[88%] whitespace-pre-wrap rounded-lg px-3.5 py-2.5 text-sm leading-relaxed',
-          mine
-            ? 'rounded-br-sm bg-accent text-accent-foreground'
-            : 'rounded-bl-sm border border-border bg-elevated',
+          mine && 'rounded-br-sm bg-accent text-accent-foreground',
+          human && 'rounded-bl-sm border border-accent-2/50 bg-accent-2/10',
+          !mine && !human && 'rounded-bl-sm border border-border bg-elevated',
         )}
       >
-        <span className="sr-only">{mine ? 'You: ' : `${agentName}: `}</span>
-        {mine ? message.content : <CitationText text={message.content} citations={citations} />}
+        {human && (
+          <span className="mb-0.5 block font-mono text-[0.65rem] uppercase tracking-wider text-accent-2">
+            Human colleague
+          </span>
+        )}
+        <span className="sr-only">
+          {mine ? 'You: ' : human ? 'Human colleague: ' : `${agentName}: `}
+        </span>
+        {mine || human ? (
+          message.content
+        ) : (
+          <CitationText text={message.content} citations={citations} />
+        )}
       </div>
     </li>
   );
@@ -132,7 +144,7 @@ export function ChatPanel({
           role="status"
           className="mx-3 mb-2 rounded-md border border-accent-2/40 bg-accent-2/10 px-3 py-2 text-sm"
         >
-          This conversation is with a human colleague now. See the Human Handoffs page.
+          This conversation was handed to a human colleague. Their replies appear here.
         </p>
       )}
       {pendingApproval && !handedOff && (

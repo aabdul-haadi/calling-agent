@@ -67,6 +67,9 @@ export const api = {
   handoffs: (clientId?: string) =>
     call<HandoffView[]>(`/handoffs${clientId ? `?clientId=${encodeURIComponent(clientId)}` : ''}`),
   acceptHandoff: (id: string) => call<HandoffView>(`/handoffs/${id}/accept`, json('POST')),
+  replyHandoff: (id: string, message: string) =>
+    call<{ ok: true }>(`/handoffs/${id}/reply`, json('POST', { message })),
+  resolveHandoff: (id: string) => call<HandoffView>(`/handoffs/${id}/resolve`, json('POST')),
   startRun: (clientId: string) => call<{ runId: string }>('/tests/run', json('POST', { clientId })),
   runs: (clientId: string) =>
     call<EvalRunView[]>(`/tests/runs?clientId=${encodeURIComponent(clientId)}`),

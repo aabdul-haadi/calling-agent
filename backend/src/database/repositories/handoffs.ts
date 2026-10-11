@@ -13,7 +13,7 @@ const toView = (r: Row): HandoffView => ({
   summary: r.summary as HandoffSummary,
   sentiment: r.sentiment as Sentiment,
   customerMasked: r.customerMasked,
-  status: r.status === 'accepted' ? 'accepted' : 'pending',
+  status: r.status === 'accepted' ? 'accepted' : r.status === 'resolved' ? 'resolved' : 'pending',
   createdAt: r.createdAt.toISOString(),
 });
 
@@ -51,4 +51,32 @@ export async function acceptHandoff(db: Db, id: string): Promise<HandoffView | u
 
 export async function markDelivered(db: Db, id: string): Promise<void> {
   await db.update(handoffs).set({ delivered: true }).where(eq(handoffs.id, id));
+}
+
+export async function getHandoff(db: Db, id: string): Promise<HandoffView | undefined> {
+  const [row] = await db.select().from(handoffs).where(eq(handoffs.id, id));
+  return row ? toView(row) : undefined;
+}
+
+/** The newest handoff of a conversation (a conversation is handed over at most once in practice). */
+export async function latestForConversation(
+  db: Db,
+  conversationId: string,
+): Promise<HandoffView | undefined> {
+  const [row] = await db
+    .select()
+    .from(handoffs)
+    .where(eq(handoffs.conversationId, conversationId))
+    .orderBy(desc(handoffs.createdAt))
+    .limit(1);
+  return row ? toView(row) : undefined;
+}
+
+export async function resolveHandoff(db: Db, id: string): Promise<HandoffView | undefined> {
+  const [row] = await db
+    .update(handoffs)
+    .set({ status: 'resolved' })
+    .where(eq(handoffs.id, id))
+    .returning();
+  return row ? toView(row) : undefined;
 }

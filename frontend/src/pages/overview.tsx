@@ -51,7 +51,7 @@ function Metrics({ m, tenantName }: { m: OverviewMetrics; tenantName: string }) 
                 label="Waiting for a human"
                 value={m.handoffs.pending}
                 tone={m.handoffs.pending > 0 ? 'warn' : undefined}
-                hint={`${m.handoffs.accepted} accepted`}
+                hint={`${m.handoffs.accepted} accepted · ${m.handoffs.resolved} resolved`}
               />
               <Stat
                 label="Awaiting approval"

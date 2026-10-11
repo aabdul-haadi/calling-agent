@@ -71,17 +71,18 @@ pnpm db:migrate               # optional: the backend also migrates on start
 pnpm dev                      # starts all three parts below at once
 ```
 
-| Part                  | URL                   | Check                                      |
-| --------------------- | --------------------- | ------------------------------------------ |
-| Frontend (UI)         | http://localhost:5173 | open in Chrome or Edge                     |
-| Backend API           | http://localhost:4000 | http://localhost:4000/health               |
-| Mock company systems  | http://localhost:4100 | http://localhost:4100/health               |
+| Part                 | URL                   | Check                        |
+| -------------------- | --------------------- | ---------------------------- |
+| Frontend (UI)        | http://localhost:5173 | open in Chrome or Edge       |
+| Backend API          | http://localhost:4000 | http://localhost:4000/health |
+| Mock company systems | http://localhost:4100 | http://localhost:4100/health |
 
 Try these customers (all fake):
 
 - **SkyLink Air:** booking `SK1001`, last name `Rahman` (flight cancelled, alternatives available). Say "My flight was cancelled", give the details, pick a flight, then approve.
 - **NovaTel:** account `NT2002`, last name `Alvarez` (bill is higher because of roaming).
 - More fake customers: `mock-services/src/seed-data/`.
+- **Human handoff, both sides:** in the Agent Console send `I want to talk to a person`. In another tab open **Human Handoffs**, pick the new item, press **Accept handoff**, type a reply and **Send reply**. The customer's chat shows it as a "Human colleague" message within a few seconds. **Resolve** closes it and tells the customer.
 
 ### Run the parts separately (three terminals)
 
@@ -111,7 +112,7 @@ The backend also re-indexes them every time it starts.
 ## 5. Tests and quality checks
 
 ```bash
-pnpm test                                 # 152 backend/integration + 84 frontend tests (no real model, no Docker)
+pnpm test                                 # 185 backend/integration + 88 frontend tests (no real model, no Docker)
 pnpm lint                                 # ESLint
 pnpm typecheck                            # TypeScript for every workspace
 pnpm format                               # Prettier (rewrites files)
@@ -175,14 +176,14 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'node|cmd' -and $_
 
 ## 10. Quick fixes
 
-| Problem                                                    | Fix                                                                                               |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| UI says "Can't reach the server"                           | Backend is not running: `pnpm dev`, then check http://localhost:4000/health                       |
-| `already open in another process` (pglite)                 | Another `pnpm dev` or `pnpm eval` has the database: stop it first                                 |
-| Chat answers with "I'm passing you to a human colleague"   | The AI model is unreachable or rate limited: check the key, base URL and daily limit in `.env`    |
-| Port already in use                                        | Change `BACKEND_PORT` / `MOCK_PORT` in `.env` (and `VITE_API_URL`, `MOCK_SERVICES_URL` to match)  |
-| Evaluations page shows an old run as stopped               | Normal: a run killed mid-way is marked stopped when the backend restarts                          |
-| Voice does not work                                        | Use Chrome or Edge and allow the microphone; voice is browser speech, not a phone line            |
-| 3D agent shows a flat picture                              | WebGL unavailable or "reduce motion" is on: the fallback is intentional                           |
+| Problem                                                  | Fix                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| UI says "Can't reach the server"                         | Backend is not running: `pnpm dev`, then check http://localhost:4000/health                      |
+| `already open in another process` (pglite)               | Another `pnpm dev` or `pnpm eval` has the database: stop it first                                |
+| Chat answers with "I'm passing you to a human colleague" | The AI model is unreachable or rate limited: check the key, base URL and daily limit in `.env`   |
+| Port already in use                                      | Change `BACKEND_PORT` / `MOCK_PORT` in `.env` (and `VITE_API_URL`, `MOCK_SERVICES_URL` to match) |
+| Evaluations page shows an old run as stopped             | Normal: a run killed mid-way is marked stopped when the backend restarts                         |
+| Voice does not work                                      | Use Chrome or Edge and allow the microphone; voice is browser speech, not a phone line           |
+| 3D agent shows a flat picture                            | WebGL unavailable or "reduce motion" is on: the fallback is intentional                          |
 
 More detail: `README.md`, `docs/ARCHITECTURE.md`, `docs/ADDING_A_CLIENT.md`, `docs/DEMO_SCRIPT.md`.

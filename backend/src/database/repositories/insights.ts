@@ -173,7 +173,11 @@ export async function computeOverview(db: Db, clientId?: string): Promise<Overvi
     clientId,
     generatedAt: new Date().toISOString(),
     conversations: { total: convRows.length, last24h, handedOff, awaitingApproval, byPhase },
-    handoffs: { pending: handoffCount('pending'), accepted: handoffCount('accepted') },
+    handoffs: {
+      pending: handoffCount('pending'),
+      accepted: handoffCount('accepted'),
+      resolved: handoffCount('resolved'),
+    },
     tools: {
       total: num(toolAll?.total),
       failed: num(toolAll?.failed),

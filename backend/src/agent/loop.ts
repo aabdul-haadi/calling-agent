@@ -72,7 +72,7 @@ const LOOP_GUARD_REPLY =
   "I'm sorry, I'm having trouble completing this on my own. I'm passing you to a human colleague who can help.";
 const AI_DOWN_REPLY =
   "I'm sorry, I'm having technical trouble right now. I'm passing you to a human colleague who can help.";
-const ALREADY_HANDED_OFF =
+export const ALREADY_HANDED_OFF =
   "You're already in the queue for a human colleague. They have a summary of this chat and will be with you shortly.";
 
 function toolSpecs(tools: AnyToolDefinition[]): LlmToolSpec[] {

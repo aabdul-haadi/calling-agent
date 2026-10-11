@@ -7,6 +7,9 @@ export const AUDIT_TYPES = [
   'mutation_failed',
   'mutation_reconciled',
   'phase_refused',
+  'handoff_accepted',
+  'human_reply',
+  'handoff_resolved',
 ] as const;
 export type AuditType = (typeof AUDIT_TYPES)[number];
 

@@ -32,6 +32,8 @@ vi.mock('@/services/api', async () => {
       voiceLatency: vi.fn(),
       handoffs: vi.fn(),
       acceptHandoff: vi.fn(),
+      replyHandoff: vi.fn(),
+      resolveHandoff: vi.fn(),
       startRun: vi.fn(),
       runs: vi.fn(),
       run: vi.fn(),
@@ -270,5 +272,89 @@ describe('behaviour', () => {
     await screen.findByText(/SkyLink Air configuration/);
     for (const name of ['Save', 'Publish', 'Roll back'])
       expect(screen.getByRole('button', { name })).toBeDisabled();
+  });
+
+  describe('human handoff', () => {
+    const accepted = { ...handoff, status: 'accepted' as const };
+    const withMessages = {
+      ...conversationView,
+      messages: [
+        {
+          role: 'user' as const,
+          content: 'I want a person',
+          createdAt: '2026-11-10T09:00:00.000Z',
+        },
+        {
+          role: 'human' as const,
+          content: 'Hi, this is Sam.',
+          createdAt: '2026-11-10T09:01:00.000Z',
+        },
+      ],
+    };
+
+    it('cannot reply before the handoff is accepted', async () => {
+      renderAt('/handoffs');
+      const box = await screen.findByLabelText('Reply to the customer');
+      expect(box).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Send reply/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Resolve' })).toBeDisabled();
+    });
+
+    it('sends a reply and resolves, and the page has no serious a11y issues', async () => {
+      mocked.handoffs.mockResolvedValue([accepted]);
+      mocked.conversation.mockResolvedValue(withMessages);
+      mocked.replyHandoff.mockResolvedValue({ ok: true });
+      mocked.resolveHandoff.mockResolvedValue({ ...accepted, status: 'resolved' });
+      const user = userEvent.setup();
+      const { container } = renderAt('/handoffs');
+      const box = await screen.findByLabelText('Reply to the customer');
+      await screen.findByText(/Hi, this is Sam\./);
+      expect(box).toBeEnabled();
+      await expectNoSeriousA11yIssues(container);
+
+      await user.type(box, 'Let me check your booking.');
+      await user.click(screen.getByRole('button', { name: /Send reply/ }));
+      await waitFor(() =>
+        expect(mocked.replyHandoff).toHaveBeenCalledWith('h1', 'Let me check your booking.'),
+      );
+      await waitFor(() => expect(box).toHaveValue(''));
+
+      await user.click(screen.getByRole('button', { name: 'Resolve' }));
+      await waitFor(() => expect(mocked.resolveHandoff).toHaveBeenCalledWith('h1'));
+    });
+
+    it('shows a reply error instead of failing silently', async () => {
+      mocked.handoffs.mockResolvedValue([accepted]);
+      mocked.conversation.mockResolvedValue(withMessages);
+      mocked.replyHandoff.mockRejectedValue(new Error('This handoff is already resolved'));
+      const user = userEvent.setup();
+      renderAt('/handoffs');
+      await user.type(await screen.findByLabelText('Reply to the customer'), 'Hello');
+      await user.click(screen.getByRole('button', { name: /Send reply/ }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('already resolved');
+    });
+
+    it("the customer's chat picks up the human's reply", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        mocked.chat.mockResolvedValue({
+          ...reply({ phase: 'HANDOFF', handedOff: true }),
+          reply: 'I am handing you over.',
+        });
+        mocked.conversation.mockResolvedValue({
+          ...withMessages,
+          state: { ...withMessages.state, handedOff: true },
+        });
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        renderAt('/agent/skylink-air');
+        await user.click(await screen.findByRole('button', { name: 'My flight was cancelled' }));
+        await screen.findByText('I am handing you over.');
+        await vi.advanceTimersByTimeAsync(3500);
+        const human = await screen.findByText('Hi, this is Sam.');
+        expect(human.closest('li')).toHaveTextContent('Human colleague');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

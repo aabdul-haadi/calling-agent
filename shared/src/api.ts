@@ -73,7 +73,7 @@ export interface HandoffView {
   summary: HandoffSummary;
   sentiment: Sentiment;
   customerMasked: string;
-  status: 'pending' | 'accepted';
+  status: 'pending' | 'accepted' | 'resolved';
   createdAt: string;
 }
 
@@ -89,7 +89,7 @@ export interface ChatResponse {
 export interface ConversationView {
   conversationId: string;
   clientId: string;
-  messages: { role: 'user' | 'assistant'; content: string; createdAt: string }[];
+  messages: { role: 'user' | 'assistant' | 'human'; content: string; createdAt: string }[];
   state: ConversationStateView;
   trace: TraceEvent[];
   citations: Citation[];
@@ -171,7 +171,7 @@ export interface OverviewMetrics {
     awaitingApproval: number;
     byPhase: Record<string, number>;
   };
-  handoffs: { pending: number; accepted: number };
+  handoffs: { pending: number; accepted: number; resolved: number };
   tools: {
     total: number;
     failed: number;

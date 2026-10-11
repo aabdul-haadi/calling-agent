@@ -1,5 +1,5 @@
-import { Check, ExternalLink, ShieldAlert, User } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Check, CheckCheck, ExternalLink, Send, ShieldAlert, User } from 'lucide-react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { HandoffView } from '@adk/shared';
 import { classifyEvent, toolName } from '@/components/trace/trace-model';
@@ -15,7 +15,7 @@ import { useAsync } from '@/hooks/use-async';
 import { cn, formatDateTime, relativeTime } from '@/lib/utils';
 import { api } from '@/services/api';
 
-type StatusFilter = 'all' | 'pending' | 'accepted';
+type StatusFilter = 'all' | 'pending' | 'accepted' | 'resolved';
 
 /** Priority is derived from the customer's tone at handoff time; the backend has no priority field. */
 export function priorityOf(h: HandoffView): {
@@ -94,16 +94,140 @@ function Context({ handoff }: { handoff: HandoffView }) {
   );
 }
 
+/** The conversation so far and the human's reply box. Refreshes while the handoff is open. */
+function Conversation({ handoff, onChanged }: { handoff: HandoffView; onChanged: () => void }) {
+  const open = handoff.status === 'accepted';
+  const view = useAsync(
+    () => api.conversation(handoff.conversationId),
+    [handoff.conversationId],
+    open ? 3000 : undefined,
+  );
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState<'send' | 'resolve'>();
+  const [error, setError] = useState<string>();
+
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!draft.trim() || busy) return;
+    setBusy('send');
+    setError(undefined);
+    try {
+      await api.replyHandoff(handoff.id, draft.trim());
+      setDraft('');
+      view.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send');
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  const resolve = async () => {
+    setBusy('resolve');
+    setError(undefined);
+    try {
+      await api.resolveHandoff(handoff.id);
+      view.reload();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not resolve');
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  const labels = { user: 'Customer', assistant: 'AI agent', human: 'Human colleague' } as const;
+  return (
+    <section aria-label="Conversation">
+      <h3 className="eyebrow mb-1.5">Conversation</h3>
+      {view.loading ? (
+        <Skeleton className="h-24" />
+      ) : view.error || !view.data ? (
+        <p className="text-sm text-muted-foreground">
+          The conversation is not available ({view.error ?? 'not found'}). Test-run handoffs are
+          kept in memory and have no stored conversation.
+        </p>
+      ) : (
+        <ol
+          aria-label="Conversation messages"
+          className="max-h-72 space-y-1.5 overflow-y-auto text-sm"
+        >
+          {view.data.messages.map((m, i) => (
+            <li
+              key={i}
+              className={cn(
+                'rounded-md px-3 py-2',
+                m.role === 'user' && 'bg-accent/10',
+                m.role === 'assistant' && 'border border-border bg-elevated',
+                m.role === 'human' && 'border border-accent-2/50 bg-accent-2/10',
+              )}
+            >
+              <span className="font-medium">{labels[m.role]}: </span>
+              {m.content}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {handoff.status === 'resolved' ? (
+        <p className="mt-3 flex items-center gap-1.5 text-sm text-ok">
+          <CheckCheck className="h-4 w-4" aria-hidden="true" /> Resolved. The customer was told.
+        </p>
+      ) : (
+        <form onSubmit={send} className="mt-3 space-y-2">
+          <label htmlFor={`reply-${handoff.id}`} className="eyebrow block">
+            Reply to the customer
+          </label>
+          <textarea
+            id={`reply-${handoff.id}`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            maxLength={2000}
+            disabled={!open || busy !== undefined}
+            placeholder={open ? 'Write as the human agent…' : 'Accept the handoff to reply.'}
+            className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/70 disabled:opacity-60"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" size="sm" disabled={!open || !draft.trim() || busy !== undefined}>
+              <Send className="h-3.5 w-3.5" aria-hidden="true" /> Send reply
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={resolve}
+              disabled={!open || busy !== undefined}
+            >
+              <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" /> Resolve
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              The customer sees replies in their chat within a few seconds.
+            </span>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
+        </form>
+      )}
+    </section>
+  );
+}
+
 function Detail({
   handoff,
   accepting,
   onAccept,
+  onChanged,
 }: {
   handoff: HandoffView;
   accepting: boolean;
   onAccept: (id: string) => void;
+  onChanged: () => void;
 }) {
-  const accepted = handoff.status === 'accepted';
+  const accepted = handoff.status !== 'pending';
   const priority = priorityOf(handoff);
   return (
     <Card className="space-y-4 p-4" aria-label="Handoff details">
@@ -129,7 +253,8 @@ function Detail({
         </div>
         {accepted ? (
           <Badge tone="ok">
-            <Check className="h-3 w-3" aria-hidden="true" /> Accepted
+            <Check className="h-3 w-3" aria-hidden="true" />{' '}
+            {handoff.status === 'resolved' ? 'Resolved' : 'Accepted'}
           </Badge>
         ) : (
           <Button
@@ -171,10 +296,11 @@ function Detail({
         )}
       </section>
 
+      <Conversation handoff={handoff} onChanged={onChanged} />
       <Context handoff={handoff} />
       <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-        Assignment to a named agent and resolution are not supported by the backend yet, so only
-        “Accept” is offered.
+        There is no login yet, so anyone who can open this page can act as the human agent, and
+        assignment to a named agent is not supported.
       </p>
     </Card>
   );
@@ -240,7 +366,16 @@ export function HandoffsPage() {
               options={[
                 { value: 'all', label: 'All', count: scoped.length },
                 { value: 'pending', label: 'Waiting', count: pending },
-                { value: 'accepted', label: 'Accepted', count: scoped.length - pending },
+                {
+                  value: 'accepted',
+                  label: 'Accepted',
+                  count: scoped.filter((h) => h.status === 'accepted').length,
+                },
+                {
+                  value: 'resolved',
+                  label: 'Resolved',
+                  count: scoped.filter((h) => h.status === 'resolved').length,
+                },
               ]}
             />
           </>
@@ -304,8 +439,20 @@ export function HandoffsPage() {
                     <span className="mt-1.5 block text-sm">{h.reason}</span>
                     <span className="mt-2 flex flex-wrap gap-1.5">
                       <Badge tone={p.tone}>{p.label}</Badge>
-                      <Badge tone={h.status === 'pending' ? 'warn' : 'ok'}>
-                        {h.status === 'pending' ? 'Waiting' : 'Accepted'}
+                      <Badge
+                        tone={
+                          h.status === 'pending'
+                            ? 'warn'
+                            : h.status === 'accepted'
+                              ? 'accent'
+                              : 'ok'
+                        }
+                      >
+                        {h.status === 'pending'
+                          ? 'Waiting'
+                          : h.status === 'accepted'
+                            ? 'Accepted'
+                            : 'Resolved'}
                       </Badge>
                       <Badge tone="accent">{h.clientId}</Badge>
                     </span>
@@ -321,6 +468,7 @@ export function HandoffsPage() {
                 handoff={selected}
                 accepting={accepting === selected.id}
                 onAccept={accept}
+                onChanged={handoffs.reload}
               />
             )}
           </div>
