@@ -71,3 +71,17 @@ export async function listRuns(db: Db, clientId: string, limit = 10): Promise<Ev
     .limit(limit);
   return Promise.all(rows.map(async (r) => (await getRun(db, r.id))!));
 }
+
+/**
+ * Runs execute inside the backend process, so a run still marked "running" when the process starts
+ * belongs to one that was killed. Nothing will ever finish it: mark it stopped so the UI does not
+ * show it as running forever. Returns how many were fixed.
+ */
+export async function failInterruptedRuns(db: Db): Promise<number> {
+  const rows = await db
+    .update(evalRuns)
+    .set({ status: 'error', finishedAt: new Date() })
+    .where(eq(evalRuns.status, 'running'))
+    .returning({ id: evalRuns.id });
+  return rows.length;
+}

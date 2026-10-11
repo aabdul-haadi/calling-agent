@@ -11,6 +11,7 @@ import { clientsRouter } from './routes/clients';
 import { auditRouter } from './routes/audit';
 import { handoffsRouter } from './routes/handoffs';
 import { healthRouter } from './routes/health';
+import { insightsRouter } from './routes/insights';
 import { testsRouter, type EvalService } from './routes/tests';
 
 export interface AppDeps {
@@ -35,6 +36,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(chatRouter(deps.chat));
   app.use(handoffsRouter(deps.db));
   app.use(auditRouter(deps.db));
+  app.use(insightsRouter(deps.db, deps.registry));
   app.use(testsRouter(deps.evals));
 
   app.use(notFound);

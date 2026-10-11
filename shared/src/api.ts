@@ -19,8 +19,15 @@ export interface TraceEvent {
   detail?: unknown;
 }
 
+/** A change waiting for the customer's yes. Shown so the UI can ask for it; it cannot approve it. */
+export interface PendingApprovalView {
+  summary: string;
+  expiresAt: string;
+}
+
 export interface ConversationStateView {
   phase?: string;
+  pendingApproval?: PendingApprovalView;
   verified: boolean;
   journeyId: string;
   journeyStep: string;
@@ -121,4 +128,70 @@ export interface EvalRunView {
   startedAt: string;
   finishedAt?: string;
   results: EvalResultView[];
+}
+
+export interface ConversationSummary {
+  id: string;
+  clientId: string;
+  phase: string;
+  journeyStep: string;
+  verified: boolean;
+  handedOff: boolean;
+  awaitingApproval: boolean;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ToolStat {
+  tool: string;
+  calls: number;
+  failures: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  at: string;
+  kind: 'audit' | 'handoff' | 'eval';
+  label: string;
+  clientId?: string;
+  conversationId?: string;
+}
+
+/** Everything is computed from stored records. `null` means the system does not record it. */
+export interface OverviewMetrics {
+  clientId?: string;
+  generatedAt: string;
+  conversations: {
+    total: number;
+    last24h: number;
+    handedOff: number;
+    awaitingApproval: number;
+    byPhase: Record<string, number>;
+  };
+  handoffs: { pending: number; accepted: number };
+  tools: {
+    total: number;
+    failed: number;
+    p50LatencyMs: number | null;
+    p95LatencyMs: number | null;
+    perTool: ToolStat[];
+  };
+  evals: {
+    latest?: { id: string; clientId: string; passed: number; total: number; startedAt: string };
+    history: { id: string; passed: number; total: number; startedAt: string }[];
+  };
+  /** Token counts and cost are not recorded by this system yet. */
+  llmUsage: null;
+  recentActivity: ActivityItem[];
+}
+
+export interface KnowledgeDoc {
+  source: string;
+  chunks: number;
+  headings: string[];
+  characters: number;
+  updatedAt: string;
 }

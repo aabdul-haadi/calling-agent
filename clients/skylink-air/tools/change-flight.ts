@@ -16,6 +16,12 @@ const offered = z.array(
 // One free voluntary change per booking. Airline-cancelled flights can always be rebooked free.
 const FREE_VOLUNTARY_CHANGES = 1;
 
+/** "2026-11-10 11:00 UTC": readable for the customer, unambiguous about the zone. */
+const readable = (iso: string): string =>
+  Number.isNaN(Date.parse(iso))
+    ? iso
+    : `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+
 export const changeFlight = defineTool({
   name: 'change_flight',
   description:
@@ -61,7 +67,7 @@ export const changeFlight = defineTool({
       }
       const from = booking.data.flight;
       return ok({
-        summary: `Move booking ${ref} from flight ${from.flightNumber} to flight ${target.flightNumber ?? newFlightId}${target.departure ? ` departing ${target.departure}` : ''}, at no charge`,
+        summary: `Move booking ${ref} from flight ${from.flightNumber} to flight ${target.flightNumber ?? newFlightId}${target.departure ? ` departing ${readable(target.departure)}` : ''}, at no charge`,
         binding: {
           bookingRef: ref,
           newFlightId,

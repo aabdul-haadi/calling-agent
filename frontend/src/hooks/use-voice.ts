@@ -44,6 +44,9 @@ export function useVoice({ onUtterance }: VoiceOptions) {
   const [caption, setCaption] = useState('');
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string>();
+  const [muted, setMutedState] = useState(false);
+  const [interrupted, setInterrupted] = useState(false);
+  const mutedRef = useRef(false);
 
   const recRef = useRef<RecognitionLike | undefined>(undefined);
   const activeRef = useRef(false);
@@ -114,12 +117,17 @@ export function useVoice({ onUtterance }: VoiceOptions) {
     rec.interimResults = true;
     rec.lang = 'en-US';
     rec.onresult = (e) => {
+      if (mutedRef.current) return;
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i]!;
         const text = r[0].transcript.trim();
         if (!text) continue;
         // Barge-in: the moment the customer starts talking, the agent stops talking.
-        if (speakingRef.current) cancelSpeech();
+        if (speakingRef.current) {
+          cancelSpeech();
+          setInterrupted(true);
+          setTimeout(() => setInterrupted(false), 1500);
+        }
         setCaption(text);
         if (r.isFinal) {
           onUtteranceRef.current(text, performance.now());
@@ -153,8 +161,20 @@ export function useVoice({ onUtterance }: VoiceOptions) {
     void startMeter();
   }, [cancelSpeech, startMeter]);
 
+  /** Mute keeps the session open but stops listening: the mic track is disabled and speech ignored. */
+  const setMuted = useCallback((next: boolean) => {
+    mutedRef.current = next;
+    setMutedState(next);
+    audioRef.current?.stream.getAudioTracks().forEach((t) => {
+      t.enabled = !next;
+    });
+    if (next) setCaption('');
+  }, []);
+
   const stop = useCallback(() => {
     activeRef.current = false;
+    mutedRef.current = false;
+    setMutedState(false);
     setActive(false);
     setCaption('');
     recRef.current?.stop();
@@ -187,6 +207,9 @@ export function useVoice({ onUtterance }: VoiceOptions) {
     caption,
     level,
     error,
+    muted,
+    interrupted,
+    setMuted,
     start,
     stop,
     speak,

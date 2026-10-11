@@ -9,7 +9,8 @@ function initialTheme(): Theme {
   } catch {
     // storage can be blocked; fall through to the OS preference
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // Dark is the primary experience; light is opt-in via the toggle.
+  return 'dark';
 }
 
 export function useTheme() {

@@ -1,11 +1,21 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ChatResponse } from '@adk/shared';
 import { AppRoutes } from '@/App';
 import { api } from '@/services/api';
-import { clientDetail, clients, handoff, run } from './fixtures';
+import {
+  clientDetail,
+  clients,
+  conversations,
+  conversationView,
+  handoff,
+  knowledgeDocs,
+  overview,
+  run,
+} from './fixtures';
 
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api');
@@ -25,47 +35,53 @@ vi.mock('@/services/api', async () => {
       startRun: vi.fn(),
       runs: vi.fn(),
       run: vi.fn(),
+      overview: vi.fn(),
+      conversations: vi.fn(),
+      audit: vi.fn(),
+      knowledge: vi.fn(),
     },
   };
 });
 
 const mocked = vi.mocked(api);
 
+const reply = (over: Partial<ChatResponse['state']> = {}): ChatResponse => ({
+  conversationId: 'c1',
+  reply: 'Happy to help. What is your booking reference? [Source: checked-baggage]',
+  state: {
+    phase: 'VERIFYING',
+    verified: false,
+    journeyId: 'rebooking',
+    journeyStep: 'identify_intent',
+    collected: {},
+    handedOff: false,
+    ...over,
+  },
+  trace: conversationView.trace.slice(0, 3),
+  citations: [
+    {
+      source: 'checked-baggage',
+      heading: 'Checked baggage',
+      snippet: 'One bag free in Economy.',
+      score: 0.8,
+    },
+  ],
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  mocked.health.mockResolvedValue({ status: 'ok', db: 'up' });
   mocked.clients.mockResolvedValue(clients);
   mocked.client.mockResolvedValue(clientDetail);
   mocked.handoffs.mockResolvedValue([handoff]);
   mocked.runs.mockResolvedValue([run]);
-  mocked.chat.mockResolvedValue({
-    conversationId: 'c1',
-    reply: 'Happy to help. What is your booking reference?',
-    state: {
-      verified: false,
-      journeyId: 'rebooking',
-      journeyStep: 'identify_intent',
-      collected: {},
-      handedOff: false,
-    },
-    trace: [
-      {
-        id: 't1',
-        at: '2026-11-10T10:00:00.000Z',
-        type: 'intent',
-        label: 'Understood intent: rebooking',
-        status: 'ok',
-        detail: { intent: 'rebooking' },
-      },
-    ],
-    citations: [
-      {
-        source: 'checked-baggage',
-        heading: 'Checked baggage',
-        snippet: 'One bag free in Economy.',
-        score: 0.8,
-      },
-    ],
-  });
+  mocked.overview.mockResolvedValue(overview);
+  mocked.conversations.mockResolvedValue(conversations);
+  mocked.conversation.mockResolvedValue(conversationView);
+  mocked.audit.mockResolvedValue([]);
+  mocked.knowledge.mockResolvedValue(knowledgeDocs);
+  mocked.chat.mockResolvedValue(reply());
 });
 
 /** Serious/critical axe violations fail the test. (Colour contrast is checked separately in contrast.test.ts, jsdom cannot.) */
@@ -87,13 +103,13 @@ const renderAt = (path: string) =>
   );
 
 describe('accessibility (axe)', () => {
-  it('home / client picker', async () => {
+  it('overview', async () => {
     const { container } = renderAt('/');
-    await screen.findByText('NovaTel');
+    await screen.findByText('Evaluation quality');
     await expectNoSeriousA11yIssues(container);
   });
 
-  it('agent console (chat + trace + state)', async () => {
+  it('agent console (chat, citations, trace, state)', async () => {
     const user = userEvent.setup();
     const { container } = renderAt('/agent/skylink-air');
     await screen.findByText(/Hi, I'm Ava/);
@@ -102,24 +118,74 @@ describe('accessibility (axe)', () => {
     await expectNoSeriousA11yIssues(container);
   });
 
-  it('handoff inbox', async () => {
-    const { container } = renderAt('/inbox');
-    await screen.findByText('Customer asked for a human');
+  it('agent console with an approval waiting', async () => {
+    mocked.chat.mockResolvedValue(
+      reply({
+        phase: 'AWAITING_APPROVAL',
+        pendingApproval: {
+          summary: 'Move booking SK1001 to flight SK110',
+          expiresAt: '2026-11-10T10:10:00.000Z',
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderAt('/agent/skylink-air');
+    await user.click(await screen.findByRole('button', { name: 'My flight was cancelled' }));
+    await screen.findByText('Approve this change?');
     await expectNoSeriousA11yIssues(container);
   });
 
-  it('test dashboard with a failure panel open', async () => {
+  it('traces', async () => {
+    const { container } = renderAt('/traces');
+    await screen.findByText('Understood intent: rebooking');
+    await expectNoSeriousA11yIssues(container);
+  });
+
+  it('human handoffs', async () => {
+    const { container } = renderAt('/handoffs');
+    await screen.findAllByText('Customer asked for a human');
+    await expectNoSeriousA11yIssues(container);
+  });
+
+  it('evaluations with a failure panel open', async () => {
     const user = userEvent.setup();
-    const { container } = renderAt('/tests');
+    const { container } = renderAt('/evaluations');
     await user.click(await screen.findByRole('button', { name: /Prompt injection/ }));
     await screen.findByText('Expected behaviour');
     await expectNoSeriousA11yIssues(container);
   });
 
-  it('client config viewer', async () => {
-    const { container } = renderAt('/clients/skylink-air');
+  it('knowledge', async () => {
+    const { container } = renderAt('/knowledge');
+    await screen.findByText('refunds');
+    await expectNoSeriousA11yIssues(container);
+  });
+
+  it('tenants and configuration', async () => {
+    const { container } = renderAt('/tenants/skylink-air');
     await screen.findByText(/SkyLink Air configuration/);
     await expectNoSeriousA11yIssues(container);
+  });
+
+  it('voice lab', async () => {
+    const { container } = renderAt('/voice');
+    await screen.findByText('Talk to the agent');
+    await expectNoSeriousA11yIssues(container);
+  });
+
+  it('architecture', async () => {
+    const { container } = renderAt('/architecture');
+    await screen.findByText(/What happens to every message/);
+    await expectNoSeriousA11yIssues(container);
+  });
+
+  it('command palette dialog', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+    await screen.findByText('Evaluation quality');
+    await user.click(screen.getByRole('button', { name: /Search pages and tenants/ }));
+    const dialog = await screen.findByRole('dialog');
+    await expectNoSeriousA11yIssues(dialog);
   });
 
   it('error state is announced with role=alert and offers a retry', async () => {
@@ -131,6 +197,78 @@ describe('accessibility (axe)', () => {
     expect(alert).toHaveTextContent("Can't reach the server");
     mocked.clients.mockResolvedValue(clients);
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(screen.getByText('NovaTel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Evaluation quality')).toBeInTheDocument());
+  });
+});
+
+describe('behaviour', () => {
+  it('the approval card sends the customer reply as a normal chat message', async () => {
+    mocked.chat.mockResolvedValue(
+      reply({
+        phase: 'AWAITING_APPROVAL',
+        pendingApproval: {
+          summary: 'Move booking SK1001 to flight SK110',
+          expiresAt: '2026-11-10T10:10:00.000Z',
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderAt('/agent/skylink-air');
+    await user.click(await screen.findByRole('button', { name: 'My flight was cancelled' }));
+    const card = await screen.findByRole('region', { name: 'Approval needed' });
+    expect(within(card).getByText(/Move booking SK1001/)).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: /Yes, go ahead/ }));
+    await waitFor(() =>
+      expect(mocked.chat).toHaveBeenLastCalledWith(
+        expect.objectContaining({ message: 'Yes, please go ahead.' }),
+      ),
+    );
+  });
+
+  it('shows the agent state as text, not just visuals', async () => {
+    const user = userEvent.setup();
+    renderAt('/agent/skylink-air');
+    await screen.findByText(/Hi, I'm Ava/);
+    expect(
+      screen.getAllByRole('status').some((s) => /Ava is ready/.test(s.textContent ?? '')),
+    ).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'My flight was cancelled' }));
+    await screen.findByText(/Happy to help/);
+  });
+
+  it('switching tenant rescopes the pages', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+    await screen.findByText('Evaluation quality');
+    await user.selectOptions(screen.getByLabelText('Tenant'), 'novatel');
+    await waitFor(() => expect(mocked.overview).toHaveBeenLastCalledWith('novatel'));
+  });
+
+  it('never shows a made-up number: unrecorded token usage says so', async () => {
+    renderAt('/');
+    await screen.findByText('Evaluation quality');
+    expect(screen.getAllByText('Not recorded').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('old URLs still work', async () => {
+    renderAt('/inbox');
+    await screen.findAllByText('Customer asked for a human');
+  });
+
+  it('the mobile menu opens a labelled navigation dialog', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Navigation' });
+    expect(within(dialog).getByRole('link', { name: /Traces/ })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('config change controls are visibly unavailable', async () => {
+    renderAt('/tenants/skylink-air');
+    await screen.findByText(/SkyLink Air configuration/);
+    for (const name of ['Save', 'Publish', 'Roll back'])
+      expect(screen.getByRole('button', { name })).toBeDisabled();
   });
 });

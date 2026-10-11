@@ -47,6 +47,10 @@ export function newState(config: ParsedClientConfig): ConversationState {
 
 export const toStateView = (s: ConversationState): ConversationStateView => ({
   phase: s.phase,
+  pendingApproval:
+    s.proposal?.status === 'pending'
+      ? { summary: s.proposal.summary, expiresAt: s.proposal.expiresAt }
+      : undefined,
   verified: s.verified,
   journeyId: s.journeyId,
   journeyStep: s.journeyStep,

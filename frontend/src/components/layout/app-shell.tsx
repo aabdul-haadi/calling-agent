@@ -1,67 +1,86 @@
-import { Bot, Info, Inbox, Moon, ShieldCheck, Sun } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Dialog } from '@/components/ui/dialog';
+import { useTenant } from '@/context/tenant';
+import { useAsync } from '@/hooks/use-async';
 import { useTheme } from '@/hooks/use-theme';
-import { cn } from '@/lib/utils';
+import { api } from '@/services/api';
+import { CommandPalette } from './command-palette';
+import { NavList, Sidebar } from './sidebar';
+import { Topbar } from './topbar';
 
-const links = [
-  { to: '/', label: 'Agents', icon: Bot, end: true },
-  { to: '/inbox', label: 'Handoff inbox', icon: Inbox },
-  { to: '/tests', label: 'Tests', icon: ShieldCheck },
-  { to: '/about', label: 'About', icon: Info },
-];
+const COLLAPSE_KEY = 'adk-sidebar-collapsed';
+
+function savedCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export function AppShell() {
   const { theme, toggle } = useTheme();
+  const { tenant } = useTenant();
+  const { pathname } = useLocation();
+  const [collapsed, setCollapsed] = useState(savedCollapsed);
+  const [drawer, setDrawer] = useState(false);
+  const [palette, setPalette] = useState(false);
+
+  // Badge on "Human Handoffs": the real number waiting for a person.
+  const overview = useAsync(() => api.overview(), [], 10_000);
+  const badges = { handoffs: overview.data?.handoffs.pending };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPalette((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1');
+      } catch {
+        // ignore blocked storage
+      }
+      return !c;
+    });
+
   return (
-    <div className="min-h-screen">
+    <div data-accent={tenant?.accent} className="flex min-h-screen">
+      <div className="backdrop" aria-hidden="true" />
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-xl focus:bg-card focus:px-3 focus:py-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2"
       >
         Skip to content
       </a>
-      <header className="border-b border-border bg-card/80 backdrop-blur">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
-          <NavLink to="/" className="text-base font-semibold tracking-tight">
-            Agent Delivery Kit
-          </NavLink>
-          <nav aria-label="Main" className="flex items-center gap-1">
-            {links.map(({ to, label, icon: Icon, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium hover:bg-muted',
-                    isActive && 'bg-muted',
-                  )
-                }
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">{label}</span>
-                <span className="sr-only sm:hidden">{label}</span>
-              </NavLink>
-            ))}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggle}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? (
-                <Sun className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Moon className="h-4 w-4" aria-hidden="true" />
-              )}
-            </Button>
-          </nav>
-        </div>
-      </header>
-      <main id="main" className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6">
-        <Outlet />
-      </main>
+      <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} badges={badges} />
+
+      <Dialog open={drawer} title="Navigation" placement="left" onClose={() => setDrawer(false)}>
+        <NavList badges={badges} onNavigate={() => setDrawer(false)} />
+      </Dialog>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar
+          onMenu={() => setDrawer(true)}
+          onSearch={() => setPalette(true)}
+          theme={theme}
+          onToggleTheme={toggle}
+        />
+        <main id="main" className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-6 sm:px-6">
+          <div key={pathname} className="page-enter">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </div>
   );
 }

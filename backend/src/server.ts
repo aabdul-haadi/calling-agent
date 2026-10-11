@@ -1,7 +1,7 @@
 import './config/load-dotenv';
 import { loadEnv } from './config';
 import { createLogger } from './logger';
-import { connectDb, runMigrations } from './database';
+import { connectDb, evalsRepo, runMigrations } from './database';
 import { createApp } from './app';
 import { createServices } from './container';
 import { clientDir } from './clients';
@@ -15,6 +15,8 @@ const services = createServices(env, handle.db, logger);
 
 try {
   await runMigrations(handle);
+  const interrupted = await evalsRepo.failInterruptedRuns(handle.db);
+  if (interrupted > 0) logger.warn({ interrupted }, 'marked interrupted eval runs as stopped');
   // Keep the policy index in sync with the files on disk (cheap: a few dozen chunks).
   const embeddings = createEmbeddingProvider(env);
   for (const m of services.registry.list()) {

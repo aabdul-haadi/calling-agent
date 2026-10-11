@@ -132,7 +132,10 @@ export function KnowledgeCard({ citations }: { citations: Citation[] }) {
         ) : (
           <ul className="space-y-3">
             {citations.map((c, i) => (
-              <li key={`${c.source}-${i}`} className="rounded-xl bg-muted p-3 text-sm">
+              <li
+                key={`${c.source}-${i}`}
+                className="rounded-md border border-border bg-background/50 p-3 text-sm"
+              >
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <Badge tone="accent">{c.source}</Badge>
                   <span className="text-xs text-muted-foreground">

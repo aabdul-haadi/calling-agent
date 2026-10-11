@@ -2,64 +2,190 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens. Colours are HSL triplets so Tailwind can add opacity (`bg-accent/20`).
+ * Dark is the primary theme (class "dark" on <html>, set in index.html); light is the fallback.
+ * Elevation, from the page up: background -> card -> elevated -> overlay.
+ */
 :root {
-  --background: 220 20% 98%;
-  --foreground: 222 25% 12%;
+  --background: 220 20% 97%;
+  --foreground: 224 30% 11%;
   --card: 0 0% 100%;
-  --muted: 220 14% 95%;
-  --muted-foreground: 220 9% 36%;
-  --border: 220 13% 88%;
-  --ok: 142 72% 26%;
-  --warn: 28 95% 30%;
-  --danger: 0 72% 42%;
+  --elevated: 220 16% 95%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 9% 34%;
+  --border: 220 13% 86%;
+  --ok: 142 72% 24%;
+  --warn: 28 95% 29%;
+  --danger: 0 72% 40%;
   /* default accent = sky; pages override with data-accent */
-  --accent: 201 96% 32%;
+  --accent: 201 96% 31%;
   --accent-foreground: 0 0% 100%;
-  --accent-soft: 201 90% 94%;
+  --accent-soft: 201 90% 93%;
+  --accent-2: 262 62% 44%;
+  --glow: 201 96% 40%;
+
+  /* spacing / radius / motion tokens */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+  --dur-slow: 420ms;
 }
 
 [data-accent='violet'] {
-  --accent: 263 70% 45%;
+  --accent: 263 70% 44%;
   --accent-foreground: 0 0% 100%;
-  --accent-soft: 262 80% 95%;
+  --accent-soft: 262 80% 94%;
+  --accent-2: 196 90% 32%;
+  --glow: 263 70% 50%;
 }
 
 .dark {
-  --background: 222 20% 8%;
-  --foreground: 210 20% 96%;
-  --card: 222 18% 12%;
-  --muted: 222 16% 16%;
-  --muted-foreground: 215 15% 72%;
-  --border: 222 14% 24%;
-  --ok: 142 60% 55%;
-  --warn: 38 92% 60%;
-  --danger: 0 90% 72%;
-  --accent: 199 89% 62%;
-  --accent-foreground: 222 25% 8%;
-  --accent-soft: 199 40% 18%;
+  --background: 226 28% 6%;
+  --foreground: 210 30% 96%;
+  --card: 226 22% 9%;
+  --elevated: 226 20% 12%;
+  --muted: 226 18% 14%;
+  --muted-foreground: 215 16% 71%;
+  --border: 226 15% 20%;
+  --ok: 152 52% 56%;
+  --warn: 38 95% 62%;
+  --danger: 0 88% 71%;
+  --accent: 196 100% 67%;
+  --accent-foreground: 226 40% 7%;
+  --accent-soft: 200 50% 15%;
+  --accent-2: 262 90% 79%;
+  --glow: 196 100% 60%;
 }
 
 .dark[data-accent='violet'],
 .dark [data-accent='violet'] {
-  --accent: 262 90% 78%;
-  --accent-foreground: 222 25% 8%;
-  --accent-soft: 262 30% 22%;
+  --accent: 262 92% 79%;
+  --accent-foreground: 226 40% 7%;
+  --accent-soft: 262 35% 20%;
+  --accent-2: 196 100% 67%;
+  --glow: 262 90% 68%;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
   @apply bg-background text-foreground antialiased;
   font-family:
+    'Inter Variable',
+    Inter,
     ui-sans-serif,
     system-ui,
     -apple-system,
     'Segoe UI',
     Roboto,
     sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.003em;
+}
+
+code,
+pre,
+.font-mono {
+  font-family:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* A faint instrument-panel backdrop: one soft glow and a fine grid. Static, so it costs nothing. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 36rem at 78% -10%, hsl(var(--glow) / 0.1), transparent 60%),
+    radial-gradient(44rem 30rem at -5% 105%, hsl(var(--accent-2) / 0.06), transparent 60%);
+}
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 70% 0%, #000 0%, transparent 62%);
+  -webkit-mask-image: radial-gradient(ellipse at 70% 0%, #000 0%, transparent 62%);
+  opacity: 0.5;
+}
+
+/* Fluid display type for page titles. */
+.text-display {
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.eyebrow {
+  @apply font-mono text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground;
 }
 
 :focus-visible {
   outline: 2px solid hsl(var(--accent));
   outline-offset: 2px;
+}
+
+::selection {
+  background: hsl(var(--accent) / 0.3);
+}
+
+/* Slim scrollbars that match the surfaces. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+@keyframes adk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes adk-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes adk-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+@keyframes adk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.page-enter {
+  animation: adk-rise var(--dur-slow) var(--ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

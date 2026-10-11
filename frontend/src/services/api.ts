@@ -4,9 +4,12 @@ import type {
   ChatResponse,
   ClientDetail,
   ClientSummary,
+  ConversationSummary,
   ConversationView,
   EvalRunView,
   HandoffView,
+  KnowledgeDoc,
+  OverviewMetrics,
   SimulatorControls,
 } from '@adk/shared';
 
@@ -43,6 +46,13 @@ const json = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
+export interface AuditEntry {
+  id: string;
+  type: string;
+  at: string;
+  data: Record<string, unknown>;
+}
+
 export const api = {
   health: () => call<{ status: string; db: string }>('/health'),
   clients: () => call<ClientSummary[]>('/clients'),
@@ -61,4 +71,15 @@ export const api = {
   runs: (clientId: string) =>
     call<EvalRunView[]>(`/tests/runs?clientId=${encodeURIComponent(clientId)}`),
   run: (id: string) => call<EvalRunView>(`/tests/runs/${id}`),
+  overview: (clientId?: string) =>
+    call<OverviewMetrics>(
+      `/overview${clientId ? `?clientId=${encodeURIComponent(clientId)}` : ''}`,
+    ),
+  conversations: (clientId?: string, limit = 30) =>
+    call<ConversationSummary[]>(
+      `/conversations?limit=${limit}${clientId ? `&clientId=${encodeURIComponent(clientId)}` : ''}`,
+    ),
+  audit: (conversationId: string) => call<AuditEntry[]>(`/conversations/${conversationId}/audit`),
+  knowledge: (clientId: string) =>
+    call<KnowledgeDoc[]>(`/clients/${encodeURIComponent(clientId)}/knowledge`),
 };

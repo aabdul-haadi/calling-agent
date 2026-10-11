@@ -1,4 +1,4 @@
-# Agent Delivery Kit
+﻿# Agent Delivery Kit
 
 **Launch AI customer-support agents for many companies from one shared engine. A new client is a config folder, not a code change.**
 
@@ -63,10 +63,34 @@ Open <http://localhost:5173>. Try booking **SK1001**, last name **Rahman** (flig
 
 If the configured database is unreachable, the backend still starts and reports `/health` as `degraded` instead of crashing.
 
+## The operations console (UI)
+
+Open <http://localhost:5173>. The dark theme is the default; the toggle in the top bar switches to light.
+
+| Page           | Route              | What it shows                                                                                        |
+| -------------- | ------------------ | ---------------------------------------------------------------------------------------------------- |
+| Overview       | `/`                | Conversations, handoffs, approvals, tool outcomes and latency, eval pass rate, recent activity       |
+| Agent Console  | `/agent/:tenant`   | Chat with a live 3D agent, inline citations, approval card, live trace, state, audit log             |
+| Traces         | `/traces`          | Any conversation, turn by turn, with search, filters, expandable JSON and the audit log              |
+| Human Handoffs | `/handoffs`        | Queue with filters, reason, derived priority, tool history, policy concerns                          |
+| Evaluations    | `/evaluations`     | Run a suite, per-category pass rates, run-to-run comparison, expected vs actual, judge kept separate |
+| Knowledge      | `/knowledge`       | The policy documents the agent can cite                                                              |
+| Tenants        | `/tenants/:tenant` | Persona, tools, rules, escalation, journeys, validation, runtime status (change controls disabled)   |
+| Voice Lab      | `/voice`           | Browser voice with a mic-driven waveform, mute, stop, disconnect, transcript                         |
+| Architecture   | `/architecture`    | The turn lifecycle, phases, security principles, stack and limits                                    |
+
+`Ctrl/Cmd + K` opens a command palette. The tenant selector in the top bar scopes every page.
+
+**What the UI does not pretend.** Numbers come from stored records; token usage and cost are shown as "Not recorded" because they are not recorded. The backend answers a turn in one response, so tool activity is replayed right after the reply and the UI says so. The agent's speaking animation is a pattern (browser speech audio cannot be analysed), while the listening waveform follows the real microphone level. Save, publish and roll back for configuration are disabled because configuration lives in files.
+
+**The 3D agent** (`frontend/src/agent3d/`) uses `three` and `@react-three/fiber`. It is lazy-loaded as its own chunk, pauses when off-screen or the tab is hidden, uses fewer particles on small screens, shows a static fallback when WebGL is unavailable or the user prefers reduced motion, and its state comes only from real signals (`deriveAgentMode`). A text caption always states the state, so it never depends on the visual.
+
+New read-only backend endpoints that feed it: `GET /overview`, `GET /conversations`, `GET /conversations/:id/audit`, `GET /clients/:id/knowledge`.
+
 ## Running tests
 
 ```bash
-pnpm test        # 145 backend/integration tests + 50 frontend tests (incl. axe accessibility + WCAG contrast)
+pnpm test        # 152 backend/integration tests + 84 frontend tests (incl. axe accessibility + WCAG contrast)
 pnpm typecheck
 pnpm lint
 pnpm eval skylink-air     # scenario suite against the REAL LLM (needs an API key and `pnpm dev` mock services running)
@@ -87,6 +111,9 @@ Fake data only · secrets only in `.env` · tool inputs validated with zod · ex
 - **Local embeddings are lexical.** The default `EMBEDDING_PROVIDER=local` hashes words (no key needed). Use `openai` for real semantic search.
 - **Barge-in relies on browser echo cancellation**; on speakers without it the agent may interrupt itself.
 - **No screenshots are committed**; run the app to see the UI.
+- **No streaming.** A turn is answered in one response, so the live trace and tool activity appear after the reply.
+- **No login or user accounts.** Anyone who can reach the UI can see every conversation. Do not expose it as is.
+- **3D agent cost.** Its chunk is about 900 kB (240 kB gzipped) and loads only when an agent view opens. `@react-three/fiber` currently triggers a harmless `THREE.Clock` deprecation warning in the browser console.
 - **What production would add:** SIP trunk + contact-center integration, real customer authentication (not booking ref + last name), monitoring and alerting, rate limiting on a shared store, PCI/HIPAA controls where payments or health data are involved, and a much larger evaluation set.
 
 ## Documentation

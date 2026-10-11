@@ -28,7 +28,7 @@ export function DemoControls({ value, onChange, onReset }: DemoControlsProps) {
           id="demo-drawer"
           role="region"
           aria-label="Demo controls"
-          className="absolute right-0 z-20 mt-2 w-72 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-soft"
+          className="absolute right-0 z-20 mt-2 w-72 space-y-4 rounded-lg border border-border bg-card p-4 shadow-raised"
         >
           <div className="flex items-center justify-between">
             <p className="font-medium">Demo controls</p>

@@ -33,7 +33,10 @@ export function Tabs({
 
   return (
     <div>
-      <div role="tablist" className="mb-3 flex gap-1 rounded-xl bg-muted p-1">
+      <div
+        role="tablist"
+        className="mb-3 flex gap-0.5 overflow-x-auto rounded-md border border-border bg-card p-0.5"
+      >
         {tabs.map((t, i) => (
           <button
             key={t.id}
@@ -48,8 +51,10 @@ export function Tabs({
             onClick={() => onChange(t.id)}
             onKeyDown={(e) => onKey(e, i)}
             className={cn(
-              'flex-1 rounded-lg px-3 py-1.5 text-sm font-medium',
-              value === t.id ? 'bg-card shadow-soft' : 'text-muted-foreground',
+              'flex-1 whitespace-nowrap rounded-[0.4rem] px-3 py-1.5 text-xs font-medium transition-colors',
+              value === t.id
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {t.label}
