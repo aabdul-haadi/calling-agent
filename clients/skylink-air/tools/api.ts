@@ -26,11 +26,16 @@ export const bookingSchema = z.object({
 });
 export type BookingRecord = z.infer<typeof bookingSchema>;
 
+// People type "SK 1001" or "SK-1001": spaces and hyphens are accepted and removed by normalizeRef.
 export const refSchema = z
   .string()
-  .regex(/^[A-Za-z0-9]{4,10}$/, 'booking reference is letters and digits only, e.g. SK1001');
+  .trim()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9 -]{1,14}[A-Za-z0-9]$/, 'booking reference looks like SK1001')
+  .refine((v) => /^[A-Za-z0-9]{4,10}$/.test(v.replace(/[\s-]/g, '')), {
+    message: 'booking reference is letters and digits only, e.g. SK1001',
+  });
 
-export const normalizeRef = (ref: string) => ref.trim().toUpperCase();
+export const normalizeRef = (ref: string) => ref.replace(/[\s-]/g, '').toUpperCase();
 
 export async function fetchBooking(
   ref: string,

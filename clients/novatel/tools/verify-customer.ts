@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { fail, ok } from '@adk/shared';
+import { lastNameMatches } from '@backend/tools/names';
 import { defineTool } from '@backend/tools/types';
 import { accountIdSchema, accountSchema, normalizeId } from './api';
 
@@ -20,7 +21,7 @@ export const verifyCustomer = defineTool({
         ? fail('UNAUTHORIZED', 'Those details do not match our records.')
         : res;
     }
-    if (res.data.lastName.trim().toLowerCase() !== lastName.trim().toLowerCase()) {
+    if (!lastNameMatches(res.data.lastName, lastName)) {
       return fail('UNAUTHORIZED', 'Those details do not match our records.');
     }
     return ok({

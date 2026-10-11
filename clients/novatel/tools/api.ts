@@ -27,8 +27,13 @@ export const outageSchema = z.object({
   etaRestored: z.string().optional(),
 });
 
+// People type "NT 2001" or "NT-2001": spaces and hyphens are accepted and removed by normalizeId.
 export const accountIdSchema = z
   .string()
-  .regex(/^[A-Za-z0-9]{4,10}$/, 'account number is letters and digits only, e.g. NT2001');
+  .trim()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9 -]{1,14}[A-Za-z0-9]$/, 'account number looks like NT2001')
+  .refine((v) => /^[A-Za-z0-9]{4,10}$/.test(v.replace(/[\s-]/g, '')), {
+    message: 'account number is letters and digits only, e.g. NT2001',
+  });
 
-export const normalizeId = (id: string) => id.trim().toUpperCase();
+export const normalizeId = (id: string) => id.replace(/[\s-]/g, '').toUpperCase();
