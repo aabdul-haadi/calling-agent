@@ -33,6 +33,12 @@ export const envSchema = z.object({
   MOCK_CLIENT_ID: z.string().min(1),
   MOCK_CLIENT_SECRET: z.string().min(1),
   WEBHOOK_SECRET: z.string().min(8),
+
+  // Optional Python voice gateway (see voice-service/). Without a secret, voice falls back to the
+  // browser's own speech recognition.
+  VOICE_GATEWAY_SECRET: z.string().default(''),
+  VOICE_GATEWAY_URL: z.string().default('ws://localhost:8765/ws'),
+  VOICE_GATEWAY_HTTP_URL: z.string().url().default('http://localhost:8765'),
 });
 
 export type Env = z.infer<typeof envSchema>;

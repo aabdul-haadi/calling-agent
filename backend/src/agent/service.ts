@@ -5,6 +5,7 @@ import type {
   ConversationView,
   SimulatorControls,
   TraceEvent,
+  TurnEvent,
 } from '@adk/shared';
 import type { ClientRegistry } from '../clients';
 import type { Env } from '../config';
@@ -38,8 +39,16 @@ export interface ChatServiceDeps {
   apiRetry?: RetryPolicy;
 }
 
+/** Optional extras for one turn: used by the streaming endpoint and the voice gateway. */
+export interface ChatCallOptions {
+  /** The customer interrupted: the turn stops at its next safe point. */
+  signal?: AbortSignal;
+  /** Receives the turn's events as they happen. */
+  onEvent?: (event: TurnEvent) => void;
+}
+
 export interface ChatService {
-  chat(req: ChatRequest): Promise<ChatResponse>;
+  chat(req: ChatRequest, opts?: ChatCallOptions): Promise<ChatResponse>;
   view(conversationId: string): Promise<ConversationView>;
   reset(conversationId: string): Promise<ConversationView>;
   setSimulator(conversationId: string, sim: SimulatorControls): Promise<ConversationView>;
@@ -92,7 +101,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     };
   }
 
-  async function runLocked(req: ChatRequest): Promise<ChatResponse> {
+  async function runLocked(req: ChatRequest, opts?: ChatCallOptions): Promise<ChatResponse> {
     const module = registry.get(req.clientId);
     if (!module) throw new HttpError(404, 'NOT_FOUND', `Unknown client "${req.clientId}"`);
     const channel = req.channel ?? 'chat';
@@ -114,6 +123,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       convo = await load(newId);
     }
     const id = convo.id;
+    opts?.onEvent?.({ type: 'turn.started', conversationId: id });
 
     // Already with a person: the agent stays out of it. The customer's words are kept for the
     // human. Until a human has accepted, the customer is told they are in the queue; after that
@@ -166,11 +176,15 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
         userMessage: req.message,
         channel,
         simulator: convo.simulator,
+        signal: opts?.signal,
+        onEvent: opts?.onEvent,
+        voice: req.voice,
       },
     );
 
     await repo.addMessage(db, id, 'user', req.message);
-    await repo.addMessage(db, id, 'assistant', out.reply);
+    // An interrupted turn has nothing to say. What did happen (tools, state, trace) is still saved.
+    if (!out.cancelled) await repo.addMessage(db, id, 'assistant', out.reply);
     await repo.addToolCalls(db, id, out.toolCalls);
     await repo.addTraceEvents(db, id, out.trace);
     await auditRepo.addAuditEvents(db, id, req.clientId, out.audit);
@@ -183,14 +197,15 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       trace: out.trace,
       citations: out.citations,
       handoff: out.handoff,
+      ...(out.cancelled ? { cancelled: true } : {}),
     };
   }
 
   return {
-    async chat(req) {
+    async chat(req, opts) {
       const key = req.conversationId ?? randomUUID();
       const previous = locks.get(key) ?? Promise.resolve();
-      const run = previous.catch(() => undefined).then(() => runLocked(req));
+      const run = previous.catch(() => undefined).then(() => runLocked(req, opts));
       locks.set(key, run);
       try {
         return await run;

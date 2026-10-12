@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adk-voice-service"
+version = "0.1.0"
+description = "Real-time voice gateway (VAD, streaming ASR, TTS, barge-in) for the Agent Delivery Kit. Carries audio only: every business decision stays in the TypeScript runtime."
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "fastapi==0.143.0",
+  "uvicorn==0.54.0",
+  "websockets==17.2",
+  "httpx==0.28.1",
+  "numpy==2.5.4",
+  "pydantic==2.14.1",
+  "sherpa-onnx==1.13.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0"]
+
+[tool.setuptools.packages.find]
+include = ["app*", "evalab*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "models: needs the downloaded speech models (run `python -m app.tools.download_models` first)",
+  "slow: takes more than a few seconds",
+]

@@ -5,3 +5,11 @@ dist
 .vite
 coverage
 .pglite
+
+# Python voice service
+voice-service/.venv/
+voice-service/models/
+voice-service/**/__pycache__/
+voice-service/*.egg-info/
+voice-service/.pytest_cache/
+voice-service/tests/fixtures/generated/

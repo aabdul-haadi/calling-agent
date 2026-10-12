@@ -1,0 +1,61 @@
+[
+ {
+  "model": "zipformer-20m",
+  "description": "20M parameters, int8",
+  "load_s": 1.6,
+  "clips": 2,
+  "corpus_wer": 0.091,
+  "per_clip": [
+   {
+    "clip": "0.wav",
+    "wer": 0.222,
+    "rtf": 0.041,
+    "final_ms": 30.1
+   },
+   {
+    "clip": "1.wav",
+    "wer": 0.042,
+    "rtf": 0.039,
+    "final_ms": 25.7
+   }
+  ],
+  "first_partial_audio_s": [
+   2.4,
+   1.4
+  ]
+ },
+ {
+  "model": "zipformer-large",
+  "description": "zipformer 2023-06-26, int8",
+  "load_s": 5.25,
+  "clips": 2,
+  "corpus_wer": 0.0,
+  "per_clip": [
+   {
+    "clip": "0.wav",
+    "wer": 0.0,
+    "rtf": 0.113,
+    "final_ms": 45.3
+   },
+   {
+    "clip": "1.wav",
+    "wer": 0.0,
+    "rtf": 0.106,
+    "final_ms": 107.4
+   }
+  ],
+  "first_partial_audio_s": [
+   1.2,
+   1.2
+  ]
+ },
+ {
+  "model": "kroko",
+  "description": "Kroko 2025-08-06",
+  "load_s": 5.04,
+  "clips": 0,
+  "corpus_wer": 0.0,
+  "per_clip": [],
+  "first_partial_audio_s": []
+ }
+]

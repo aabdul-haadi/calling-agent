@@ -16,7 +16,11 @@ import { createRetriever, ingestClient, localProvider } from '@backend/knowledge
 import { resolve } from 'node:path';
 
 export type ScriptStep =
-  Partial<LlmResponse> | ((req: LlmRequest) => Partial<LlmResponse> | 'fail');
+  | (Partial<LlmResponse> & {
+      /** Wait this long before answering (aborts early when the call is cancelled). */
+      delayMs?: number;
+    })
+  | ((req: LlmRequest) => Partial<LlmResponse> | 'fail');
 
 interface Classification {
   intent: string;
@@ -39,7 +43,8 @@ export function createScriptedLlm(
   let toolId = 0;
 
   const client: LlmClient = {
-    async complete(req): Promise<ToolResult<LlmResponse>> {
+    async complete(req, opts): Promise<ToolResult<LlmResponse>> {
+      if (opts?.signal?.aborted) return fail('UNAVAILABLE', 'The request was cancelled');
       if (req.system.startsWith('You classify')) {
         const last = req.messages[req.messages.length - 1];
         const text = last && 'content' in last ? last.content : '';
@@ -68,6 +73,25 @@ export function createScriptedLlm(
       if (!step) return ok({ text: 'OK (script exhausted)', toolCalls: [] });
       const resolved = typeof step === 'function' ? step(req) : step;
       if (resolved === 'fail') return fail('UNAVAILABLE', 'model down');
+      const delayMs = (resolved as { delayMs?: number }).delayMs;
+      if (delayMs) {
+        const cancelled = await new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => resolve(false), delayMs);
+          opts?.signal?.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer);
+              resolve(true);
+            },
+            { once: true },
+          );
+        });
+        if (cancelled) return fail('UNAVAILABLE', 'The request was cancelled');
+      }
+      // Stream the text word by word, like a model that supports streaming.
+      if (opts?.onTextDelta && resolved.text) {
+        for (const piece of resolved.text.match(/\S+\s*/g) ?? []) opts.onTextDelta(piece);
+      }
       return ok({
         text: resolved.text ?? '',
         toolCalls: (resolved.toolCalls ?? []).map((c) => ({
@@ -109,7 +133,12 @@ export interface Harness {
 }
 
 export async function createHarness(
-  opts: { ingestKnowledge?: boolean; classify?: Parameters<typeof createScriptedLlm>[0] } = {},
+  opts: {
+    ingestKnowledge?: boolean;
+    classify?: Parameters<typeof createScriptedLlm>[0];
+    /** Extra environment variables, for example the voice gateway secret. */
+    env?: Record<string, string>;
+  } = {},
 ): Promise<Harness> {
   const mockApp = createMockApp(defaultOptions());
   const server: Server = await new Promise((resolveServer) => {
@@ -122,6 +151,7 @@ export async function createHarness(
     MOCK_CLIENT_ID: 'adk-backend',
     MOCK_CLIENT_SECRET: 'test-client-secret',
     WEBHOOK_SECRET: 'test-webhook-secret',
+    ...opts.env,
   });
   const logger = createLogger('silent');
   const db = await createMemoryDb();

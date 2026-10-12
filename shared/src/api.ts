@@ -49,11 +49,22 @@ export interface SimulatorControls {
   latencyMs: number;
 }
 
+/** What the voice gateway knows about how the customer's words were recognised. */
+export interface VoiceTranscriptMeta {
+  /**
+   * The speech recognizer was not confident (very short or unstable audio). A message like this is
+   * never accepted as approval of a change, and the agent is told to ask again.
+   */
+  lowConfidence?: boolean;
+}
+
 export interface ChatRequest {
   clientId: string;
   conversationId?: string;
   message: string;
   channel?: Channel;
+  /** Only sent by the voice gateway. */
+  voice?: VoiceTranscriptMeta;
   /** Only used when this message starts a new conversation (scenario tests). */
   simulator?: SimulatorControls;
 }
@@ -79,6 +90,8 @@ export interface HandoffView {
 
 export interface ChatResponse {
   conversationId: string;
+  /** The customer interrupted: the turn stopped early, nothing is said, and no reply is saved. */
+  cancelled?: boolean;
   reply: string;
   state: ConversationStateView;
   trace: TraceEvent[];
@@ -195,3 +208,17 @@ export interface KnowledgeDoc {
   characters: number;
   updatedAt: string;
 }
+
+/**
+ * Events of one agent turn as it happens (POST /chat/stream sends them as NDJSON lines). They name
+ * tools and their outcome only: never tool arguments, never model reasoning.
+ */
+export type TurnEvent =
+  | { type: 'turn.started'; conversationId: string }
+  | { type: 'agent.thinking' }
+  | { type: 'knowledge.used'; sources: string[] }
+  | { type: 'tool.started'; tool: string }
+  | { type: 'tool.completed'; tool: string; status: 'ok' | 'blocked' | 'error' }
+  | { type: 'approval.required'; summary: string; expiresAt: string }
+  | { type: 'agent.text.delta'; text: string }
+  | { type: 'handoff.started'; reason: string };

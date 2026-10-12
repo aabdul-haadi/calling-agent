@@ -45,21 +45,25 @@ export async function classifyTurn(
   history: { role: 'user' | 'assistant'; content: string }[],
   userMessage: string,
   pendingChange?: string,
+  signal?: AbortSignal,
 ): Promise<TurnClassification> {
   const recent = history
     .slice(-4)
     .map((m) => `${m.role}: ${m.content}`)
     .join('\n');
-  const res = await llm.complete({
-    system: systemPrompt(config, pendingChange),
-    messages: [
-      {
-        role: 'user',
-        content: `Recent conversation:\n${recent || '(none)'}\n\nLatest customer message:\n"""${userMessage}"""`,
-      },
-    ],
-    maxTokens: 200,
-  });
+  const res = await llm.complete(
+    {
+      system: systemPrompt(config, pendingChange),
+      messages: [
+        {
+          role: 'user',
+          content: `Recent conversation:\n${recent || '(none)'}\n\nLatest customer message:\n"""${userMessage}"""`,
+        },
+      ],
+      maxTokens: 200,
+    },
+    { signal },
+  );
   if (!res.ok) return NEUTRAL;
   const match = res.data.text.match(/\{[\s\S]*\}/);
   if (!match) return NEUTRAL;

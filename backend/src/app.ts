@@ -13,6 +13,7 @@ import { handoffsRouter } from './routes/handoffs';
 import { healthRouter } from './routes/health';
 import { insightsRouter } from './routes/insights';
 import { testsRouter, type EvalService } from './routes/tests';
+import { voiceRouter } from './routes/voice';
 
 export interface AppDeps {
   env: Env;
@@ -37,6 +38,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(handoffsRouter(deps.db));
   app.use(auditRouter(deps.db));
   app.use(insightsRouter(deps.db, deps.registry));
+  app.use(voiceRouter(deps.env, deps.registry));
   app.use(testsRouter(deps.evals));
 
   app.use(notFound);

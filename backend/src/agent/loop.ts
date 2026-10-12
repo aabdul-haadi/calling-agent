@@ -7,6 +7,8 @@ import type {
   SimulatorControls,
   TraceEvent,
   TraceStatus,
+  TurnEvent,
+  VoiceTranscriptMeta,
 } from '@adk/shared';
 import type { ClientModule } from '../clients/types';
 import { evaluatePostTurn, evaluatePreTurn, type HandoffReason } from '../handoff/triggers';
@@ -45,6 +47,12 @@ export interface TurnInput {
   userMessage: string;
   channel: Channel;
   simulator: SimulatorControls;
+  /** The customer interrupted: stop at the next safe point. A running tool call is never cut off. */
+  signal?: AbortSignal;
+  /** Receives the turn's events as they happen (tool names and outcomes, text, approvals). */
+  onEvent?: (event: TurnEvent) => void;
+  /** How the customer's words were recognised, when they were spoken. */
+  voice?: VoiceTranscriptMeta;
 }
 
 export interface ToolCallRecord {
@@ -64,6 +72,8 @@ export interface TurnOutput {
   /** Decisions that mattered this turn (proposals, approvals, executions), for the audit log. */
   audit: AuditEvent[];
   handoff?: HandoffView;
+  /** The customer interrupted. State and trace are kept; there is no reply. */
+  cancelled?: boolean;
 }
 
 const HANDOFF_NOTICE =
@@ -148,6 +158,11 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   let state = stepHook(input.state, module, 'afterUserReply');
   let citations: Citation[] = [];
 
+  const emit = input.onEvent;
+  /** Everything the agent has said (and, in streaming mode, already sent) this turn. */
+  let spoken = '';
+  const isCancelled = () => input.signal?.aborted === true;
+
   const record = (type: AuditType, data: Record<string, unknown> = {}) =>
     audit.push(
       auditEvent(type, {
@@ -166,6 +181,21 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       record('phase_refused', { from: state.phase, event });
       addTrace('state', `Ignored an unexpected step (${event} while ${state.phase})`, 'warn');
     }
+  };
+
+  /**
+   * Stop because the customer interrupted. What already happened stays: tools that ran, the state
+   * and the trace are saved, so the next turn continues from the truth. Nothing is rolled back and
+   * nothing is said. If a change was approved but had not started, the approval simply lapses at
+   * the start of the next turn and the customer is asked again.
+   */
+  const cancelTurn = (): TurnOutput => {
+    addTrace('guard', 'Stopped because the customer started speaking', 'warn');
+    record('turn_cancelled', {
+      toolsRun: toolCalls.map((t) => t.tool),
+      proposalStatus: state.proposal?.status,
+    });
+    return { reply: '', state, trace, citations, toolCalls, audit, cancelled: true };
   };
 
   const finish = async (
@@ -194,7 +224,19 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       move('handoff', true);
       state = { ...state, handedOff: true, pendingHandoff: undefined };
       addTrace('handoff', `Handed over to a human: ${handoff.reason}`, 'warn');
+      emit?.({ type: 'handoff.started', reason: handoff.reason });
       if (!finalReply.includes('human')) finalReply = `${finalReply}\n\n${HANDOFF_NOTICE}`.trim();
+    }
+    if (emit) {
+      // The customer has already heard `spoken`: send only what is new, and keep the saved reply
+      // identical to what was said.
+      const said = spoken.trim();
+      const prefixed = said !== '' && finalReply.startsWith(said);
+      const tail = prefixed ? finalReply.slice(said.length) : finalReply;
+      if (tail.trim()) {
+        emit({ type: 'agent.text.delta', text: said ? ` ${tail.trim()}` : tail.trim() });
+      }
+      if (said && !prefixed) finalReply = `${said} ${finalReply}`.trim();
     }
     state = stepHook(state, module, 'afterTurn');
     return { reply: finalReply, state, trace, citations, toolCalls, audit, handoff };
@@ -211,15 +253,32 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
 
   // 1. Understand the message (intent + mood + does it approve the pending change?), then check the
   // "before we even try" handoff triggers.
+  emit?.({ type: 'agent.thinking' });
   const pendingChange = state.proposal?.status === 'pending' ? state.proposal.summary : undefined;
-  const classification = await classifyTurn(
+  const heard = await classifyTurn(
     deps.llm,
     config,
     input.history,
     input.userMessage,
     pendingChange,
+    input.signal,
   );
+  // A transcript the speech recognizer was unsure about can never approve a change: a misheard
+  // "yes" must not authorise anything. The agent is told to ask again (see the prompt).
+  const uncertain = input.voice?.lowConfidence === true;
+  const classification =
+    uncertain && heard.confirmation !== 'none'
+      ? { ...heard, confirmation: 'none' as const }
+      : heard;
   state = { ...state, lastIntent: classification.intent, lastSentiment: classification.sentiment };
+  if (uncertain) {
+    addTrace(
+      'state',
+      'Speech recognition was unsure about this message, so it cannot approve a change',
+      'warn',
+    );
+  }
+  if (isCancelled()) return cancelTurn();
   addTrace(
     'intent',
     `Understood intent: ${classification.intent.replace(/_/g, ' ')}`,
@@ -259,14 +318,11 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   if (deps.retrieve) {
     const found = await deps.retrieve(config.id, input.userMessage);
     citations = found.citations;
+    if (isCancelled()) return cancelTurn();
     if (found.relevant) {
-      addTrace(
-        'knowledge',
-        `Looked up policy: ${[...new Set(citations.map((c) => c.source))].join(', ')}`,
-        'ok',
-        undefined,
-        citations,
-      );
+      const sources = [...new Set(citations.map((c) => c.source))];
+      addTrace('knowledge', `Looked up policy: ${sources.join(', ')}`, 'ok', undefined, citations);
+      emit?.({ type: 'knowledge.used', sources });
     } else if (classification.isPolicyQuestion) {
       addTrace('knowledge', 'Searched policies, found nothing relevant', 'warn');
       return finish(NO_POLICY_REPLY, null);
@@ -296,14 +352,36 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       loopGuardHit = true;
       break;
     }
+    if (isCancelled()) return cancelTurn();
     const system = buildSystemPrompt({
       config,
       state,
       channel: input.channel,
       knowledge: citations,
+      voiceUncertain: uncertain,
     });
     const started = Date.now();
-    const res = await deps.llm.complete({ system, messages, tools: specs });
+    // Text is forwarded as the model writes it. Anything said before a tool call is kept: the
+    // customer heard it, so it stays part of the reply.
+    let streamed = 0;
+    if (emit && spoken.trim()) {
+      spoken += ' ';
+      emit({ type: 'agent.text.delta', text: ' ' });
+    }
+    const res = await deps.llm.complete(
+      { system, messages, tools: specs },
+      {
+        signal: input.signal,
+        onTextDelta: emit
+          ? (text) => {
+              streamed += text.length;
+              spoken += text;
+              emit({ type: 'agent.text.delta', text });
+            }
+          : undefined,
+      },
+    );
+    if (isCancelled()) return cancelTurn();
     if (!res.ok) {
       aiUnavailable = true;
       log.error({ reason: res.message }, 'llm call failed');
@@ -312,13 +390,22 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       });
       break;
     }
+    // A model client that cannot stream still returns its text: say it once, now.
+    if (emit && streamed === 0 && res.data.text) {
+      spoken += res.data.text;
+      emit({ type: 'agent.text.delta', text: res.data.text });
+    }
     if (res.data.toolCalls.length === 0) {
-      reply = res.data.text;
+      reply = emit ? spoken.trim() : res.data.text;
       break;
     }
     messages.push({ role: 'assistant', content: res.data.text, toolCalls: res.data.toolCalls });
 
     for (const call of res.data.toolCalls) {
+      // Between two tool calls is a safe place to stop. Once a call starts it always finishes.
+      if (isCancelled()) return cancelTurn();
+      const known = config.tools.includes(call.name);
+      if (known) emit?.({ type: 'tool.started', tool: call.name });
       const outcome = await dispatch(
         call.name,
         call.input,
@@ -361,6 +448,16 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         },
       );
       log.info({ tool: call.name, ok: r.ok, latencyMs: outcome.latencyMs }, 'tool call');
+      if (known) {
+        const blocked =
+          !r.ok &&
+          (r.error === 'AUTH_REQUIRED' || r.error === 'RULE_BLOCKED' || r.error === 'UNAUTHORIZED');
+        emit?.({
+          type: 'tool.completed',
+          tool: call.name,
+          status: r.ok ? 'ok' : blocked ? 'blocked' : 'error',
+        });
+      }
 
       const wasVerified = state.verified;
       if (r.ok) {
@@ -392,6 +489,11 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
             expiresAt: outcome.proposal.expiresAt,
           });
           move('proposal_created');
+          emit?.({
+            type: 'approval.required',
+            summary: outcome.proposal.summary,
+            expiresAt: outcome.proposal.expiresAt,
+          });
         } else if (outcome.approvalStage === 'executing' && outcome.proposal) {
           record('mutation_executed', {
             proposalId: outcome.proposal.id,

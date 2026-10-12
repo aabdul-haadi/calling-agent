@@ -20,9 +20,17 @@ export interface PromptInput {
   state: ConversationState;
   channel: Channel;
   knowledge: Citation[];
+  /** The speech recognizer was not confident about the customer's last message. */
+  voiceUncertain?: boolean;
 }
 
-export function buildSystemPrompt({ config, state, channel, knowledge }: PromptInput): string {
+export function buildSystemPrompt({
+  config,
+  state,
+  channel,
+  knowledge,
+  voiceUncertain,
+}: PromptInput): string {
   const p = config.persona;
   const parts: string[] = [
     `You are ${p.name}, the virtual support agent for ${config.displayName}. Tone: ${p.tone}.`,
@@ -56,7 +64,13 @@ export function buildSystemPrompt({ config, state, channel, knowledge }: PromptI
       '',
       'This is a VOICE call. ' + p.voiceStyle + '.',
       'Keep replies to 1-3 short sentences. No lists, no markdown. Confirm key details (names, flight numbers, times) back to the customer.',
+      "The customer's words come from speech recognition, which can mishear names, booking references, numbers and flight times. Never guess a value you are not sure of: ask the customer to repeat it or spell it letter by letter. When you are about to use a booking reference or account number, read it back to them first if they only said it once. When you ask for approval of a change, read out the exact flight number and time so they can correct you.",
     );
+    if (voiceUncertain) {
+      parts.push(
+        "The speech recognizer was NOT confident about the customer's last message. Do not act on any booking reference, name, number or yes/no in it. Ask the customer to say it again, and if a change is waiting for approval, ask them to confirm it again.",
+      );
+    }
   } else {
     parts.push('', 'Keep replies concise and friendly. Plain text, short paragraphs.');
   }
