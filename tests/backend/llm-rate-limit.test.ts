@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRetryAfterMs, postJson } from '@backend/llm/http';
+import { parseRetryAfterMs, postJson, waitContext } from '@backend/llm/http';
 import { createOpenAiClient } from '@backend/llm';
 
 const groq429 = JSON.stringify({
@@ -38,6 +38,30 @@ describe('postJson rate limiting', () => {
     const res = await postJson('http://x', {}, {}, { fetchImpl: t.fetchImpl, sleep: t.sleep });
     expect(res).toEqual({ ok: true, data: { ok: true } });
     expect(t.sleeps).toEqual([8350, 8350]);
+  });
+
+  it('tells the caller how long a call spent waiting for the rate limit, separately from the model', async () => {
+    const t = make([429, 429, 200]);
+    const ctx = { waitedMs: 0, hits: 0 };
+    await waitContext.run(ctx, () =>
+      postJson('http://x', {}, {}, { fetchImpl: t.fetchImpl, sleep: t.sleep }),
+    );
+    expect(ctx).toEqual({ waitedMs: 16_700, hits: 2 });
+    // concurrent calls keep their own totals
+    const a = { waitedMs: 0, hits: 0 };
+    const b = { waitedMs: 0, hits: 0 };
+    const ta = make([429, 200]);
+    const tb = make([200]);
+    await Promise.all([
+      waitContext.run(a, () =>
+        postJson('http://x', {}, {}, { fetchImpl: ta.fetchImpl, sleep: ta.sleep }),
+      ),
+      waitContext.run(b, () =>
+        postJson('http://x', {}, {}, { fetchImpl: tb.fetchImpl, sleep: tb.sleep }),
+      ),
+    ]);
+    expect(a.hits).toBe(1);
+    expect(b.hits).toBe(0);
   });
 
   it('gives up after the rate-limit budget and reports the provider reason', async () => {

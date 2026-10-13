@@ -99,7 +99,8 @@ function DocumentCard({
             {doc.pages ? `${doc.pages} pages · ` : ''}
             {doc.chunks} {doc.chunks === 1 ? 'section' : 'sections'}
             {doc.ocrPages ? ` · ${doc.ocrPages} read by OCR` : ''}
-            {doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''} · {relativeTime(doc.updatedAt)}
+            {doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''} ·{' '}
+            {relativeTime(doc.updatedAt)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
@@ -162,7 +163,8 @@ function DocumentCard({
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
           >
-            {open ? 'Hide' : 'Show'} {doc.versions.length} older {doc.versions.length === 1 ? 'version' : 'versions'}
+            {open ? 'Hide' : 'Show'} {doc.versions.length} older{' '}
+            {doc.versions.length === 1 ? 'version' : 'versions'}
           </button>
           {open && (
             <ul className="mt-1 space-y-0.5">
@@ -270,7 +272,10 @@ function Uploader({ clientId, onDone }: { clientId: string; onDone: () => void }
       onDrop={onDrop}
     >
       <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
-        <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
+        <span
+          aria-hidden="true"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent"
+        >
           <Upload className="h-5 w-5" />
         </span>
         <div className="flex-1">
@@ -371,7 +376,13 @@ function TestQuestion({ clientId }: { clientId: string }) {
     setBusy(true);
     setError(undefined);
     try {
-      setResult(await api.searchKnowledge(clientId, question.trim(), previous.trim() ? [previous.trim()] : []));
+      setResult(
+        await api.searchKnowledge(
+          clientId,
+          question.trim(),
+          previous.trim() ? [previous.trim()] : [],
+        ),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The search failed');
     } finally {
@@ -440,13 +451,17 @@ function TestQuestion({ clientId }: { clientId: string }) {
           <div className="space-y-3" aria-live="polite">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={result.relevant ? 'ok' : 'warn'}>
-                {result.relevant ? 'Evidence found' : 'Not covered: the agent would say it is not sure'}
+                {result.relevant
+                  ? 'Evidence found'
+                  : 'Not covered: the agent would say it is not sure'}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {result.timings.totalMs} ms (embed {result.timings.embedMs}, meaning {result.timings.vectorMs}, words{' '}
-                {result.timings.keywordMs}
-                {result.timings.rerankMs !== undefined ? `, relevance check ${result.timings.rerankMs}` : ''}) ·{' '}
-                {result.considered} candidates · {result.embedding}
+                {result.timings.totalMs} ms (embed {result.timings.embedMs}, meaning{' '}
+                {result.timings.vectorMs}, words {result.timings.keywordMs}
+                {result.timings.rerankMs !== undefined
+                  ? `, relevance check ${result.timings.rerankMs}`
+                  : ''}
+                ) · {result.considered} candidates · {result.embedding}
               </span>
             </div>
             <p className="text-sm text-muted-foreground">{result.reason}</p>
@@ -456,9 +471,15 @@ function TestQuestion({ clientId }: { clientId: string }) {
               </p>
             )}
             {terms.length > 0 && (
-              <p className={cn('text-sm font-medium', found.length === terms.length ? 'text-ok' : 'text-warn')}>
+              <p
+                className={cn(
+                  'text-sm font-medium',
+                  found.length === terms.length ? 'text-ok' : 'text-warn',
+                )}
+              >
                 Expected answer: {found.length} of {terms.length} key terms appear in the evidence
-                {found.length < terms.length && ` (missing: ${terms.filter((t) => !found.includes(t)).join(', ')})`}
+                {found.length < terms.length &&
+                  ` (missing: ${terms.filter((t) => !found.includes(t)).join(', ')})`}
               </p>
             )}
             {result.passages.length > 0 ? (
@@ -553,7 +574,12 @@ export function KnowledgePage() {
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {docs.data.map((d) => (
             <li key={d.id ?? d.source}>
-              <DocumentCard doc={d} busy={pending} onAction={(fn) => void act(fn)} onDelete={setToDelete} />
+              <DocumentCard
+                doc={d}
+                busy={pending}
+                onAction={(fn) => void act(fn)}
+                onDelete={setToDelete}
+              />
             </li>
           ))}
         </ul>

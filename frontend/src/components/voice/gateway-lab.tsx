@@ -10,6 +10,19 @@ import { cn } from '@/lib/utils';
 import { gatewayAgentMode } from '@/voice/agent-mode';
 import { STATUS_TEXT, toolPhrase } from '@/voice/state';
 
+/** The server's own measurements, in the order a turn goes through them. */
+const TIMING_ROWS: [string, string][] = [
+  ['firstPartialMs', 'First words recognised'],
+  ['speechEndToFinalMs', 'You stop talking → final transcript'],
+  ['agentUnderstandMs', 'Understanding the message'],
+  ['agentRetrieveMs', 'Searching the policies'],
+  ['agentLlmMs', 'Model calls (total)'],
+  ['agentToolMs', 'Business tools (total)'],
+  ['agentFirstTokenMs', 'Turn start → first word written'],
+  ['speechEndToFirstTextMs', 'You stop talking → first word written'],
+  ['speechEndToFirstAudioMs', 'You stop talking → first sound'],
+];
+
 /** Voice with the local engine: audio goes to the voice gateway, the same agent answers. */
 export function GatewayLab({ client }: { client: ClientDetail }) {
   const v = useVoiceGateway(client.id);
@@ -147,19 +160,52 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
 
         <Card>
           <CardHeader>
+            <CardTitle>Where the time went</CardTitle>
+            <Badge>last turn</Badge>
+          </CardHeader>
+          <CardContent>
+            {!state.metrics ? (
+              <p className="text-sm text-muted-foreground">
+                After each answer, the measured time of every step shows here.
+              </p>
+            ) : (
+              <dl
+                aria-label="Time per step"
+                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm"
+              >
+                {TIMING_ROWS.filter(([key]) => state.metrics?.[key] !== undefined).map(
+                  ([key, label]) => (
+                    <div key={key} className="contents">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="text-right font-mono tabular-nums">
+                        {state.metrics![key]} ms
+                      </dd>
+                    </div>
+                  ),
+                )}
+              </dl>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Sources for the last answer</CardTitle>
             <Badge>{state.sources.length}</Badge>
           </CardHeader>
           <CardContent>
             {state.sources.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                When an answer comes from the policy documents, the document and page show here. They
-                are never read aloud.
+                When an answer comes from the policy documents, the document and page show here.
+                They are never read aloud.
               </p>
             ) : (
               <ul aria-label="Sources for the last answer" className="space-y-2 text-sm">
                 {state.sources.map((p, i) => (
-                  <li key={`${p.source}-${p.page ?? 0}-${i}`} className="rounded-md border border-border bg-elevated p-2.5">
+                  <li
+                    key={`${p.source}-${p.page ?? 0}-${i}`}
+                    className="rounded-md border border-border bg-elevated p-2.5"
+                  >
                     <p className="flex flex-wrap items-center gap-2 font-medium">
                       <FileText className="h-4 w-4 text-accent" aria-hidden="true" />
                       <span className="font-mono text-xs">{p.source}</span>

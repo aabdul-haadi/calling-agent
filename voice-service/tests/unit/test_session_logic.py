@@ -704,3 +704,33 @@ async def test_the_runtimes_stage_timings_reach_the_turn_metrics():
     assert (m["agentUnderstandMs"], m["agentRetrieveMs"], m["agentLlmMs"], m["agentToolMs"]) == (200, 30, 600, 70)
     assert m["agentFirstTokenMs"] == 530 and m["agentTotalMs"] == 900
     await r.close()
+
+
+async def test_where_an_answer_came_from_is_forwarded_for_the_screen_and_validated():
+    r = Rig(TURN)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1"},
+        {"type": "knowledge.searching"},
+        {"type": "knowledge.used", "sources": ["handbook.pdf"], "passages": [
+            {"source": "handbook.pdf", "heading": "Handbook > Refunds", "page": 5, "pageEnd": 6, "version": 2,
+             "excerpt": "Refunds take 7 business days. " * 20, "apiKey": "secret-should-not-pass"},
+            {"source": 7, "heading": "bad"},
+            "not a dict",
+            {"source": "x.pdf", "heading": "H", "page": True, "excerpt": "e"},
+        ]},
+        *text("Refunds take seven business days."),
+    )
+    await turn(r)
+    await r.until(lambda: r.of(ev.KNOWLEDGE_USED))
+    used = r.of(ev.KNOWLEDGE_USED)[0]
+    assert used["sources"] == ["handbook.pdf"]
+    first, second = used["passages"]
+    assert first["page"] == 5 and first["pageEnd"] == 6 and first["version"] == 2
+    assert len(first["excerpt"]) <= 240 and "apiKey" not in first
+    assert "page" not in second  # a boolean is not a page number
+    assert len(used["passages"]) == 2  # the junk entries were dropped
+    assert "knowledge.searching" in r.types()
+    # nothing about the passages is ever spoken
+    await r.until(lambda: r.synth.phrases)
+    assert all("Handbook" not in p and "page" not in p for p in r.synth.phrases)
+    await r.close()

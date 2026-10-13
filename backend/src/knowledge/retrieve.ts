@@ -32,7 +32,7 @@ export interface RetrievalConfig {
 export const DEFAULT_RETRIEVAL: RetrievalConfig = {
   candidates: 20,
   maxResults: 5,
-  maxContextChars: 4500,
+  maxContextChars: 3200,
   minSimilarity: 0.55,
   minOverlap: 0.34,
   duplicateOverlap: 0.6,

@@ -11,16 +11,32 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = join(root, 'docproc');
-const venvPython = join(pkg, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+const venvPython = join(
+  pkg,
+  '.venv',
+  process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
+);
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { stdio: 'inherit', cwd: pkg, ...opts });
 
 function findPython() {
   const candidates =
     process.platform === 'win32'
-      ? [['py', ['-3.13']], ['py', ['-3.12']], ['py', ['-3.11']], ['python', []]]
-      : [['python3.13', []], ['python3.12', []], ['python3.11', []], ['python3', []]];
+      ? [
+          ['py', ['-3.13']],
+          ['py', ['-3.12']],
+          ['py', ['-3.11']],
+          ['python', []],
+        ]
+      : [
+          ['python3.13', []],
+          ['python3.12', []],
+          ['python3.11', []],
+          ['python3', []],
+        ];
   for (const [cmd, pre] of candidates) {
-    const r = spawnSync(cmd, [...pre, '-c', 'import sys; print("%d.%d" % sys.version_info[:2])'], { encoding: 'utf8' });
+    const r = spawnSync(cmd, [...pre, '-c', 'import sys; print("%d.%d" % sys.version_info[:2])'], {
+      encoding: 'utf8',
+    });
     const v = r.status === 0 ? r.stdout.trim() : '';
     if (['3.11', '3.12', '3.13'].includes(v)) return { cmd, pre, version: v };
   }
@@ -58,7 +74,10 @@ switch (command) {
     break;
   case 'read':
     needVenv();
-    process.exit(run(venvPython, ['-m', 'docproc', 'extract', ...rest.map((f) => resolve(process.cwd(), f))]).status ?? 0);
+    process.exit(
+      run(venvPython, ['-m', 'docproc', 'extract', ...rest.map((f) => resolve(process.cwd(), f))])
+        .status ?? 0,
+    );
     break;
   default:
     console.log('Usage: node scripts/docs.mjs setup | corpus | test | read FILE.pdf');

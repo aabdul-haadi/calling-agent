@@ -187,6 +187,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
         retrieve: deps.retrieve,
         handoff: deps.handoff,
         speculate: env.AGENT_SPECULATIVE,
+        fastClassify: env.AGENT_FAST_CLASSIFY,
         makeApi: (sim) =>
           createApiClient({
             baseUrl: base,

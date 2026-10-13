@@ -49,13 +49,14 @@ export function createScriptedLlm(
   const calls: LlmRequest[] = [];
   const judgeVerdict = { pass: true, reason: 'Looks good.' };
   /** Make classification slow, to test what happens while it is still running. */
-  const timing = { classifyDelayMs: 0 };
+  const timing = { classifyDelayMs: 0, classifyCalls: 0 };
   let toolId = 0;
 
   const client: LlmClient = {
     async complete(req, opts): Promise<ToolResult<LlmResponse>> {
       if (opts?.signal?.aborted) return fail('UNAVAILABLE', 'The request was cancelled');
       if (req.system.startsWith('You classify')) {
+        timing.classifyCalls += 1;
         const last = req.messages[req.messages.length - 1];
         const text = last && 'content' in last ? last.content : '';
         const msg = /"""([\s\S]*)"""/.exec(text)?.[1] ?? text;
@@ -123,6 +124,7 @@ export function createScriptedLlm(
       judgeVerdict.pass = true;
       judgeVerdict.reason = 'Looks good.';
       timing.classifyDelayMs = 0;
+      timing.classifyCalls = 0;
       queue.length = 0;
       calls.length = 0;
     },

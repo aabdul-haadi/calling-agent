@@ -32,6 +32,8 @@ export interface VoiceState {
   activeTool?: string;
   /** The policy passages the latest answer is based on (empty when it needed none). */
   sources: KnowledgePassage[];
+  /** Where the time of the last turn went (milliseconds), as measured by the server. */
+  metrics?: Record<string, number>;
   pendingApproval?: { summary: string; expiresAt: string };
   conversationId?: string;
   handedOff: boolean;
@@ -119,7 +121,9 @@ export function reduce(s: VoiceState, e: ServerEvent | LocalEvent): VoiceState {
     case 'agent.thinking':
       return s.status === 'thinking' || s.status === 'speaking' ? s : { ...s, status: 'thinking' };
     case 'knowledge.searching':
-      return s.status === 'speaking' || s.status === 'interrupted' ? s : { ...s, status: 'searching_policy' };
+      return s.status === 'speaking' || s.status === 'interrupted'
+        ? s
+        : { ...s, status: 'searching_policy' };
     case 'knowledge.used':
       return {
         ...s,
@@ -146,6 +150,12 @@ export function reduce(s: VoiceState, e: ServerEvent | LocalEvent): VoiceState {
       return s;
     case 'agent.interrupted':
       return { ...s, status: 'interrupted', playing: false, activeTool: undefined, partial: '' };
+    case 'turn.metrics': {
+      const metrics: Record<string, number> = {};
+      for (const [k, v] of Object.entries(e))
+        if (typeof v === 'number' && k !== 'seq' && k !== 't' && k !== 'turn') metrics[k] = v;
+      return { ...s, metrics };
+    }
     case 'turn.completed':
       // Audio may still be playing: the status changes when playback really ends.
       return s.playing ? s : { ...s, status: s.status === 'interrupted' ? s.status : idle(s) };
@@ -186,4 +196,5 @@ const TOOL_PHRASES: Record<string, string> = {
   check_outage: 'Checking for outages…',
   transfer_to_human: 'Connecting you to a person…',
 };
-export const toolPhrase = (tool?: string): string => (tool && TOOL_PHRASES[tool]) || 'Checking a system…';
+export const toolPhrase = (tool?: string): string =>
+  (tool && TOOL_PHRASES[tool]) || 'Checking a system…';

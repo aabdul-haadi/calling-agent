@@ -55,6 +55,7 @@ const CONVERSATIONS: Conversation[] = [
 
 const label = process.argv[2] ?? 'run';
 const runs = Number(process.argv[3] ?? 3);
+const only = process.argv[4]?.split(',');
 const env = loadEnv();
 const logger = createLogger('warn');
 const handle = await connectDb(env.DATABASE_URL, env.DATABASE_SSL);
@@ -91,7 +92,7 @@ interface Sample {
 
 const samples: Sample[] = [];
 for (let r = 0; r < runs; r++) {
-  for (const c of CONVERSATIONS) {
+  for (const c of CONVERSATIONS.filter((x) => !only || only.includes(x.id))) {
     await fetch(`${env.MOCK_SERVICES_URL}/admin/reset`, { method: 'POST' }).catch(() => undefined);
     let conversationId: string | undefined;
     for (const [i, message] of c.turns.entries()) {
@@ -145,6 +146,26 @@ const summary = {
   understandMs: stat(stageMs('understand')),
   retrieveMs: stat(stageMs('retrieve')),
   llmCallMs: stat(stageMs('llm')),
+  // the same calls without the time spent waiting for the provider's token-per-minute limit
+  llmCallMsWithoutRateLimit: stat(
+    samples.flatMap((s) =>
+      (s.timings?.stages ?? [])
+        .filter((x) => x.stage === 'llm')
+        .map((x) => x.ms - (x.rateLimitMs ?? 0)),
+    ),
+  ),
+  rateLimitWaitMsPerTurn: stat(
+    samples.map((s) => (s.timings?.stages ?? []).reduce((n, x) => n + (x.rateLimitMs ?? 0), 0)),
+  ),
+  turnMsWithoutRateLimit: stat(
+    samples.map(
+      (s) =>
+        s.wallMs -
+        (s.timings?.stages ?? [])
+          .filter((x) => x.rateLimitMs)
+          .reduce((n, x) => Math.max(n, x.rateLimitMs ?? 0), 0),
+    ),
+  ),
   llmFirstTokenMs: stat(
     samples.flatMap((s) =>
       (s.timings?.stages ?? []).flatMap((x) =>

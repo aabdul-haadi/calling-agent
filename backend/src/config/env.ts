@@ -30,6 +30,11 @@ export const envSchema = z.object({
   EMBEDDING_PROVIDER: z.enum(['local', 'semantic', 'hash', 'openai']).default('semantic'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
 
+  /** Handle a bare yes / no / greeting / thanks by rules instead of a model call. */
+  AGENT_FAST_CLASSIFY: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((v) => v === 'on'),
   /** Start the model's first answer while the message is still being classified (faster; nothing is used before the check). */
   AGENT_SPECULATIVE: z
     .enum(['on', 'off'])

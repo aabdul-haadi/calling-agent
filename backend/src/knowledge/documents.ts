@@ -7,12 +7,7 @@ import type { Db } from '../database';
 import { knowledgeRepo } from '../database';
 import type { DocumentRow } from '../database/repositories/knowledge';
 import type { Logger } from '../logger';
-import {
-  chunkPages,
-  DEFAULT_CHUNK_OPTIONS,
-  type Chunk,
-  type ChunkOptions,
-} from './chunk';
+import { chunkPages, DEFAULT_CHUNK_OPTIONS, type Chunk, type ChunkOptions } from './chunk';
 import type { EmbeddingProvider } from './embeddings';
 import { extractPdf, PdfError, type ExtractedPdf } from './pdf';
 import { instructionWarnings } from './safety';

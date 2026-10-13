@@ -26,7 +26,7 @@ const LEGACY_BLOCK = (voiceStyle: string) =>
 
 /** Swap the new spoken-style block for the one this feature replaced, leaving every rule untouched. */
 function toLegacy(system: string, voiceStyle: string): string {
-  const start = system.indexOf('This is a VOICE call.');
+  const start = system.indexOf('VOICE CALL:');
   const end = system.indexOf("The customer's words come from speech recognition");
   if (start < 0 || end < 0) return system;
   return system.slice(0, start) + LEGACY_BLOCK(voiceStyle) + '\n' + system.slice(end);

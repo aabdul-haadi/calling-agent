@@ -133,13 +133,22 @@ pnpm voice:bench            # latency and barge-in benchmark; add -- --quick for
 
 Use headphones if you can. Details, the wire protocol and measured performance: `docs/VOICE.md`.
 
-## 4. Knowledge (policy documents)
+## 4. Knowledge (policy documents and PDFs)
 
 ```bash
-pnpm ingest                               # re-index every client's policy documents
+pnpm ingest                               # re-index every client's built-in policy files (markdown)
+pnpm docs:setup                           # one time: the PDF reader (Python 3.11-3.13, about 150 MB incl. OCR)
+pnpm docs:corpus                          # build the test PDFs used by the tests and the RAG evaluation
+pnpm docs:read path/to/file.pdf           # see exactly what the reader finds in a PDF
+pnpm rag:eval                             # score retrieval on the test PDFs (add "hash" for the offline matcher)
 ```
 
-The backend also re-indexes them every time it starts.
+Then open **Knowledge** in the console to upload PDFs (large and scanned files are fine; they are read
+in the background), see progress, versions and errors, and test a question against the documents. The
+first start downloads two small local models (about 60 MB, cached in `data/models-cache`). Without
+internet the search falls back to word matching. Details: `docs/KNOWLEDGE.md`.
+
+The backend also re-indexes the built-in files every time it starts.
 
 ## 5. Tests and quality checks
 

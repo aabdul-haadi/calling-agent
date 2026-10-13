@@ -111,7 +111,7 @@ Other commands: `pnpm voice:models` (download or verify), `pnpm voice:test`, `pn
 | `VOICE_TTS_MODEL`                                                             | `piper-amy-medium`      | The agent's voice: `piper-amy-low`, `piper-amy-medium`, `piper-hfc-female-medium`, `piper-lessac-high`, `kokoro`. Falls back to `piper-amy-low` if the chosen voice is not installed. |
 | `VOICE_TTS_SPEED`                                                             | 1.0                     | Default speed; each company's profile can override it.                                                                                                                                |
 | `VOICE_PAUSE_SENTENCE_MS`, `VOICE_PAUSE_CLAUSE_MS`                            | 160, 60                 | Pause after a sentence, and after a comma-sized phrase.                                                                                                                               |
-| `VOICE_PROGRESS_AFTER_S`                                                      | 3                       | A lookup must run this long before the "still checking" line may be spoken.                                                                                                           |
+| `VOICE_ACK_AFTER_S`, `VOICE_ACK_AGAIN_AFTER_S` | 0.7, 6 | A real lookup must still be running after 0.7 s before a spoken "let me check" line is allowed; a second short line only if it is still running after 6 s more. |
 
 ## Models and hardware
 
@@ -187,7 +187,8 @@ Already right and unchanged: the agent runtime stays the only authority, replies
 | `style`          | Up to 8 short instructions added to the spoken style, for example "Say flight numbers slowly and exactly".  |
 | `speech.speaker` | Speaker name on a multi-speaker voice (Kokoro); ignored by single-voice models.                             |
 | `speech.speed`   | 0.8 to 1.25.                                                                                                |
-| `progressLine`   | One short line spoken only if a lookup has really been running for 3 seconds and nothing has been said yet. |
+| `progress` | The words to say while a particular step really runs: `knowledge` (policy search) and `tools` keyed by tool name ("Let me check which alternatives are available."). A step without an entry falls back to `progressLine`. |
+| `progressLine` | A general short line for any slow step, and the optional second update ("One moment, I am still checking that."). |
 
 SkyLink Air (calm, efficient, exact about flight numbers and times, never promises a seat before the search) and NovaTel (friendly, patient, plain words about bills, never claims a payment or change went through without a tool result) are configured this way. NovaTel now also accepts voice.
 
@@ -199,7 +200,7 @@ The runtime sends the speech settings at the start of each voice turn; the gatew
 - **Accurate text versus spoken rendering.** The model writes numbers, times, money and codes normally (`SK110`, `3:50 PM`, `$45.50`). `speakable()` turns them into words for the voice ("S K, 1 1 0", "three fifty P M", "forty-five dollars and fifty cents"). The saved reply and the on-screen text are the accurate version. The speech layer rewrites formatting, never meaning, and removes citations, links and markdown.
 - **Chunking** (`Chunker`): sentence boundaries, and a comma only once the phrase is long enough. A later phrase shorter than 3 words joins the next one. A sentence the model restates word for word is spoken once.
 - **Pacing** (`app/tts/pacing.py`): the engine's own leading and trailing silence is trimmed and replaced by a deliberate pause (160 ms after a sentence, 60 ms after a clause). Only silence is touched, and only the last 250 ms of a phrase is held back, so streaming latency is unchanged.
-- **Progress line.** Never spoken unless a real `tool.started` event arrived and 3 seconds passed with nothing said. Cancelled the moment the tool finishes or any text arrives. No fillers such as "hmm" are generated.
+- **Waiting lines (tied to real events).** A line is considered only after a real `tool.started` or `knowledge.searching` event, and spoken only if that step is still running 0.7 s later, nothing has been said or written yet, and fewer than two lines were spoken this turn. It is dropped the moment the step finishes or any answer text arrives, and it never says the step succeeded. A second, general line is possible only if the same step is still running 6 s later. They are said by the same voice, in order, and are cancelled by an interruption like any other speech. No fillers such as "hmm" are generated.
 - **Speaker and speed** are applied per phrase from the company profile.
 
 ### Voice models compared

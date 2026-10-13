@@ -120,8 +120,24 @@ describe('Voice Lab with the local engine', () => {
     renderLab();
     await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
-    await emit(server({ type: 'session.started', protocol: 1, inputSampleRate: 16000, outputSampleRate: 16000, conversationId: null }));
-    await emit(server({ type: 'transcript.final', turn: 1, text: 'Can I get a refund?', confidence: 0.9, lowConfidence: false }));
+    await emit(
+      server({
+        type: 'session.started',
+        protocol: 1,
+        inputSampleRate: 16000,
+        outputSampleRate: 16000,
+        conversationId: null,
+      }),
+    );
+    await emit(
+      server({
+        type: 'transcript.final',
+        turn: 1,
+        text: 'Can I get a refund?',
+        confidence: 0.9,
+        lowConfidence: false,
+      }),
+    );
     await emit(server({ type: 'knowledge.searching', turn: 1 }));
     expect(screen.getByText('Searching policy documents…')).toBeInTheDocument();
     await emit(
@@ -130,7 +146,13 @@ describe('Voice Lab with the local engine', () => {
         turn: 1,
         sources: ['handbook.pdf'],
         passages: [
-          { source: 'handbook.pdf', heading: 'Handbook > Refunds', page: 5, version: 2, excerpt: 'Refunds are paid within 7 business days.' },
+          {
+            source: 'handbook.pdf',
+            heading: 'Handbook > Refunds',
+            page: 5,
+            version: 2,
+            excerpt: 'Refunds are paid within 7 business days.',
+          },
         ],
       }),
     );
@@ -140,8 +162,18 @@ describe('Voice Lab with the local engine', () => {
     expect(within(sources).getByText('version 2')).toBeInTheDocument();
     expect(within(sources).getByText(/within 7 business days/)).toBeInTheDocument();
     // a new question clears the sources of the old answer
-    await emit(server({ type: 'transcript.final', turn: 2, text: 'Thanks', confidence: 0.9, lowConfidence: false }));
-    expect(screen.queryByRole('list', { name: 'Sources for the last answer' })).not.toBeInTheDocument();
+    await emit(
+      server({
+        type: 'transcript.final',
+        turn: 2,
+        text: 'Thanks',
+        confidence: 0.9,
+        lowConfidence: false,
+      }),
+    );
+    expect(
+      screen.queryByRole('list', { name: 'Sources for the last answer' }),
+    ).not.toBeInTheDocument();
   });
 
   it('uses the local engine when it is running and says what it is made of', async () => {
@@ -323,5 +355,45 @@ describe('Voice Lab with the local engine', () => {
       }),
     );
     expect(await screen.findByText('not sure I heard that')).toBeInTheDocument();
+  });
+});
+
+describe('Voice Lab timing', () => {
+  it('shows where the time of the last turn went', async () => {
+    const user = userEvent.setup();
+    renderLab();
+    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await waitFor(() => expect(hoisted.last).toBeDefined());
+    await emit(
+      server({
+        type: 'session.started',
+        protocol: 1,
+        inputSampleRate: 16000,
+        outputSampleRate: 16000,
+        conversationId: null,
+      }),
+    );
+    expect(screen.getByText(/the measured time of every step shows here/)).toBeInTheDocument();
+    await emit(
+      server({
+        type: 'turn.metrics',
+        turn: 1,
+        speechEndToFinalMs: 1180,
+        agentUnderstandMs: 420,
+        agentRetrieveMs: 90,
+        agentLlmMs: 1500,
+        speechEndToFirstAudioMs: 2100,
+        somethingElse: 'ignored',
+      }),
+    );
+    const list = screen.getByLabelText('Time per step');
+    expect(within(list).getByText('Understanding the message').nextSibling).toHaveTextContent(
+      '420 ms',
+    );
+    expect(within(list).getByText('Searching the policies').nextSibling).toHaveTextContent('90 ms');
+    expect(within(list).getByText('You stop talking → first sound').nextSibling).toHaveTextContent(
+      '2100 ms',
+    );
+    expect(within(list).queryByText(/somethingElse/)).not.toBeInTheDocument();
   });
 });

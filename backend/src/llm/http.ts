@@ -1,5 +1,13 @@
 import { fail, ok, type ToolResult } from '@adk/shared';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { DEFAULT_RETRY, backoffDelay, isRetryableStatus } from '../tools/http';
+
+/**
+ * Lets a caller learn how much of a model call was spent waiting for the provider's rate limit (a
+ * free tier allows only so many tokens per minute) rather than on the model. Run the call inside
+ * `waitContext.run(ctx, ...)`; the waits are added to `ctx`.
+ */
+export const waitContext = new AsyncLocalStorage<{ waitedMs: number; hits: number }>();
 
 /** The message of a call that was cancelled on purpose (the customer interrupted). */
 export const CANCELLED_MESSAGE = 'The request was cancelled';
@@ -79,7 +87,13 @@ async function send(
       const text = await res.text().catch(() => '');
       const asked = parseRetryAfterMs(res.headers, text);
       // +250ms of slack so we do not land a hair before the window reopens.
-      await sleep(Math.min(MAX_RATE_LIMIT_WAIT_MS, (asked ?? 2000 * rateLimited) + 250));
+      const wait = Math.min(MAX_RATE_LIMIT_WAIT_MS, (asked ?? 2000 * rateLimited) + 250);
+      const ctx = waitContext.getStore();
+      if (ctx) {
+        ctx.waitedMs += wait;
+        ctx.hits += 1;
+      }
+      await sleep(wait);
       attempt -= 1; // rate-limit waits do not use up the normal retry budget
       continue;
     }

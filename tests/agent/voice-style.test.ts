@@ -25,6 +25,7 @@ describe('spoken style lives in configuration, safety lives in the engine', () =
       'Never say a seat or flight is available until the flight search has returned it',
     );
     expect(sky).toContain('Most replies are one or two short sentences');
+    expect(sky.length).toBeLessThan(6000); // every call pays for these words in time and tokens
     expect(nova).toContain(
       'Never say a payment, credit or account change went through unless a tool result confirms it',
     );
@@ -33,29 +34,28 @@ describe('spoken style lives in configuration, safety lives in the engine', () =
     expect(sky).not.toContain('payment, credit');
 
     const chat = prompt('skylink-air', 'chat');
-    expect(chat).not.toContain('VOICE call');
+    expect(chat).not.toContain('VOICE CALL');
     expect(chat).not.toContain('Never say a seat or flight is available');
   });
 
   it('teaches the spoken manner the task asks for', () => {
     const p = prompt('skylink-air', 'voice');
-    expect(p).toMatch(/Answer first/);
-    expect(p).toMatch(/Do not repeat the customer.s request back/);
-    expect(p).toMatch(/Do not open with "Certainly"/);
-    expect(p).toMatch(/Do not end with "Let me know if there is anything else"/);
-    expect(p).toMatch(/Apologize once/);
+    expect(p).toMatch(/Answer first; do not restate the request/);
+    expect(p).toMatch(/No stock openers \("Certainly", "Of course"/);
+    expect(p).toMatch(/no stock closers/);
+    expect(p).toMatch(/Upset customer: one short sincere line, once/);
     expect(p).toMatch(/You are an AI assistant/);
     expect(p).toMatch(/I heard Rahman\. Is that right\?/);
     expect(p).toMatch(/Never ask the same question twice in a row/);
-    expect(p).toMatch(/recommend one using facts from the tools/);
-    expect(p).toMatch(/NEVER use bullet points, numbered lists, markdown, URLs/);
+    expect(p).toMatch(/recommend one, with the reason from tool facts/);
+    expect(p).toMatch(/NEVER use lists, markdown, URLs/);
     // the model writes digits; the speech layer says them (so the model cannot garble a flight number)
-    expect(p).toMatch(/Do NOT spell them out in words/);
+    expect(p).toMatch(/never spell them out in words/);
     expect(p).toMatch(/never "reply" or "type"/);
-    expect(p).toMatch(/Only say you are checking something if you really are calling a tool/);
+    expect(p).toMatch(/Only say you are checking something if you are calling a tool/);
     expect(p).toMatch(/Never promise availability/);
     expect(p).toMatch(/say plainly what will change/);
-    expect(p).toMatch(/ask only one question at a time/);
+    expect(p).toMatch(/One thought and one question at a time/);
   });
 
   it('never loosens a rule: every safety rule and the speech-recognition caution survive in voice', () => {

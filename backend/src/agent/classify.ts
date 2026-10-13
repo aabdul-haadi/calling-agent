@@ -81,3 +81,41 @@ export async function classifyTurn(
     return NEUTRAL;
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Rules for the plainest messages: no model call needed
+// ---------------------------------------------------------------------------------------------
+
+const PLAIN_YES =
+  /^(?:yes|yeah|yep|yup|ok(?:ay)?|sure|go ahead|please do|do it|confirm(?:ed)?|that works|sounds good|that's fine|yes please|yes,? go ahead|yes,? please)[\s.!]*$/i;
+const PLAIN_NO =
+  /^(?:no|nope|no thanks|no thank you|don't|do not|cancel that|never ?mind|not now|stop)[\s.!]*$/i;
+const PLAIN_SMALL_TALK =
+  /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|thanks?|thank you|thank you so much|ok(?:ay)?|got it|great|perfect|cool|bye|goodbye)(?:[\s,.!]+(?:there|ava|nia|thanks?|thank you))*[\s.!]*$/i;
+
+/**
+ * Answers the questions the classifier would answer for a message that is nothing but "yes", "no",
+ * a greeting or a thanks, so those turns skip a whole model call (about 0.5 to 1 s and several
+ * hundred tokens). The rules are deliberately narrow: the WHOLE message must be one of these
+ * phrases, so "yes, but make it the evening flight" or "no, I want a person" still go to the model.
+ * A "yes" only counts when a change is actually waiting; with nothing waiting it means nothing.
+ * Returns undefined when the model should decide.
+ */
+export function classifyPlainMessage(
+  message: string,
+  pendingChange: string | undefined,
+  previousIntent: string,
+): TurnClassification | undefined {
+  const text = message.trim();
+  if (text.length === 0 || text.length > 40) return undefined;
+  const base = {
+    intent: previousIntent,
+    sentiment: 'neutral' as const,
+    wantsHuman: false,
+    isPolicyQuestion: false,
+  };
+  if (pendingChange && PLAIN_YES.test(text)) return { ...base, confirmation: 'yes' };
+  if (pendingChange && PLAIN_NO.test(text)) return { ...base, confirmation: 'no' };
+  if (!pendingChange && PLAIN_SMALL_TALK.test(text)) return { ...base, confirmation: 'none' };
+  return undefined;
+}

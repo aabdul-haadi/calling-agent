@@ -116,9 +116,15 @@ export const api = {
       json('POST', { reextract }),
     ),
   retryKnowledge: (clientId: string, id: string) =>
-    call<KnowledgeDoc>(`/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}/retry`, json('POST')),
+    call<KnowledgeDoc>(
+      `/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}/retry`,
+      json('POST'),
+    ),
   deleteKnowledge: (clientId: string, id: string) =>
-    call<{ removed: string }>(`/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}`, json('DELETE')),
+    call<{ removed: string }>(
+      `/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}`,
+      json('DELETE'),
+    ),
   searchKnowledge: (clientId: string, question: string, history: string[] = []) =>
     call<KnowledgeSearchResult>(
       `/clients/${encodeURIComponent(clientId)}/knowledge/search`,

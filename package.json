@@ -28,7 +28,9 @@
     "docs:test": "node scripts/docs.mjs test",
     "docs:read": "node scripts/docs.mjs read",
     "rag:eval": "pnpm --filter @adk/backend rag-eval",
-    "latency:bench": "pnpm --filter @adk/backend latency-bench"
+    "latency:bench": "pnpm --filter @adk/backend latency-bench",
+    "rag:answers": "pnpm --filter @adk/backend rag-answers",
+    "rag:scale": "pnpm --filter @adk/backend rag-scale"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",

@@ -30,8 +30,13 @@ export function findCitation(citations: Citation[], label: string): Citation | u
   const page = rest ? Number(/page\s+(\d+)/i.exec(rest)?.[1]) : NaN;
   const same = citations.filter((c) => c.source === name || c.source === label);
   return (
-    same.find((c) => Number.isFinite(page) && c.page !== undefined && c.page <= page && page <= (c.pageEnd ?? c.page)) ??
-    same[0]
+    same.find(
+      (c) =>
+        Number.isFinite(page) &&
+        c.page !== undefined &&
+        c.page <= page &&
+        page <= (c.pageEnd ?? c.page),
+    ) ?? same[0]
   );
 }
 
@@ -57,7 +62,9 @@ function CitationChip({ source, citation }: { source: string; citation?: Citatio
         <span className="my-1.5 block rounded-md border border-border bg-background/60 p-2.5 text-xs text-muted-foreground">
           <span className="mb-1 block font-medium text-foreground">
             {citation.heading}
-            {citation.page ? ` · page ${citation.page}${citation.pageEnd ? `–${citation.pageEnd}` : ''}` : ''}
+            {citation.page
+              ? ` · page ${citation.page}${citation.pageEnd ? `–${citation.pageEnd}` : ''}`
+              : ''}
           </span>
           {citation.snippet}
         </span>
@@ -100,11 +107,7 @@ export function CitationText({
 }): ReactNode {
   return splitCitations(text).map((p, i) =>
     p.source ? (
-      <CitationChip
-        key={i}
-        source={p.source}
-        citation={findCitation(citations, p.source)}
-      />
+      <CitationChip key={i} source={p.source} citation={findCitation(citations, p.source)} />
     ) : (
       <Inline key={i} text={p.text ?? ''} />
     ),

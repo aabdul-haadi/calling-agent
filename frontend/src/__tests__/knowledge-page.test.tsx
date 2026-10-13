@@ -53,9 +53,21 @@ const handbook: KnowledgeDoc = {
   chunks: 140,
   headings: ['Baggage', 'Refunds'],
   characters: 90000,
-  warnings: ['page 1: text that reads like an instruction to an AI system was found; it is ignored when answering'],
+  warnings: [
+    'page 1: text that reads like an instruction to an AI system was found; it is ignored when answering',
+  ],
   updatedAt: '2026-11-10T09:00:00.000Z',
-  versions: [{ id: 'd0', version: 1, status: 'superseded', active: false, chunks: 0, pages: 50, updatedAt: '2026-11-01T09:00:00.000Z' }],
+  versions: [
+    {
+      id: 'd0',
+      version: 1,
+      status: 'superseded',
+      active: false,
+      chunks: 0,
+      pages: 50,
+      updatedAt: '2026-11-01T09:00:00.000Z',
+    },
+  ],
 };
 const reading: KnowledgeDoc = {
   id: 'd2',
@@ -157,7 +169,9 @@ describe('Knowledge page', () => {
     await user.upload(input, [pdf, txt]);
     await waitFor(() => expect(mocked.uploadKnowledge).toHaveBeenCalledTimes(1));
     expect(mocked.uploadKnowledge).toHaveBeenCalledWith('skylink-air', pdf);
-    expect(await screen.findByText(/new-terms.pdf: uploaded\. It is being read now/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/new-terms.pdf: uploaded\. It is being read now/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/notes.txt: only PDF files are supported/)).toBeInTheDocument();
   });
 
@@ -165,7 +179,10 @@ describe('Knowledge page', () => {
     const user = userEvent.setup();
     mocked.uploadKnowledge.mockResolvedValue({ document: handbook, unchanged: true });
     renderPage();
-    await user.upload(await screen.findByLabelText('Choose PDF files to upload'), new File(['%PDF'], 'handbook.pdf', { type: 'application/pdf' }));
+    await user.upload(
+      await screen.findByLabelText('Choose PDF files to upload'),
+      new File(['%PDF'], 'handbook.pdf', { type: 'application/pdf' }),
+    );
     expect(await screen.findByText(/already the current version/)).toBeInTheDocument();
   });
 
@@ -182,7 +199,9 @@ describe('Knowledge page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Keep it' }));
     expect(mocked.deleteKnowledge).not.toHaveBeenCalled();
     await user.click(within(hb as HTMLElement).getByRole('button', { name: /Delete/ }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }),
+    );
     await waitFor(() => expect(mocked.deleteKnowledge).toHaveBeenCalledWith('skylink-air', 'd1'));
   });
 
@@ -207,13 +226,19 @@ describe('Knowledge page', () => {
     await user.type(await screen.findByLabelText('Question'), 'How long does a refund take?');
     await user.type(screen.getByLabelText(/Expected answer/), '7 business days');
     await user.click(screen.getByRole('button', { name: 'Search' }));
-    expect(mocked.searchKnowledge).toHaveBeenCalledWith('skylink-air', 'How long does a refund take?', []);
+    expect(mocked.searchKnowledge).toHaveBeenCalledWith(
+      'skylink-air',
+      'How long does a refund take?',
+      [],
+    );
     const list = await screen.findByRole('list', { name: 'Passages found' });
     expect(within(list).getByText('handbook.pdf')).toBeInTheDocument();
     expect(within(list).getByText('page 5')).toBeInTheDocument();
     expect(within(list).getByText(/relevance 7.4/)).toBeInTheDocument();
     expect(screen.getByText('Evidence found')).toBeInTheDocument();
-    expect(screen.getByText(/Expected answer: 3 of 3 key terms appear in the evidence/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Expected answer: 3 of 3 key terms appear in the evidence/),
+    ).toBeInTheDocument();
   });
 
   it('explains an abstention and shows the closest rejected passage', async () => {
@@ -230,35 +255,53 @@ describe('Knowledge page', () => {
     renderPage();
     await user.type(await screen.findByLabelText('Question'), 'Do you fly to Mars?');
     await user.click(screen.getByRole('button', { name: 'Search' }));
-    expect(await screen.findByText(/Not covered: the agent would say it is not sure/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Not covered: the agent would say it is not sure/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/does not answer the question/)).toBeInTheDocument();
     expect(screen.getByText('Closest passage (rejected)')).toBeInTheDocument();
   });
 
   it('sends the earlier question so a follow-up can be tested', async () => {
     const user = userEvent.setup();
-    mocked.searchKnowledge.mockResolvedValue({ ...found, searched: 'What is the refund policy? And how long does it take?' });
+    mocked.searchKnowledge.mockResolvedValue({
+      ...found,
+      searched: 'What is the refund policy? And how long does it take?',
+    });
     renderPage();
     await user.type(await screen.findByLabelText('Question'), 'And how long does it take?');
     await user.type(screen.getByLabelText(/Earlier question/), 'What is the refund policy?');
     await user.click(screen.getByRole('button', { name: 'Search' }));
-    expect(mocked.searchKnowledge).toHaveBeenCalledWith('skylink-air', 'And how long does it take?', ['What is the refund policy?']);
+    expect(mocked.searchKnowledge).toHaveBeenCalledWith(
+      'skylink-air',
+      'And how long does it take?',
+      ['What is the refund policy?'],
+    );
     expect(await screen.findByText(/Searched for:/)).toBeInTheDocument();
   });
 
   it('has no serious accessibility problems', async () => {
     const { container } = renderPage();
     await screen.findByText('handbook.pdf');
-    const r = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    const r = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+    });
     expect(
-      r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.html).join(' | ')}`),
+      r.violations
+        .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+        .map((v) => `${v.id}: ${v.nodes.map((n) => n.html).join(' | ')}`),
     ).toEqual([]);
   });
 });
 
 describe('helpers', () => {
   it('picks the meaningful terms of an expected answer', () => {
-    expect(keyTerms('7 business days, no fee of $45.50')).toEqual(['7', 'business', 'days', '$45.50']);
+    expect(keyTerms('7 business days, no fee of $45.50')).toEqual([
+      '7',
+      'business',
+      'days',
+      '$45.50',
+    ]);
   });
   it('formats sizes', () => {
     expect(formatBytes(900)).toBe('900 B');

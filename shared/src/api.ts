@@ -106,6 +106,8 @@ export interface StageTiming {
   ms: number;
   /** LLM stages only: until the first word of text arrived (when the model streams). */
   firstTokenMs?: number;
+  /** LLM stages only: how much of `ms` was spent waiting for the provider's rate limit. */
+  rateLimitMs?: number;
 }
 export interface TurnTimings {
   totalMs: number;

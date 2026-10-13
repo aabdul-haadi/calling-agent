@@ -64,7 +64,7 @@ describe('HTTP API', () => {
       .post('/chat')
       .send({ clientId: 'skylink-air', message: 'hello', channel: 'voice' });
     const id = res.body.data.conversationId;
-    expect(h.llm.calls[0]!.system).toContain('VOICE call');
+    expect(h.llm.calls[0]!.system).toContain('VOICE CALL');
     expect(
       (await request(h.app).post(`/conversations/${id}/voice-latency`).send({ ms: 820 })).status,
     ).toBe(204);

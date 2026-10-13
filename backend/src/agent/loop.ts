@@ -18,6 +18,7 @@ import type { HandoffService } from '../handoff/types';
 import { asksForPerson, looksLikeQuestion, needsKnowledge } from '../knowledge/gate';
 import { NO_POLICY_REPLY, type Retriever } from '../knowledge/types';
 import type { LlmClient, LlmMessage, LlmToolSpec } from '../llm';
+import { waitContext } from '../llm/http';
 import type { Logger } from '../logger';
 import { dispatch } from '../tools/dispatcher';
 import type { ApiClient } from '../tools/http';
@@ -26,7 +27,7 @@ import type { AnyToolDefinition, StatePatch } from '../tools/types';
 import { auditEvent, type AuditEvent, type AuditType } from './audit';
 import { resolveProposal } from './approval';
 import { transition, type PhaseEvent } from './phase';
-import { classifyTurn } from './classify';
+import { classifyPlainMessage, classifyTurn } from './classify';
 import { buildSystemPrompt } from './prompt';
 import { stepIndex, type ConversationState } from './state';
 
@@ -40,6 +41,8 @@ export interface TurnDeps {
   idempotency: IdempotencyStore;
   retrieve?: Retriever;
   handoff: HandoffService;
+  /** Answer "yes", "no", greetings and thanks by rules instead of a model call (default on). */
+  fastClassify?: boolean;
   /** Start the model's first answer while the message is still being classified (default on). */
   speculate?: boolean;
 }
@@ -133,6 +136,23 @@ function stepHook(
   return target ? { ...state, journeyStep: furthest(state, target, module) } : state;
 }
 
+/** "Where the time went: understanding 420 ms, policies 90 ms, model 1.5 s, tools 200 ms (turn 2.2 s)". */
+export function describeTimings(t: TurnTimings): string {
+  const sum = (stage: StageTiming['stage']) =>
+    t.stages.filter((s) => s.stage === stage).reduce((n, s) => n + s.ms, 0);
+  const fmt = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`);
+  const parts = [
+    ['understanding', sum('understand')],
+    ['policies', sum('retrieve')],
+    ['model', sum('llm')],
+    ['tools', sum('tool')],
+  ] as const;
+  return `Where the time went: ${parts
+    .filter(([, ms]) => ms > 0)
+    .map(([name, ms]) => `${name} ${fmt(ms)}`)
+    .join(', ')} (turn ${fmt(t.totalMs)})`;
+}
+
 export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOutput> {
   const { module, conversationId } = input;
   const turnStart = performance.now();
@@ -145,14 +165,16 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     extra?: () => Partial<StageTiming>,
   ): Promise<T> {
     const start = performance.now();
+    const waits = { waitedMs: 0, hits: 0 };
     try {
-      return await fn();
+      return await waitContext.run(waits, fn);
     } finally {
       stages.push({
         stage,
         label,
         startMs: Math.round(start - turnStart),
         ms: Math.round(performance.now() - start),
+        ...(waits.hits > 0 ? { rateLimitMs: Math.round(waits.waitedMs) } : {}),
         ...extra?.(),
       });
     }
@@ -281,6 +303,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     }
     state = stepHook(state, module, 'afterTurn');
     const timings = snapshot();
+    addTrace('timing', describeTimings(timings), 'ok', undefined, timings);
     emit?.({ type: 'turn.timing', timings });
     return { reply: finalReply, state, trace, citations, toolCalls, audit, handoff, timings };
   };
@@ -309,8 +332,6 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     { role: 'user', content: input.userMessage },
   ];
 
-
-
   /**
    * One model call, started now. While `speculative`, what it writes is held back until `release()`;
    * `abort()` throws the call away. `done` settles with the model's answer either way.
@@ -321,7 +342,11 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     abort(): void;
     streamedChars(): number;
   }
-  const timedModel = (i: number, run: () => ReturnType<LlmClient['complete']>, first: () => number | undefined) =>
+  const timedModel = (
+    i: number,
+    run: () => ReturnType<LlmClient['complete']>,
+    first: () => number | undefined,
+  ) =>
     timed('llm', `model call ${i + 1}`, run, () => {
       const firstTokenMs = first();
       return firstTokenMs === undefined ? {} : { firstTokenMs };
@@ -335,7 +360,9 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       voiceUncertain: uncertain,
     });
     const controller = new AbortController();
-    const signal = input.signal ? AbortSignal.any([input.signal, controller.signal]) : controller.signal;
+    const signal = input.signal
+      ? AbortSignal.any([input.signal, controller.signal])
+      : controller.signal;
     const callStart = performance.now();
     let open = !speculative;
     let streamed = 0;
@@ -380,9 +407,22 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
 
   // Understanding the message and searching the policies do not depend on each other, so they run
   // together. The search starts at once; the classification is not awaited until it is needed.
-  const classifyP = timed('understand', 'classify the message', () =>
-    classifyTurn(deps.llm, config, input.history, input.userMessage, pendingChange, input.signal),
-  );
+  const plain =
+    deps.fastClassify === false
+      ? undefined
+      : classifyPlainMessage(input.userMessage, pendingChange, state.lastIntent ?? 'unknown');
+  const classifyP = plain
+    ? timed('understand', 'plain message (rules)', async () => plain)
+    : timed('understand', 'classify the message', () =>
+        classifyTurn(
+          deps.llm,
+          config,
+          input.history,
+          input.userMessage,
+          pendingChange,
+          input.signal,
+        ),
+      );
   const wantsKnowledge = Boolean(deps.retrieve) && needsKnowledge(input.userMessage);
   if (wantsKnowledge) emit?.({ type: 'knowledge.searching' });
   const recentQuestions = input.history
@@ -407,7 +447,8 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     citations = foundEarly?.citations ?? [];
     // A question the documents do not answer ends with the fixed "not sure" reply, never a model
     // call, so there is nothing to start early.
-    const willRefuse = foundEarly !== undefined && !foundEarly.relevant && looksLikeQuestion(input.userMessage);
+    const willRefuse =
+      foundEarly !== undefined && !foundEarly.relevant && looksLikeQuestion(input.userMessage);
     if (!willRefuse) early = startModelCall(0, true);
   }
   const abandon = () => {
@@ -506,11 +547,17 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         })),
       });
     } else if (classification.isPolicyQuestion) {
-      addTrace('knowledge', 'Searched policies, found nothing relevant', 'warn', found.timings?.totalMs, {
-        searched: found.searched,
-        reason: found.reason,
-        timings: found.timings,
-      });
+      addTrace(
+        'knowledge',
+        'Searched policies, found nothing relevant',
+        'warn',
+        found.timings?.totalMs,
+        {
+          searched: found.searched,
+          reason: found.reason,
+          timings: found.timings,
+        },
+      );
       abandon();
       return finish(NO_POLICY_REPLY, null);
     }

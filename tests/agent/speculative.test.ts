@@ -42,7 +42,7 @@ describe('starting the answer early', () => {
     h.llm.script(stamped(say('Happy to help with that.'), startedAt));
     const events: { at: number; e: TurnEvent }[] = [];
     const t0 = Date.now();
-    await h.chat.chat(ask('Hello there'), {
+    await h.chat.chat(ask('I have a question about my trip'), {
       onEvent: (e) => events.push({ at: Date.now() - t0, e }),
     });
 
@@ -60,7 +60,7 @@ describe('starting the answer early', () => {
     const startedAt: number[] = [];
     off.llm.script(stamped(say('Happy to help with that.'), startedAt));
     const t0 = Date.now();
-    await off.chat.chat(ask('Hello there'));
+    await off.chat.chat(ask('I have a question about my trip'));
     expect(startedAt[0]! - t0).toBeGreaterThanOrEqual(190);
     await off.close();
   });
@@ -96,7 +96,7 @@ describe('starting the answer early', () => {
     const startedAt: number[] = [];
     h.llm.script(stamped(say('Done.'), startedAt));
     const t0 = Date.now();
-    await h.chat.chat(ask('Yes, go ahead', first.conversationId));
+    await h.chat.chat(ask('Yes, please go ahead and book it for me', first.conversationId));
     expect(startedAt[0]! - t0).toBeGreaterThanOrEqual(190);
   });
 });
@@ -106,10 +106,16 @@ describe('what an early answer can never do', () => {
     const angry = await createHarness({ classify: () => ({ sentiment: 'angry' }) });
     angry.llm.timing.classifyDelayMs = 150;
     angry.llm.script(
-      callTool('verify_customer', { bookingRef: 'SK1001', lastName: 'Rahman' }, 'Sure, let me look that up.'),
+      callTool(
+        'verify_customer',
+        { bookingRef: 'SK1001', lastName: 'Rahman' },
+        'Sure, let me look that up.',
+      ),
     );
     const events: TurnEvent[] = [];
-    const res = await angry.chat.chat(ask('This is ridiculous'), { onEvent: (e) => events.push(e) });
+    const res = await angry.chat.chat(ask('This is ridiculous'), {
+      onEvent: (e) => events.push(e),
+    });
 
     expect(res.handoff).toBeDefined();
     expect(res.trace.some((t) => t.type === 'tool')).toBe(false);
@@ -140,7 +146,7 @@ describe('what an early answer can never do', () => {
     h.llm.script({ delayMs: 400, text: 'This is a long answer that should never be spoken.' });
     const controller = new AbortController();
     const events: TurnEvent[] = [];
-    const run = h.chat.chat(ask('Hello there'), {
+    const run = h.chat.chat(ask('I have a question about my trip'), {
       onEvent: (e) => events.push(e),
       signal: controller.signal,
     });
@@ -155,12 +161,40 @@ describe('time is recorded where it is spent', () => {
   it('shows the model call overlapping the classification', async () => {
     h.llm.timing.classifyDelayMs = 150;
     h.llm.script(say('Hi, how can I help?'));
-    const res = await h.chat.chat(ask('Hello there'));
+    const res = await h.chat.chat(ask('I have a question about my trip'));
     const understand = res.timings!.stages.find((s) => s.stage === 'understand')!;
     const model = res.timings!.stages.find((s) => s.stage === 'llm')!;
     expect(understand.ms).toBeGreaterThanOrEqual(140);
     expect(model.startMs).toBeLessThan(understand.startMs + understand.ms); // began before understanding ended
     expect(model.startMs).toBeLessThan(60); // it did not wait for the classification
     expect(res.timings!.totalMs).toBeLessThan(understand.ms + 40); // so the model's time hid inside the wait
+  });
+});
+
+describe('timing summary', () => {
+  it('puts a plain-language line in the trace and the stages in the response', async () => {
+    h.llm.script(say('Hello!'));
+    const res = await h.chat.chat(ask('I have a question about my trip'));
+    const line = res.trace.find((t) => t.type === 'timing')!;
+    expect(line.label).toMatch(/^Where the time went: .*\(turn \d+(\.\d)? (ms|s)\)$/);
+    expect((line.detail as { stages: unknown[] }).stages.length).toBeGreaterThanOrEqual(2);
+    expect(res.timings!.stages.map((s) => s.stage)).toEqual(
+      expect.arrayContaining(['understand', 'llm']),
+    );
+  });
+
+  it('records the time a model call spent waiting for the provider limit, not as model time', async () => {
+    const { describeTimings } = await import('@backend/agent/loop');
+    const text = describeTimings({
+      totalMs: 4200,
+      stages: [
+        { stage: 'understand', label: 'x', startMs: 0, ms: 700 },
+        { stage: 'llm', label: 'x', startMs: 0, ms: 2500, rateLimitMs: 1800 },
+        { stage: 'tool', label: 'get_booking', startMs: 2500, ms: 90 },
+      ],
+    });
+    expect(text).toBe(
+      'Where the time went: understanding 700 ms, model 2.5 s, tools 90 ms (turn 4.2 s)',
+    );
   });
 });
