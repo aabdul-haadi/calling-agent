@@ -146,6 +146,7 @@ export function KnowledgeCard({ citations }: { citations: Citation[] }) {
                       </Badge>
                     )}
                     {c.version && c.version > 1 && <Badge>version {c.version}</Badge>}
+                    {c.weak && <Badge tone="warn">weak match</Badge>}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     match {Math.round(c.score * 100)}%

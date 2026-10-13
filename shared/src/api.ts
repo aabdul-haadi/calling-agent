@@ -49,6 +49,8 @@ export interface Citation {
   pageEnd?: number;
   /** Why it ranked: similarity by meaning, and by matching words (for debugging, never spoken). */
   match?: { vector?: number; keyword?: number; rerank?: number };
+  /** Only a weak match: the model is told to use it only if it clearly answers the question. */
+  weak?: boolean;
 }
 
 export type Channel = 'chat' | 'voice';
@@ -319,6 +321,7 @@ export type TurnEvent =
         page?: number;
         pageEnd?: number;
         version?: number;
+        weak?: boolean;
         excerpt: string;
       }[];
     }

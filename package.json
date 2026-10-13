@@ -30,7 +30,8 @@
     "rag:eval": "pnpm --filter @adk/backend rag-eval",
     "latency:bench": "pnpm --filter @adk/backend latency-bench",
     "rag:answers": "pnpm --filter @adk/backend rag-answers",
-    "rag:scale": "pnpm --filter @adk/backend rag-scale"
+    "rag:scale": "pnpm --filter @adk/backend rag-scale",
+    "e2e:voice": "node scripts/e2e-voice.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",

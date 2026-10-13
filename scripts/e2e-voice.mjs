@@ -3,11 +3,10 @@
 // against the real running stack (frontend, backend, voice gateway). Needs `pnpm dev` and
 // `pnpm voice` already running, and the policy PDF uploaded for the company you ask about.
 //
-//   node scripts/e2e-voice.mjs CALL.wav [--seconds 70] [--url http://localhost:5173/voice] [--shot out.png]
+//   node scripts/e2e-voice.mjs CALL.wav [--seconds 70] [--url http://localhost:5173/voice] [--shot out.png] [--no3d]
 //
 // The page is observed the way a person would see it: the status line, the transcript, the sources
 // panel and the timing panel. Every state change is logged with the time it appeared.
-import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -21,6 +20,16 @@ if (!wav || !existsSync(wav)) {
   console.error(
     'Usage: node scripts/e2e-voice.mjs CALL.wav [--seconds 70] [--url http://localhost:5173/voice] [--shot out.png]',
   );
+  process.exit(1);
+}
+let chromium;
+try {
+  ({ chromium } = await import('playwright-core'));
+} catch {
+  console.error(
+    'This check needs playwright-core (it drives your installed Chrome or Edge; no browser download).',
+  );
+  console.error('Install it once: pnpm add -Dw playwright-core');
   process.exit(1);
 }
 const seconds = Number(opt('seconds', 70));
@@ -46,6 +55,9 @@ const browser = await chromium.launch({
     '--use-fake-device-for-media-stream',
     `--use-file-for-fake-audio-capture=${resolve(wav)}%noloop`,
     '--autoplay-policy=no-user-gesture-required',
+    // --no3d: no WebGL, so the page uses its flat fallback avatar. Headless Chrome otherwise draws the 3D
+    // scene in software, which takes CPU from the speech models and distorts the timings.
+    ...(args.includes('--no3d') ? ['--disable-3d-apis', '--disable-gpu'] : []),
   ],
 });
 const context = await browser.newContext({

@@ -431,10 +431,29 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     .filter((m) => m.role === 'user')
     .map((m) => m.content)
     .slice(-3);
+  const sayWhatWasFound = (citations: Citation[]) =>
+    emit?.({
+      type: 'knowledge.used',
+      sources: [...new Set(citations.map((c) => c.source))],
+      passages: citations.slice(0, 5).map((c) => ({
+        source: c.source,
+        heading: c.heading,
+        ...(c.page ? { page: c.page } : {}),
+        ...(c.pageEnd ? { pageEnd: c.pageEnd } : {}),
+        ...(c.version ? { version: c.version } : {}),
+        ...(c.weak ? { weak: true } : {}),
+        excerpt: c.snippet.replace(/\s+/g, ' ').slice(0, 220),
+      })),
+    });
+  // The search ends long before the message is classified, so what it found is announced the moment
+  // it is known: the screen shows the sources early, and a spoken "let me check the policy" is dropped.
   const retrievalP = wantsKnowledge
     ? timed('retrieve', 'search the policies', () =>
         deps.retrieve!(config.id, input.userMessage, { recentQuestions }),
-      )
+      ).then((found) => {
+        if (found.relevant && !isCancelled()) sayWhatWasFound(found.citations);
+        return found;
+      })
     : undefined;
 
   // The model's first answer is the slowest step, and it needs only the question and the policy
@@ -531,23 +550,11 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       const sources = [...new Set(citations.map((c) => c.source))];
       addTrace(
         'knowledge',
-        `Looked up policy: ${sources.join(', ')}`,
+        `Looked up policy: ${sources.join(', ')}${citations.every((c) => c.weak) ? ' (weak matches)' : ''}`,
         'ok',
         found.timings?.totalMs,
         { citations, searched: found.searched, reason: found.reason, timings: found.timings },
       );
-      emit?.({
-        type: 'knowledge.used',
-        sources,
-        passages: citations.slice(0, 5).map((c) => ({
-          source: c.source,
-          heading: c.heading,
-          ...(c.page ? { page: c.page } : {}),
-          ...(c.pageEnd ? { pageEnd: c.pageEnd } : {}),
-          ...(c.version ? { version: c.version } : {}),
-          excerpt: c.snippet.replace(/\s+/g, ' ').slice(0, 220),
-        })),
-      });
     } else if (classification.isPolicyQuestion) {
       addTrace(
         'knowledge',

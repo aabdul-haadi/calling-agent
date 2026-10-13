@@ -150,7 +150,7 @@ async def test_flooding_frames_faster_than_the_limit_ends_the_session(gateway):
     c = await Client.connect(gateway)
     await c.wait_for("session.started", 5)
     frame = pack_input(float_to_pcm16(np.zeros(320, dtype=np.float32)))
-    for _ in range(300):  # no pacing at all
+    for _ in range(gateway.settings.max_frames_per_second * 5 + 400):  # no pacing: more than the burst allowance
         try:
             await c.ws.send(frame)
         except websockets.ConnectionClosed:
@@ -234,7 +234,7 @@ async def test_speech_in_text_and_speech_out(gateway):
     seqs = [e["seq"] for _, e in c.events]
     assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs)
     metrics = c.of("turn.metrics")[0]
-    assert metrics["speechEndToFinalMs"] < 1500
+    assert metrics["speechEndToFinalMs"] < 3000  # sanity bound; the real target is measured by evalab.turn_bench
     await c.close()
 
 

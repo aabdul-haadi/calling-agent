@@ -117,7 +117,7 @@ const tenantOf = (name: string) => (name.startsWith('novatel') ? 'novatel' : 'sk
 
 interface Case {
   tenant: string;
-  kind: 'exact' | 'paraphrase' | 'followup' | 'unsupported' | 'cross-tenant';
+  kind: 'exact' | 'paraphrase' | 'hard' | 'followup' | 'unsupported' | 'cross-tenant';
   question: string;
   history?: string[];
   expect?: { source: string; page: number; answer: string[] };
@@ -158,6 +158,62 @@ for (const [doc, prevId, follow] of followups) {
     expect: { source: fileOf[doc]!, page: target.page, answer: target.answer },
   });
 }
+// Paraphrases written to share as few words as possible with the document text.
+const hard: [string, string, string][] = [
+  ['skylink-handbook-v2', 'bag-extra-2', 'What do I pay for a second suitcase?'],
+  [
+    'skylink-handbook-v2',
+    'cancel-refund-time-2',
+    'My trip was scrapped by the airline, when do I see my cash again?',
+  ],
+  ['skylink-handbook-v2', 'pet-cabin-2', 'Can my puppy sit with me on board?'],
+  [
+    'skylink-handbook-v2',
+    'change-fee-2',
+    'How much extra to switch to another flight when travelling abroad?',
+  ],
+  [
+    'skylink-handbook-v2',
+    'delay-meals-2',
+    'Is there something to eat if we sit around at the gate for hours?',
+  ],
+  [
+    'skylink-handbook-v2',
+    'assist-notice-2',
+    'How early should I tell you that my mother needs a wheelchair?',
+  ],
+  [
+    'skylink-handbook-v2',
+    'nonrefundable-2',
+    'I bought the cheapest ticket, can I cancel and recover the money?',
+  ],
+  [
+    'skylink-handbook-v2',
+    'carryon-2',
+    'What is the heaviest cabin luggage I can carry up the steps?',
+  ],
+  [
+    'novatel-handbook',
+    'late-fee',
+    'What penalty do I pay if my payment shows up after the deadline?',
+  ],
+  [
+    'novatel-handbook',
+    'roaming-cap',
+    'Is there a ceiling on what I can be charged for using my phone overseas?',
+  ],
+  ['novatel-handbook', 'cancel-fee', 'What will it cost me to leave in the first year?'],
+  ['novatel-handbook', 'no-signal', 'My handset says there is no network, what do I do?'],
+];
+for (const [doc, id, q] of hard) {
+  const f = byId(doc, id);
+  cases.push({
+    tenant: tenantOf(doc),
+    kind: 'hard',
+    question: q,
+    expect: { source: fileOf[doc]!, page: f.page, answer: f.answer },
+  });
+}
 const unsupported: [string, string][] = [
   ['skylink-air', 'Do you serve free Wi-Fi on board?'],
   ['skylink-air', 'What is the capital of Australia?'],
@@ -178,6 +234,10 @@ for (const f of facts['novatel-handbook']!.slice(0, 4))
 for (const f of facts['skylink-handbook-v2']!.slice(0, 4))
   cases.push({ tenant: 'novatel', kind: 'cross-tenant', question: f.question });
 
+const ownSources: Record<string, Set<string>> = {};
+for (const t of ['skylink-air', 'novatel'])
+  ownSources[t] = new Set((await knowledge.list(t)).map((d) => d.source));
+
 const ks = [1, 3, 5];
 interface Row {
   case: Case;
@@ -187,6 +247,7 @@ interface Row {
   sources: string[];
   ms: number;
   closest?: { rerank?: number; vector?: number; keyword?: number };
+  weak: boolean;
   timings: {
     embedMs: number;
     vectorMs: number;
@@ -220,6 +281,7 @@ for (const c of cases) {
     sources: r.passages.map((p) => `${p.source}${p.page ? ` p${p.page}` : ''}`),
     ms,
     closest: r.closest?.match,
+    weak: r.passages[0]?.weak === true,
     timings: r.timings,
   });
 }
@@ -255,7 +317,7 @@ const summary = {
     ) / 1000,
   answerInEvidence: share(answerable.filter((r) => r.answerFound).length, answerable.length),
   byKind: Object.fromEntries(
-    (['exact', 'paraphrase', 'followup'] as const).map((k) => {
+    (['exact', 'paraphrase', 'hard', 'followup'] as const).map((k) => {
       const sub = byKind(k);
       return [
         k,
@@ -266,6 +328,15 @@ const summary = {
       ];
     }),
   ),
+  weakEvidence: {
+    // passages handed to the model as "weak, use only if it clearly answers": for answerable questions
+    // this is the recovery of differently-worded questions; for unsupported ones the model must decline
+    answerableWeakOnly: answerable.filter((r) => r.relevant && r.weak).length,
+    unsupportedWeakOnly: byKind('unsupported').filter((r) => r.relevant && r.weak).length,
+    unsupportedWeakQuestions: byKind('unsupported')
+      .filter((r) => r.relevant && r.weak)
+      .map((r) => r.case.question),
+  },
   abstention: {
     unsupportedCorrectlyRefused: share(
       byKind('unsupported').filter((r) => !r.relevant).length,
@@ -281,12 +352,12 @@ const summary = {
   },
   tenantIsolation: {
     crossTenantQuestions: byKind('cross-tenant').length,
+    // a passage whose document does not belong to the company that asked
     leakedPassages: byKind('cross-tenant').reduce(
       (n, r) =>
         n +
-        r.sources.filter((s) =>
-          r.case.tenant === 'novatel' ? !s.startsWith('novatel') : s.startsWith('novatel'),
-        ).length,
+        r.sources.filter((s) => !(ownSources[r.case.tenant] ?? new Set()).has(s.split(' p')[0]!))
+          .length,
       0,
     ),
     refused: share(

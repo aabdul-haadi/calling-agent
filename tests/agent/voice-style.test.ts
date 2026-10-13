@@ -56,6 +56,10 @@ describe('spoken style lives in configuration, safety lives in the engine', () =
     expect(p).toMatch(/Never promise availability/);
     expect(p).toMatch(/say plainly what will change/);
     expect(p).toMatch(/One thought and one question at a time/);
+    // a policy question is answered at once; asking for a booking reference first was a measured failure
+    expect(p).toMatch(
+      /is answered straight away from the excerpts: never ask for a booking reference or name first/,
+    );
   });
 
   it('never loosens a rule: every safety rule and the speech-recognition caution survive in voice', () => {

@@ -16,7 +16,7 @@ import {
   extractorPython,
   retrievalFor,
 } from '../knowledge';
-import { createLlm } from '../llm';
+import { createClassifierLlm, createLlm } from '../llm';
 import { createLogger } from '../logger';
 import { evalHandoffService } from './service';
 
@@ -72,6 +72,7 @@ const chat = createChatService({
   db: db.db,
   registry,
   llm: createLlm(env),
+  classifier: createClassifierLlm(env),
   logger,
   env,
   retrieve: createRetriever(db.db, embeddings, logger, retrievalFor(embeddings), reranker),
@@ -90,81 +91,97 @@ interface Case {
   injection?: boolean;
 }
 const S = 'skylink-handbook.pdf';
-const q = (doc: string, id: string) => ({ terms: fact(doc, id).answer, page: fact(doc, id).page });
+const page = (doc: string, id: string) => fact(doc, id).page;
+const want = (terms: string[], doc: string, id: string, source = S) => ({
+  terms,
+  source,
+  page: page(doc, id),
+});
+const HB = 'skylink-handbook-v2';
 const cases: Case[] = [
   {
     id: 'bags',
     client: 'skylink-air',
     turns: ['How many checked bags can I take in economy?'],
-    expect: { ...q('skylink-handbook-v2', 'bag-allow-2'), source: S },
+    expect: want(['1'], HB, 'bag-allow-2'),
   },
   {
     id: 'extra-bag',
     client: 'skylink-air',
     turns: ['How much does an extra checked bag cost?'],
-    expect: { ...q('skylink-handbook-v2', 'bag-extra-2'), source: S },
+    expect: want(['60'], HB, 'bag-extra-2'),
   },
   {
     id: 'overweight',
     client: 'skylink-air',
     turns: ['My suitcase is 28 kilos, what will I pay?'],
-    expect: { ...q('skylink-handbook-v2', 'bag-overweight-2'), source: S },
+    expect: want(['45'], HB, 'bag-overweight-2'),
   },
   {
     id: 'refund-cancelled',
     client: 'skylink-air',
     turns: ['Can I get a refund if the airline cancels my flight?'],
-    expect: {
-      terms: ['refund'],
-      source: S,
-      page: fact('skylink-handbook-v2', 'cancel-options-2').page,
-    },
+    expect: want(['refund'], HB, 'cancel-options-2'),
   },
   {
     id: 'refund-followup',
     client: 'skylink-air',
     turns: ['What happens if SkyLink cancels my flight?', 'And how long does the refund take?'],
-    expect: { ...q('skylink-handbook-v2', 'cancel-refund-time-2'), source: S },
+    expect: want(['7'], HB, 'cancel-refund-time-2'),
   },
   {
     id: 'change-fee',
     client: 'skylink-air',
     turns: ["What's the change fee for an international flight?"],
-    expect: { ...q('skylink-handbook-v2', 'change-fee-2'), source: S },
+    expect: want(['150'], HB, 'change-fee-2'),
   },
   {
     id: 'pet',
     client: 'skylink-air',
     turns: ['Can I bring my dog in the cabin, and what does it cost?'],
-    expect: { ...q('skylink-handbook-v2', 'pet-cabin-2'), source: S },
+    expect: want(['95'], HB, 'pet-cabin-2'),
   },
   {
     id: 'two-part',
     client: 'skylink-air',
     turns: ['What is the domestic change fee, and how early must I ask for wheelchair help?'],
-    expect: {
-      terms: ['75', '48'],
-      source: S,
-      page: fact('skylink-handbook-v2', 'change-fee-2').page,
-    },
+    expect: want(['75', '48'], HB, 'change-fee-2'),
   },
   {
     id: 'checkin-lagos',
     client: 'skylink-air',
     turns: ['What time does check-in close at Lagos?'],
-    expect: { ...q('skylink-handbook-v2', 'checkin-lagos-2'), source: S },
+    expect: want(['45'], HB, 'checkin-lagos-2'),
   },
   {
     id: 'roaming',
     client: 'novatel',
     turns: ['How much does roaming cost per day?'],
-    expect: { ...q('novatel-handbook', 'roaming-rate'), source: 'novatel-handbook.pdf' },
+    expect: want(['6'], 'novatel-handbook', 'roaming-rate', 'novatel-handbook.pdf'),
   },
   {
     id: 'late-fee',
     client: 'novatel',
     turns: ['What happens if I pay my bill late?'],
-    expect: { ...q('novatel-handbook', 'late-fee'), source: 'novatel-handbook.pdf' },
+    expect: want(['5'], 'novatel-handbook', 'late-fee', 'novatel-handbook.pdf'),
+  },
+  {
+    id: 'hard-second-suitcase',
+    client: 'skylink-air',
+    turns: ['What do I pay for a second suitcase?'],
+    expect: want(['60'], HB, 'bag-extra-2'),
+  },
+  {
+    id: 'hard-cash-back',
+    client: 'skylink-air',
+    turns: ['My trip was scrapped by the airline, when do I see my cash again?'],
+    expect: want(['7'], HB, 'cancel-refund-time-2'),
+  },
+  {
+    id: 'hard-puppy',
+    client: 'skylink-air',
+    turns: ['Can my puppy sit with me on board?'],
+    expect: want(['95'], HB, 'pet-cabin-2'),
   },
   {
     id: 'unsupported-wifi',
@@ -192,6 +209,55 @@ const cases: Case[] = [
     expect: { terms: ['Gold'], source: 'partner-notice.pdf', page: 1 },
   },
 ];
+
+/** "seven business days" and "$forty-five" count the same as "7" and "$45": the model may say a number either way. */
+const ONES = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+function digitsFromWords(text: string): string {
+  const word = (w: string): number | undefined => {
+    const i = ONES.indexOf(w);
+    if (i >= 0) return i;
+    const t = TENS.indexOf(w);
+    return t >= 2 ? t * 10 : undefined;
+  };
+  return text.replace(
+    /\b((?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)[\s\u2010-\u2015-]*)+)/gi,
+    (run) => {
+      let total = 0;
+      let current = 0;
+      for (const w of run
+        .toLowerCase()
+        .split(/[\s\u2010-\u2015-]+/)
+        .filter(Boolean)) {
+        if (w === 'hundred') current = (current || 1) * 100;
+        else current += word(w) ?? 0;
+      }
+      total += current;
+      return `${run.trim()} ${total} `;
+    },
+  );
+}
 
 const DECLINE =
   /not sure|can't confirm|cannot confirm|don't (?:have|want)|no information|unable to confirm|human/i;
@@ -229,7 +295,8 @@ for (const c of cases) {
   const evidence = last.citations.map((x) => x.snippet.toLowerCase()).join(' ');
   const checks: Record<string, boolean> = {};
   if (c.expect) {
-    checks.facts = c.expect.terms.every((t) => reply.toLowerCase().includes(t.toLowerCase()));
+    const said = `${reply} ${digitsFromWords(reply)}`.toLowerCase();
+    checks.facts = c.expect.terms.every((t) => said.includes(t.toLowerCase()));
     checks.citedPage = last.citations.some(
       (x) =>
         x.source === c.expect!.source &&
@@ -273,6 +340,7 @@ const withChecks = (k: string) => results.flatMap((r) => (k in r.checks ? [r.che
 const summary = {
   label,
   model: `${env.LLM_PROVIDER}/${env.LLM_MODEL}`,
+  classifier: env.LLM_CLASSIFIER_MODEL ?? null,
   embeddings: embeddings.name,
   reranker: reranker.name,
   at: new Date().toISOString(),

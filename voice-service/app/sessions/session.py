@@ -107,6 +107,8 @@ def _passages(value: Any) -> list[dict[str, Any]]:
             continue
         item: dict[str, Any] = {"source": p["source"][:120], "heading": str(p.get("heading", ""))[:200],
                                 "excerpt": str(p.get("excerpt", ""))[:240]}
+        if p.get("weak") is True:
+            item["weak"] = True
         for key in ("page", "pageEnd", "version"):
             v = p.get(key)
             if isinstance(v, int) and not isinstance(v, bool) and 0 < v < 100000:

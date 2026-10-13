@@ -57,6 +57,7 @@ export interface KnowledgePassage {
   page?: number;
   pageEnd?: number;
   version?: number;
+  weak?: boolean;
   excerpt: string;
 }
 

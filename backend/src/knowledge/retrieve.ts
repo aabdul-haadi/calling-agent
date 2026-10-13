@@ -27,6 +27,18 @@ export interface RetrievalConfig {
   rerankTop: number;
   /** With a reranker, a passage must score at least this to count as evidence (chosen from the score spread of answerable and unanswerable test questions). */
   minRerank: number;
+  /**
+   * A customer's own words often share little with the document ("my cash back" for "refund"), and
+   * the relevance model then scores the right passage low. Between the strict bar and these limits a
+   * passage is a WEAK match: it is handed to the model marked as weak, with the instruction to use it
+   * only if it clearly answers the question and otherwise say it cannot confirm. A weak match needs
+   * to be close in meaning AND to share the question's topic words.
+   */
+  softRerank: number;
+  softSimilarity: number;
+  softKeyword: number;
+  /** Weak matches given to the model at most. */
+  weakResults: number;
 }
 
 export const DEFAULT_RETRIEVAL: RetrievalConfig = {
@@ -36,8 +48,12 @@ export const DEFAULT_RETRIEVAL: RetrievalConfig = {
   minSimilarity: 0.55,
   minOverlap: 0.34,
   duplicateOverlap: 0.6,
-  rerankTop: Number(process.env.RAG_RERANK_TOP) || 3,
+  rerankTop: Number(process.env.RAG_RERANK_TOP) || 5,
   minRerank: -4.5,
+  softRerank: -9,
+  softSimilarity: 0.66,
+  softKeyword: 0.2,
+  weakResults: 2,
 };
 
 /** With the offline word-matching fallback a similarity score says little, so only word overlap decides. */
@@ -149,6 +165,8 @@ export interface Decision {
   closest?: Ranked;
   passages: Ranked[];
   relevant: boolean;
+  /** True when the passages are only weak matches (the model decides whether they answer). */
+  weak?: boolean;
   reason: string;
   considered: number;
 }
@@ -180,14 +198,30 @@ export function decide(ranked: Ranked[], cfg: RetrievalConfig = DEFAULT_RETRIEVA
     kept.push(r);
   }
 
-  const enough = (r: Ranked) =>
+  const strong = (r: Ranked) =>
     r.rerank !== undefined
       ? r.rerank >= cfg.minRerank
       : ((r.similarity ?? 0) >= cfg.minSimilarity &&
           (r.overlap >= cfg.minOverlap || (r.keyword ?? 0) >= 0.5)) ||
         r.overlap >= 0.75;
-  const evidence = kept.filter(enough);
+  const plausible = (r: Ranked) =>
+    r.rerank !== undefined &&
+    r.rerank >= cfg.softRerank &&
+    (r.similarity ?? 0) >= cfg.softSimilarity &&
+    (r.keyword ?? 0) >= cfg.softKeyword;
+  const evidence = kept.filter(strong);
   if (evidence.length === 0) {
+    const weak = kept.filter(plausible).slice(0, cfg.weakResults);
+    if (weak.length > 0) {
+      return {
+        closest: weak[0],
+        passages: weak,
+        relevant: true,
+        weak: true,
+        reason: `Only weak matches (best relevance ${weak[0]!.rerank!.toFixed(1)}): the model decides whether they answer the question.`,
+        considered,
+      };
+    }
     const best = kept[0]!;
     return {
       closest: best,
@@ -217,13 +251,14 @@ export function decide(ranked: Ranked[], cfg: RetrievalConfig = DEFAULT_RETRIEVA
   };
 }
 
-export function toCitation(r: Ranked): Citation {
+export function toCitation(r: Ranked, weak = false): Citation {
   const cleaned = stripInstructions(r.hit.content);
   return {
     source: r.hit.source,
     heading: r.hit.heading,
     snippet: cleaned,
     score: Math.round(r.score * 100) / 100,
+    ...(weak ? { weak: true } : {}),
     ...(r.hit.documentId ? { documentId: r.hit.documentId } : {}),
     version: r.hit.version,
     ...(r.hit.page ? { page: r.hit.page } : {}),
@@ -293,8 +328,8 @@ export function createSearcher(
         relevant: decision.relevant,
         reason: decision.reason,
         embedding: embeddings.name,
-        passages: decision.passages.map(toCitation),
-        ...(decision.closest ? { closest: toCitation(decision.closest) } : {}),
+        passages: decision.passages.map((p) => toCitation(p, decision.weak)),
+        ...(decision.closest ? { closest: toCitation(decision.closest, decision.weak) } : {}),
         timings: {
           embedMs: Math.round(embedMs),
           vectorMs: Math.round(vectorMs),

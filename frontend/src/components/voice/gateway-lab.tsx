@@ -216,6 +216,7 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
                         </Badge>
                       )}
                       {p.version && p.version > 1 && <Badge>version {p.version}</Badge>}
+                      {p.weak && <Badge tone="warn">weak match</Badge>}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">{p.heading}</p>
                     <p className="mt-1 text-xs">“{p.excerpt}”</p>

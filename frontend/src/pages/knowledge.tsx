@@ -336,6 +336,7 @@ function Passage({ p, terms }: { p: Citation; terms: string[] }) {
         <Badge tone="accent">{p.source}</Badge>
         {p.page && <Badge>{pagesLabel(p.page, p.pageEnd)}</Badge>}
         {p.version && p.version > 1 && <Badge>version {p.version}</Badge>}
+        {p.weak && <Badge tone="warn">weak match: the agent decides whether it answers</Badge>}
         <span className="ml-auto text-xs text-muted-foreground">
           {p.match?.rerank !== undefined && <>relevance {p.match.rerank} · </>}
           {p.match?.vector !== undefined && <>meaning {Math.round(p.match.vector * 100)}% · </>}
