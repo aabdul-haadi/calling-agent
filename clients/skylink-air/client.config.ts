@@ -23,6 +23,15 @@ export const skylinkAir: ClientConfig = {
       ],
       speech: { speaker: 'af_heart', speed: 0.97 },
       progressLine: 'One moment, I am still checking that.',
+      progress: {
+        knowledge: 'Let me check the policy so I give you the right answer.',
+        tools: {
+          verify_customer: 'Let me look up your booking.',
+          get_booking: 'I am pulling up your booking.',
+          search_alternatives: 'Let me check which alternatives are available.',
+          change_flight: 'One moment, I am setting that up.',
+        },
+      },
     },
   },
   scope: ['flight cancellations', 'rebooking', 'baggage and change-fee policy', 'refund policy'],

@@ -62,8 +62,21 @@ export const voiceProfileSchema = z.object({
       speed: z.number().min(0.8).max(1.25).default(1),
     })
     .default({ speed: 1 }),
-  /** Said once, only if a lookup is really running and takes more than a few seconds. */
+  /** Said once, only if a lookup is really running and takes a moment, and nothing has been said yet. */
   progressLine: z.string().min(1).max(120).optional(),
+  /**
+   * What to say while a particular step runs, in the company's own words. Spoken only when that step
+   * really started and is still running after a moment: `knowledge` while policies are searched,
+   * `tools` keyed by tool name. A step without an entry falls back to `progressLine`.
+   */
+  progress: z
+    .object({
+      knowledge: z.string().min(1).max(120).optional(),
+      tools: z
+        .record(z.string().regex(/^[a-z0-9_]{1,40}$/), z.string().min(1).max(120))
+        .default({}),
+    })
+    .optional(),
 });
 export type VoiceProfile = z.infer<typeof voiceProfileSchema>;
 

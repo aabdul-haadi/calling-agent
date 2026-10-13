@@ -1,13 +1,7 @@
 import { desc, eq, sql } from 'drizzle-orm';
-import type {
-  ActivityItem,
-  ConversationSummary,
-  KnowledgeDoc,
-  OverviewMetrics,
-  ToolStat,
-} from '@adk/shared';
+import type { ActivityItem, ConversationSummary, OverviewMetrics, ToolStat } from '@adk/shared';
 import type { Db } from '../client';
-import { auditEvents, evalRuns, handoffs, knowledgeChunks } from '../schema';
+import { auditEvents, evalRuns, handoffs } from '../schema';
 
 const rowsOf = <T>(res: unknown): T[] => (res as { rows: T[] }).rows;
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
@@ -205,34 +199,4 @@ export async function computeOverview(db: Db, clientId?: string): Promise<Overvi
     llmUsage: null,
     recentActivity: activity,
   };
-}
-
-/** Documents the agent can cite, from the ingested chunks. */
-export async function listKnowledgeDocs(db: Db, clientId: string): Promise<KnowledgeDoc[]> {
-  const rows = await db
-    .select({
-      source: knowledgeChunks.source,
-      heading: knowledgeChunks.heading,
-      length: sql<number>`length(${knowledgeChunks.content})`,
-      updatedAt: knowledgeChunks.updatedAt,
-    })
-    .from(knowledgeChunks)
-    .where(eq(knowledgeChunks.clientId, clientId))
-    .orderBy(knowledgeChunks.source);
-  const docs = new Map<string, KnowledgeDoc>();
-  for (const r of rows) {
-    const d = docs.get(r.source) ?? {
-      source: r.source,
-      chunks: 0,
-      headings: [],
-      characters: 0,
-      updatedAt: r.updatedAt.toISOString(),
-    };
-    d.chunks++;
-    d.characters += num(r.length);
-    if (!d.headings.includes(r.heading)) d.headings.push(r.heading);
-    if (r.updatedAt.toISOString() > d.updatedAt) d.updatedAt = r.updatedAt.toISOString();
-    docs.set(r.source, d);
-  }
-  return [...docs.values()];
 }

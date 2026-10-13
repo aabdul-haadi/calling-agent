@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adk-docproc"
+version = "0.1.0"
+description = "PDF text, structure, table and OCR extraction for the Agent Delivery Kit knowledge base"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "pypdf>=5.0",            # BSD-3: open, decrypt, page count, metadata
+  "pdfplumber>=0.11",      # MIT: words with font sizes, tables
+  "pypdfium2>=4.30",       # Apache-2.0 / BSD-3: page rendering for OCR
+  "rapidocr>=3.0",         # Apache-2.0: OCR (PaddleOCR models, runs on CPU)
+  "onnxruntime>=1.20",     # MIT: runs the OCR models
+  "numpy>=1.26",
+  "pillow>=10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "reportlab>=4.0"]  # reportlab (BSD) only builds the test PDFs
+
+[tool.setuptools.packages.find]
+include = ["docproc*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

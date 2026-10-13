@@ -26,8 +26,19 @@ export const envSchema = z.object({
     .optional()
     .transform((v) => (v && v.trim() ? v.trim() : undefined)),
 
-  EMBEDDING_PROVIDER: z.enum(['local', 'openai']).default('local'),
+  /** semantic (also spelled local): a small local model that understands meaning. hash: offline, word matching only. */
+  EMBEDDING_PROVIDER: z.enum(['local', 'semantic', 'hash', 'openai']).default('semantic'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
+
+  /** Largest PDF accepted by the knowledge console, in megabytes. */
+  KNOWLEDGE_MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(500).default(100),
+  /** Read the best few passages with a small cross-encoder before answering (about 50 ms, clearly better ranking). */
+  RAG_RERANK: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((v) => v === 'on'),
+  /** auto reads scanned pages with OCR; off never runs OCR. */
+  KNOWLEDGE_OCR: z.enum(['auto', 'off']).default('auto'),
 
   MOCK_SERVICES_URL: z.string().url().default('http://localhost:4100'),
   MOCK_CLIENT_ID: z.string().min(1),

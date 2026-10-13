@@ -135,6 +135,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
               speed: profile?.speech.speed ?? 1,
               language: profile?.language ?? 'en-US',
               ...(profile?.progressLine ? { progressLine: profile.progressLine } : {}),
+              ...(profile?.progress ? { progress: profile.progress } : {}),
             },
           }
         : {}),
@@ -226,6 +227,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       trace: out.trace,
       citations: out.citations,
       handoff: out.handoff,
+      ...(out.timings ? { timings: out.timings } : {}),
       ...(out.cancelled ? { cancelled: true } : {}),
     };
   }

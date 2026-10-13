@@ -15,3 +15,5 @@ voice-service/.pytest_cache/
 voice-service/tests/fixtures/generated/
 
 voice-service/diagnostics/
+
+/data/

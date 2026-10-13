@@ -5,14 +5,17 @@ import type {
   Citation,
   HandoffView,
   SimulatorControls,
+  StageTiming,
   TraceEvent,
   TraceStatus,
   TurnEvent,
+  TurnTimings,
   VoiceTranscriptMeta,
 } from '@adk/shared';
 import type { ClientModule } from '../clients/types';
 import { evaluatePostTurn, evaluatePreTurn, type HandoffReason } from '../handoff/triggers';
 import type { HandoffService } from '../handoff/types';
+import { needsKnowledge } from '../knowledge/gate';
 import { NO_POLICY_REPLY, type Retriever } from '../knowledge/types';
 import type { LlmClient, LlmMessage, LlmToolSpec } from '../llm';
 import type { Logger } from '../logger';
@@ -72,6 +75,7 @@ export interface TurnOutput {
   /** Decisions that mattered this turn (proposals, approvals, executions), for the audit log. */
   audit: AuditEvent[];
   handoff?: HandoffView;
+  timings?: TurnTimings;
   /** The customer interrupted. State and trace are kept; there is no reply. */
   cancelled?: boolean;
 }
@@ -129,7 +133,33 @@ function stepHook(
 
 export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOutput> {
   const { module, conversationId } = input;
+  const turnStart = performance.now();
+  const stages: StageTiming[] = [];
+  /** Run one step of the turn and record when it started and how long it took. */
+  async function timed<T>(
+    stage: StageTiming['stage'],
+    label: string,
+    fn: () => Promise<T>,
+    extra?: () => Partial<StageTiming>,
+  ): Promise<T> {
+    const start = performance.now();
+    try {
+      return await fn();
+    } finally {
+      stages.push({
+        stage,
+        label,
+        startMs: Math.round(start - turnStart),
+        ms: Math.round(performance.now() - start),
+        ...extra?.(),
+      });
+    }
+  }
   const { config } = module;
+  const snapshot = (): TurnTimings => ({
+    totalMs: Math.round(performance.now() - turnStart),
+    stages: [...stages],
+  });
   const trace: TraceEvent[] = [];
   const toolCalls: ToolCallRecord[] = [];
   const audit: AuditEvent[] = [];
@@ -195,7 +225,16 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       toolsRun: toolCalls.map((t) => t.tool),
       proposalStatus: state.proposal?.status,
     });
-    return { reply: '', state, trace, citations, toolCalls, audit, cancelled: true };
+    return {
+      reply: '',
+      state,
+      trace,
+      citations,
+      toolCalls,
+      audit,
+      cancelled: true,
+      timings: snapshot(),
+    };
   };
 
   const finish = async (
@@ -239,7 +278,9 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       if (said && !prefixed) finalReply = `${said} ${finalReply}`.trim();
     }
     state = stepHook(state, module, 'afterTurn');
-    return { reply: finalReply, state, trace, citations, toolCalls, audit, handoff };
+    const timings = snapshot();
+    emit?.({ type: 'turn.timing', timings });
+    return { reply: finalReply, state, trace, citations, toolCalls, audit, handoff, timings };
   };
 
   if (state.handedOff) {
@@ -255,13 +296,8 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   // "before we even try" handoff triggers.
   emit?.({ type: 'agent.thinking' });
   const pendingChange = state.proposal?.status === 'pending' ? state.proposal.summary : undefined;
-  const heard = await classifyTurn(
-    deps.llm,
-    config,
-    input.history,
-    input.userMessage,
-    pendingChange,
-    input.signal,
+  const heard = await timed('understand', 'classify the message', () =>
+    classifyTurn(deps.llm, config, input.history, input.userMessage, pendingChange, input.signal),
   );
   // A transcript the speech recognizer was unsure about can never approve a change: a misheard
   // "yes" must not authorise anything. The agent is told to ask again (see the prompt).
@@ -320,16 +356,40 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   }
 
   // 2. Policy lookup (RAG). No policy found for a policy question => safe fallback, no improvising.
-  if (deps.retrieve) {
-    const found = await deps.retrieve(config.id, input.userMessage);
+  // A greeting, a thanks or a bare yes/no has nothing to look up, so it skips the search.
+  if (deps.retrieve && needsKnowledge(input.userMessage)) {
+    emit?.({ type: 'knowledge.searching' });
+    const recentQuestions = input.history
+      .filter((m) => m.role === 'user')
+      .map((m) => m.content)
+      .slice(-3);
+    const found = await timed('retrieve', 'search the policies', () =>
+      deps.retrieve!(config.id, input.userMessage, { recentQuestions }),
+    );
     citations = found.citations;
     if (isCancelled()) return cancelTurn();
     if (found.relevant) {
       const sources = [...new Set(citations.map((c) => c.source))];
-      addTrace('knowledge', `Looked up policy: ${sources.join(', ')}`, 'ok', undefined, citations);
+      addTrace(
+        'knowledge',
+        `Looked up policy: ${sources.join(', ')}`,
+        'ok',
+        found.timings?.totalMs,
+        { citations, searched: found.searched, reason: found.reason, timings: found.timings },
+      );
       emit?.({ type: 'knowledge.used', sources });
     } else if (classification.isPolicyQuestion) {
-      addTrace('knowledge', 'Searched policies, found nothing relevant', 'warn');
+      addTrace(
+        'knowledge',
+        'Searched policies, found nothing relevant',
+        'warn',
+        found.timings?.totalMs,
+        {
+          searched: found.searched,
+          reason: found.reason,
+          timings: found.timings,
+        },
+      );
       return finish(NO_POLICY_REPLY, null);
     }
   }
@@ -373,18 +433,27 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       spoken += ' ';
       emit({ type: 'agent.text.delta', text: ' ' });
     }
-    const res = await deps.llm.complete(
-      { system, messages, tools: specs },
-      {
-        signal: input.signal,
-        onTextDelta: emit
-          ? (text) => {
-              streamed += text.length;
-              spoken += text;
-              emit({ type: 'agent.text.delta', text });
-            }
-          : undefined,
-      },
+    const callStart = performance.now();
+    let firstTokenMs: number | undefined;
+    const res = await timed(
+      'llm',
+      `model call ${i + 1}`,
+      () =>
+        deps.llm.complete(
+          { system, messages, tools: specs },
+          {
+            signal: input.signal,
+            onTextDelta: emit
+              ? (text) => {
+                  firstTokenMs ??= Math.round(performance.now() - callStart);
+                  streamed += text.length;
+                  spoken += text;
+                  emit({ type: 'agent.text.delta', text });
+                }
+              : undefined,
+          },
+        ),
+      () => (firstTokenMs === undefined ? {} : { firstTokenMs }),
     );
     if (isCancelled()) return cancelTurn();
     if (!res.ok) {
@@ -411,20 +480,22 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       if (isCancelled()) return cancelTurn();
       const known = config.tools.includes(call.name);
       if (known) emit?.({ type: 'tool.started', tool: call.name });
-      const outcome = await dispatch(
-        call.name,
-        call.input,
-        {
-          conversationId,
-          clientId: config.id,
-          state,
-          stateAtTurnStart: input.state,
-          logger: log,
-          api,
-          idempotency: deps.idempotency,
-          audit: record,
-        },
-        deps2,
+      const outcome = await timed('tool', call.name, () =>
+        dispatch(
+          call.name,
+          call.input,
+          {
+            conversationId,
+            clientId: config.id,
+            state,
+            stateAtTurnStart: input.state,
+            logger: log,
+            api,
+            idempotency: deps.idempotency,
+            audit: record,
+          },
+          deps2,
+        ),
       );
       const r = outcome.result;
       const safeInput = maskPII(call.input);

@@ -12,6 +12,9 @@ import { auditRouter } from './routes/audit';
 import { handoffsRouter } from './routes/handoffs';
 import { healthRouter } from './routes/health';
 import { insightsRouter } from './routes/insights';
+import { knowledgeRouter } from './routes/knowledge';
+import type { KnowledgeService } from './knowledge/documents';
+import type { Searcher } from './knowledge/retrieve';
 import { testsRouter, type EvalService } from './routes/tests';
 import { voiceRouter } from './routes/voice';
 
@@ -22,6 +25,8 @@ export interface AppDeps {
   registry: ClientRegistry;
   chat: ChatService;
   evals: EvalService;
+  knowledge: KnowledgeService;
+  searcher: Searcher;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -37,6 +42,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(chatRouter(deps.chat));
   app.use(handoffsRouter(deps.db));
   app.use(auditRouter(deps.db));
+  app.use(knowledgeRouter(deps.env, deps.registry, deps.knowledge, deps.searcher));
   app.use(insightsRouter(deps.db, deps.registry));
   app.use(voiceRouter(deps.env, deps.registry));
   app.use(testsRouter(deps.evals));

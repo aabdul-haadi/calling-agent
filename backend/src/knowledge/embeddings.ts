@@ -1,12 +1,22 @@
+import { resolve } from 'node:path';
+import { REPO_ROOT } from '../config/repo-root';
 import { z } from 'zod';
 import { isConfigured, type Env } from '../config';
 import { EMBEDDING_DIMENSIONS } from '../database/schema';
 import { postJson } from '../llm/http';
 import { tokenize } from './text';
 
+export type EmbedKind = 'query' | 'document';
+
 export interface EmbeddingProvider {
+  /** Shown in traces and the knowledge console. */
+  readonly name: string;
+  /** semantic: similarity scores mean something. lexical: only word overlap does (the offline fallback). */
+  readonly profile: 'semantic' | 'lexical';
   /** Throws on failure: callers (ingest, retrieve) decide how to degrade. */
-  embed(texts: string[]): Promise<number[][]>;
+  embed(texts: string[], kind?: EmbedKind): Promise<number[][]>;
+  /** Load the model now, so the first customer question does not pay for it. */
+  warmUp?(): Promise<void>;
 }
 
 function fnv1a(s: string): number {
@@ -19,9 +29,9 @@ function fnv1a(s: string): number {
 }
 
 /**
- * Offline "hashing trick" embedding: words and word pairs are hashed into 256 buckets with a
- * random sign, then normalised. No API key, deterministic, good enough to demo RAG plumbing.
- * (Real semantic embeddings, e.g. OpenAI, are better; swap with EMBEDDING_PROVIDER=openai.)
+ * Offline "hashing trick" embedding: words and word pairs are hashed into buckets with a random
+ * sign, then normalised. No download, deterministic, purely lexical (it matches words, not
+ * meaning). Used by the tests and as a last-resort fallback; the semantic model is the default.
  */
 export function localEmbed(text: string): number[] {
   const vec = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
@@ -35,12 +45,79 @@ export function localEmbed(text: string): number[] {
   return vec.map((v) => v / norm);
 }
 
-export const localProvider: EmbeddingProvider = { embed: async (texts) => texts.map(localEmbed) };
+export const localProvider: EmbeddingProvider = {
+  name: 'hashing (offline, lexical)',
+  profile: 'lexical',
+  embed: async (texts) => texts.map(localEmbed),
+};
+export const hashProvider = localProvider;
+
+// ---------------------------------------------------------------------------------------------
+// local semantic model
+// ---------------------------------------------------------------------------------------------
+
+export const SEMANTIC_MODEL = 'Xenova/bge-small-en-v1.5';
+/** bge models are trained to see questions with this prefix (documents get none). */
+const QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
+
+type Extractor = (
+  texts: string[],
+  opts: { pooling: 'cls'; normalize: boolean },
+) => Promise<{ tolist(): number[][] }>;
+
+/**
+ * BGE-small (MIT, 33M parameters, 384 dimensions) running locally through ONNX (int8). It understands
+ * paraphrases ("what do I pay for a second suitcase" finds "each additional checked bag costs").
+ * The model file (~34 MB) is downloaded once from Hugging Face on first use and cached on disk.
+ */
+export function semanticProvider(
+  cacheDir = resolve(REPO_ROOT, 'data', 'models-cache'),
+): EmbeddingProvider {
+  let extractor: Promise<Extractor> | undefined;
+  const load = (): Promise<Extractor> => {
+    extractor ??= (async () => {
+      const { pipeline, env } = await import('@huggingface/transformers');
+      env.cacheDir = cacheDir;
+      return (await pipeline('feature-extraction', SEMANTIC_MODEL, {
+        dtype: 'q8',
+      })) as unknown as Extractor;
+    })();
+    // A failed load must be retried next time, not remembered.
+    extractor.catch(() => {
+      extractor = undefined;
+    });
+    return extractor;
+  };
+  return {
+    name: `${SEMANTIC_MODEL} (local)`,
+    profile: 'semantic',
+    async warmUp() {
+      await load();
+    },
+    async embed(texts, kind = 'document') {
+      const model = await load();
+      const out: number[][] = [];
+      for (let i = 0; i < texts.length; i += 16) {
+        const batch = texts
+          .slice(i, i + 16)
+          .map((t) => (kind === 'query' ? `${QUERY_PREFIX}${t}` : t.slice(0, 2000)));
+        out.push(...(await model(batch, { pooling: 'cls', normalize: true })).tolist());
+      }
+      return out;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// OpenAI (optional, needs a key)
+// ---------------------------------------------------------------------------------------------
 
 const openAiResponse = z.object({ data: z.array(z.object({ embedding: z.array(z.number()) })) });
 
 export function openAiProvider(apiKey: string, model: string): EmbeddingProvider {
   return {
+    name: `${model} (OpenAI)`,
+    profile: 'semantic',
     async embed(texts) {
       const res = await postJson(
         'https://api.openai.com/v1/embeddings',
@@ -56,11 +133,17 @@ export function openAiProvider(apiKey: string, model: string): EmbeddingProvider
   };
 }
 
+let shared: EmbeddingProvider | undefined;
+
 export function createEmbeddingProvider(env: Env): EmbeddingProvider {
   if (env.EMBEDDING_PROVIDER === 'openai') {
     if (!isConfigured(env.OPENAI_API_KEY))
       throw new Error('EMBEDDING_PROVIDER=openai needs OPENAI_API_KEY');
     return openAiProvider(env.OPENAI_API_KEY, env.EMBEDDING_MODEL);
   }
-  return localProvider;
+  if (env.EMBEDDING_PROVIDER === 'hash') return hashProvider;
+  // 'local' (the old name) and 'semantic' both mean the local semantic model. One shared instance:
+  // the model is loaded once per process.
+  shared ??= semanticProvider();
+  return shared;
 }

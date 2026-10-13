@@ -477,7 +477,8 @@ async def test_a_faint_voice_cannot_interrupt_but_the_same_person_speaking_up_ca
 
 FAST_PROGRESS = Settings(
     gateway_secret="s", end_silence_ms=600, barge_in_min_ms=160, pre_roll_ms=300, barge_in_min_rms=0.0,
-    progress_after_s=0.2,
+    ack_after_s=0.2,
+    ack_again_after_s=30.0,
 )
 
 
@@ -604,3 +605,102 @@ def test_with_only_the_live_model_its_own_confidence_decides():
     r.session._awaiting_approval = True
     assert r.session._is_doubtful(Transcript("yes", 0.9, 0.9, "YES", 0.5)) is True   # waiting approval: strict
     assert r.session._is_doubtful(Transcript("yes", 0.9, 0.9, "YES", 0.95)) is False
+
+
+# ---- context-aware waiting lines ---------------------------------------------------------------
+
+SPEECH = {
+    "progressLine": "Still on it.",
+    "progress": {
+        "knowledge": "Let me check the policy.",
+        "tools": {"search_alternatives": "Let me check which alternatives are available."},
+    },
+}
+
+
+async def test_the_waiting_line_names_the_step_that_is_really_running():
+    r = Rig(TURN, settings=FAST_PROGRESS)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": SPEECH},
+        {"type": "tool.started", "tool": "search_alternatives"},
+        1.0,
+        {"type": "tool.completed", "tool": "search_alternatives", "status": "ok"},
+        *text("There are two."),
+    )
+    await turn(r)
+    await r.until(lambda: len(r.synth.phrases) >= 2, timeout=6)
+    assert r.synth.phrases[0] == "Let me check which alternatives are available."
+    await r.close()
+
+
+async def test_a_policy_search_that_takes_a_moment_gets_its_own_line():
+    r = Rig(TURN, settings=FAST_PROGRESS)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": SPEECH},
+        {"type": "knowledge.searching"},
+        0.6,
+        {"type": "knowledge.used", "sources": ["refunds"]},
+        *text("Refunds take seven days."),
+    )
+    await turn(r)
+    await r.until(lambda: len(r.synth.phrases) >= 2, timeout=6)
+    assert r.synth.phrases[0] == "Let me check the policy."
+    assert "knowledge.searching" in r.types()
+    await r.close()
+
+
+async def test_nothing_is_said_when_the_answer_is_already_ready():
+    r = Rig(TURN, settings=FAST_PROGRESS)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": SPEECH},
+        {"type": "knowledge.searching"},
+        0.05,
+        {"type": "knowledge.used", "sources": ["refunds"]},
+        *text("Refunds take seven days."),
+    )
+    await turn(r)
+    await r.until(lambda: r.synth.phrases, timeout=6)
+    assert r.synth.phrases == ["Refunds take seven days."]
+    await r.close()
+
+
+async def test_at_most_two_lines_and_the_second_only_for_a_step_that_is_still_running():
+    settings = Settings(
+        gateway_secret="s", end_silence_ms=600, barge_in_min_ms=160, pre_roll_ms=300, barge_in_min_rms=0.0,
+        ack_after_s=0.1, ack_again_after_s=0.3,
+    )
+    r = Rig(TURN, settings=settings)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": SPEECH},
+        {"type": "tool.started", "tool": "search_alternatives"},
+        1.2,
+        {"type": "tool.completed", "tool": "search_alternatives", "status": "ok"},
+        {"type": "tool.started", "tool": "search_alternatives"},
+        0.8,
+        *text("Done."),
+    )
+    await turn(r)
+    await r.until(lambda: len(r.synth.phrases) >= 3, timeout=8)
+    assert r.synth.phrases[:2] == ["Let me check which alternatives are available.", "Still on it."]
+    assert r.synth.phrases.count("Still on it.") == 1  # never a third
+    await r.close()
+
+
+async def test_the_runtimes_stage_timings_reach_the_turn_metrics():
+    r = Rig(TURN)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1"},
+        {"type": "turn.timing", "timings": {"totalMs": 900, "stages": [
+            {"stage": "understand", "label": "x", "startMs": 0, "ms": 200},
+            {"stage": "retrieve", "label": "x", "startMs": 200, "ms": 30},
+            {"stage": "llm", "label": "model call 1", "startMs": 230, "ms": 600, "firstTokenMs": 300},
+            {"stage": "tool", "label": "t", "startMs": 830, "ms": 70},
+        ]}},
+        *text("Okay."),
+    )
+    await turn(r)
+    await r.until(lambda: "turn.metrics" in r.types())
+    m = r.of(ev.TURN_METRICS)[0]
+    assert (m["agentUnderstandMs"], m["agentRetrieveMs"], m["agentLlmMs"], m["agentToolMs"]) == (200, 30, 600, 70)
+    assert m["agentFirstTokenMs"] == 530 and m["agentTotalMs"] == 900
+    await r.close()

@@ -80,6 +80,7 @@ class _Turn:
     end_deadline: float | None = None  # set while a turn is held open for a hanging word
     held: bool = False
     marks: dict[str, float] = field(default_factory=dict)
+    agent_timings: dict[str, Any] | None = None  # the runtime's per-stage timings for this turn
 
 
 @dataclass
@@ -95,6 +96,20 @@ SendBytes = Callable[[bytes], Awaitable[None]]
 DetectorFactory = Callable[..., Any]
 
 
+def _line(value: Any) -> str | None:
+    return value.strip()[:120] if isinstance(value, str) and value.strip() else None
+
+
+def _tool_lines(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, str] = {}
+    for name, text in list(value.items())[:32]:
+        if isinstance(name, str) and re.fullmatch(r"[a-z0-9_]{1,40}", name) and (line := _line(text)):
+            out[name] = line
+    return out
+
+
 @dataclass
 class SpeechPrefs:
     """How this company's agent should sound. Style only; supplied by the runtime, validated here."""
@@ -102,6 +117,8 @@ class SpeechPrefs:
     speaker: str | None = None
     speed: float = 1.0
     progress_line: str | None = None
+    progress_knowledge: str | None = None
+    progress_tools: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_event(cls, raw: Any) -> "SpeechPrefs":
@@ -110,11 +127,88 @@ class SpeechPrefs:
         speaker = raw.get("speaker")
         speed = raw.get("speed")
         line = raw.get("progressLine")
+        progress = raw.get("progress")
         return cls(
             speaker=speaker if isinstance(speaker, str) and re.fullmatch(r"[a-z0-9_]{1,40}", speaker) else None,
             speed=min(1.25, max(0.8, float(speed))) if isinstance(speed, (int, float)) and not isinstance(speed, bool) else 1.0,
-            progress_line=line.strip()[:120] if isinstance(line, str) and line.strip() else None,
+            progress_line=_line(line),
+            progress_knowledge=_line(progress.get("knowledge")) if isinstance(progress, dict) else None,
+            progress_tools=_tool_lines(progress.get("tools")) if isinstance(progress, dict) else {},
         )
+
+
+def _agent_stage_metrics(timings: dict[str, Any] | None) -> dict[str, float]:
+    """Where the runtime spent the turn, from its own stage timings (numbers only, validated)."""
+    if not timings or not isinstance(timings.get("stages"), list):
+        return {}
+    sums: dict[str, float] = {}
+    first_token: float | None = None
+    for st in timings["stages"][:64]:
+        if not isinstance(st, dict) or not isinstance(st.get("ms"), (int, float)):
+            continue
+        key = {"understand": "agentUnderstandMs", "retrieve": "agentRetrieveMs", "llm": "agentLlmMs",
+               "tool": "agentToolMs"}.get(st.get("stage"))
+        if key:
+            sums[key] = sums.get(key, 0.0) + float(st["ms"])
+        ft = st.get("firstTokenMs")
+        if st.get("stage") == "llm" and isinstance(ft, (int, float)) and first_token is None:
+            first_token = float(st["startMs"]) + float(ft) if isinstance(st.get("startMs"), (int, float)) else None
+    if first_token is not None:
+        sums["agentFirstTokenMs"] = first_token  # from the start of the turn to the first word written
+    total = timings.get("totalMs")
+    if isinstance(total, (int, float)):
+        sums["agentTotalMs"] = float(total)
+    return sums
+
+
+class _Acks:
+    """The short spoken lines that cover a wait: at most one when a real step is taking a moment,
+    and one more only if that same step is still running much later.
+
+    Every line is started by an event that proves the step began (a tool or a policy search), says
+    only what is being done (never that it succeeded), is dropped if the answer is ready first, and
+    never talks over speech that has already started.
+    """
+
+    def __init__(self, session: "VoiceSession", turn: "_Turn", gen: int, phrases: "asyncio.Queue[str | None]") -> None:
+        self._s, self._turn, self._gen, self._phrases = session, turn, gen, phrases
+        self._tasks: dict[str, asyncio.Task[None]] = {}
+        self._said = 0
+
+    def start(self, key: str, line: str | None) -> None:
+        if not line or key in self._tasks or self._said >= 2:
+            return
+        self._tasks[key] = asyncio.create_task(self._run(key, line))
+
+    def done(self, key: str) -> None:
+        task = self._tasks.get(key)
+        if task is not None and not task.done():
+            task.cancel()
+
+    def cancel_all(self) -> None:
+        for task in self._tasks.values():
+            if not task.done():
+                task.cancel()
+
+    def _quiet(self) -> bool:
+        s = self._s
+        return self._gen == s._gen and not s._first_audio_sent and "first_text" not in self._turn.marks
+
+    async def _run(self, key: str, line: str) -> None:
+        cfg = self._s.s
+        await asyncio.sleep(cfg.ack_after_s)
+        if not self._quiet() or self._said >= 2:
+            return
+        self._said += 1
+        self._phrases.put_nowait(speakable(line))
+        self._s._metrics.count("progress_updates")
+        # Still going after a long time: one more short update, only for this same step.
+        await asyncio.sleep(cfg.ack_again_after_s)
+        fallback = self._s._speech.progress_line
+        if fallback and self._said < 2 and self._gen == self._s._gen and "first_text" not in self._turn.marks:
+            self._said += 1
+            self._phrases.put_nowait(speakable(fallback))
+            self._s._metrics.count("progress_updates")
 
 
 class VoiceSession:
@@ -520,7 +614,7 @@ class VoiceSession:
         marks = turn.marks
         marks["agent_request"] = self._clock()
         status = "completed"
-        progress: asyncio.Task[None] | None = None
+        acks = _Acks(self, turn, gen, phrases)
         try:
             events = self._agent.stream_turn(
                 client_id=self.client_id,
@@ -542,14 +636,19 @@ class VoiceSession:
                 elif kind == "agent.thinking":
                     self.emit(ev.AGENT_THINKING, turn.id)
                 elif kind == "knowledge.used":
+                    acks.done("knowledge")
                     self.emit(ev.KNOWLEDGE_USED, turn.id, sources=_strings(event.get("sources")))
                 elif kind == "tool.started":
                     self.emit(ev.TOOL_STARTED, turn.id, tool=str(event.get("tool", ""))[:64])
-                    if progress is None and self._speech.progress_line:
-                        progress = asyncio.create_task(self._progress_update(turn, gen, phrases, self._speech.progress_line))
+                    tool = str(event.get("tool", ""))[:64]
+                    acks.start(tool, self._speech.progress_tools.get(tool) or self._speech.progress_line)
+                elif kind == "knowledge.searching":
+                    self.emit(ev.KNOWLEDGE_SEARCHING, turn.id)
+                    acks.start("knowledge", self._speech.progress_knowledge or self._speech.progress_line)
+                elif kind == "turn.timing":
+                    turn.agent_timings = event.get("timings") if isinstance(event.get("timings"), dict) else None
                 elif kind == "tool.completed":
-                    if progress is not None and not progress.done():
-                        progress.cancel()
+                    acks.done(str(event.get("tool", ""))[:64])
                     self.emit(ev.TOOL_COMPLETED, turn.id, tool=str(event.get("tool", ""))[:64],
                               status=str(event.get("status", "ok"))[:16])
                 elif kind == "approval.required":
@@ -562,8 +661,7 @@ class VoiceSession:
                     delta = str(event.get("text", ""))
                     if not delta:
                         continue
-                    if progress is not None and not progress.done():
-                        progress.cancel()  # the real answer is arriving: no filler needed
+                    acks.cancel_all()  # the real answer is arriving: no filler needed
                     marks.setdefault("first_text", self._clock())
                     self.emit(ev.AGENT_TEXT_DELTA, turn.id, text=delta)
                     for phrase in chunker.push(delta):
@@ -599,19 +697,10 @@ class VoiceSession:
                           message="Something went wrong while answering")
                 self._finish_reply(turn, "error")
         finally:
-            if progress is not None and not progress.done():
-                progress.cancel()
+            acks.cancel_all()
             if not tts_task.done():
                 tts_task.cancel()
                 await asyncio.gather(tts_task, return_exceptions=True)
-
-    async def _progress_update(self, turn: _Turn, gen: int, phrases: "asyncio.Queue[str | None]", line: str) -> None:
-        """Say one short, true "still working" line if a lookup really is running and nothing has been
-        said yet. Started only by a real tool.started event; cancelled by the tool finishing or any text."""
-        await asyncio.sleep(self.s.progress_after_s)
-        if gen == self._gen and not self._first_audio_sent:
-            phrases.put_nowait(speakable(line))
-            self._metrics.count("progress_updates")
 
     def _finish_reply(self, turn: _Turn, status: str) -> None:
         marks = turn.marks
@@ -630,6 +719,12 @@ class VoiceSession:
                 self._metrics.observe("speech_end_to_first_audio_ms", ms)
             if "first_text" in marks:
                 self._metrics.observe("speech_end_to_first_text_ms", metrics["speechEndToFirstTextMs"])
+        metrics.update(_agent_stage_metrics(turn.agent_timings))
+        for key, name in (("agentUnderstandMs", "agent_understand_ms"), ("agentRetrieveMs", "agent_retrieve_ms"),
+                          ("agentLlmMs", "agent_llm_ms"), ("agentToolMs", "agent_tool_ms"),
+                          ("agentFirstTokenMs", "agent_first_token_ms")):
+            if key in metrics:
+                self._metrics.observe(name, metrics[key])
         self.emit(ev.TURN_METRICS, turn.id, **{k: round(v) for k, v in metrics.items()})
         self.emit(ev.TURN_COMPLETED, turn.id, status=status)
         self._agent_task = None

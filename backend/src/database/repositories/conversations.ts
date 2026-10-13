@@ -128,8 +128,9 @@ export async function listTrace(db: Db, conversationId: string): Promise<TraceEv
 
 /** "Knowledge used" = the citations attached to the most recent policy lookup in the trace. */
 export function latestCitations(trace: TraceEvent[]): Citation[] {
-  const last = [...trace].reverse().find((t) => t.type === 'knowledge' && Array.isArray(t.detail));
-  return (last?.detail as Citation[] | undefined) ?? [];
+  const last = [...trace].reverse().find((t) => t.type === 'knowledge' && t.detail);
+  const detail = last?.detail as Citation[] | { citations?: Citation[] } | undefined;
+  return (Array.isArray(detail) ? detail : detail?.citations) ?? [];
 }
 
 export async function resetConversation(db: Db, id: string, state: ConversationState) {

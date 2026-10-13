@@ -23,6 +23,14 @@ export const novatel: ClientConfig = {
       ],
       speech: { speaker: 'af_bella', speed: 1 },
       progressLine: 'Bear with me, I am still looking at your account.',
+      progress: {
+        knowledge: 'Let me check our policy so I can answer accurately.',
+        tools: {
+          verify_customer: 'Let me find your account.',
+          get_bill: 'Let me pull up your bill.',
+          check_outage: 'Let me check for outages in your area.',
+        },
+      },
     },
   },
   scope: ['bill explanations', 'outage and coverage checks', 'billing and cancellation policy'],

@@ -12,7 +12,15 @@ import { createHandoffService } from '@backend/handoff';
 import { createApp } from '@backend/app';
 import { createEvalService, evalHandoffService } from '@backend/evals';
 import { clientDir } from '@backend/clients';
-import { createRetriever, ingestClient, localProvider } from '@backend/knowledge';
+import {
+  createKnowledgeService,
+  createRetriever,
+  createSearcher,
+  ingestClient,
+  localProvider,
+} from '@backend/knowledge';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
 export type ScriptStep =
@@ -129,6 +137,7 @@ export interface Harness {
   llm: ReturnType<typeof createScriptedLlm>;
   mockUrl: string;
   app: ReturnType<typeof createApp>;
+  knowledge: ReturnType<typeof createKnowledgeService>;
   close(): Promise<void>;
 }
 
@@ -194,7 +203,15 @@ export async function createHarness(
     chat: evalChat,
     mockServicesUrl: mockUrl,
   });
-  const app = createApp({ env, logger, db: db.db, registry, chat, evals });
+  const knowledge = createKnowledgeService({
+    db: db.db,
+    embeddings: localProvider,
+    logger,
+    dataDir: await mkdtemp(resolve(tmpdir(), 'adk-knowledge-')),
+    retryDelayMs: 0,
+  });
+  const searcher = createSearcher(db.db, localProvider);
+  const app = createApp({ env, logger, db: db.db, registry, chat, evals, knowledge, searcher });
 
   return {
     chat,
@@ -203,6 +220,7 @@ export async function createHarness(
     llm,
     mockUrl,
     app,
+    knowledge,
     close: async () => {
       await new Promise((r) => server.close(r));
       await db.close();

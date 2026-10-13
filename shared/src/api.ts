@@ -36,10 +36,19 @@ export interface ConversationStateView {
 }
 
 export interface Citation {
+  /** The document's name ("refunds", or "skylink-handbook.pdf"). */
   source: string;
   heading: string;
   snippet: string;
   score: number;
+  /** Which stored document and version the passage came from. */
+  documentId?: string;
+  version?: number;
+  /** Page numbers of a PDF passage (the first and the last page it covers). */
+  page?: number;
+  pageEnd?: number;
+  /** Why it ranked: similarity by meaning, and by matching words (for debugging, never spoken). */
+  match?: { vector?: number; keyword?: number; rerank?: number };
 }
 
 export type Channel = 'chat' | 'voice';
@@ -88,6 +97,21 @@ export interface HandoffView {
   createdAt: string;
 }
 
+/** Where the time of one turn went. Offsets are milliseconds since the turn began. */
+export interface StageTiming {
+  stage: 'understand' | 'retrieve' | 'llm' | 'tool';
+  /** For llm and tool stages, which call (tool name, or "step 2"). */
+  label: string;
+  startMs: number;
+  ms: number;
+  /** LLM stages only: until the first word of text arrived (when the model streams). */
+  firstTokenMs?: number;
+}
+export interface TurnTimings {
+  totalMs: number;
+  stages: StageTiming[];
+}
+
 export interface ChatResponse {
   conversationId: string;
   /** The customer interrupted: the turn stopped early, nothing is said, and no reply is saved. */
@@ -97,6 +121,7 @@ export interface ChatResponse {
   trace: TraceEvent[];
   citations: Citation[];
   handoff?: HandoffView;
+  timings?: TurnTimings;
 }
 
 export interface ConversationView {
@@ -201,12 +226,65 @@ export interface OverviewMetrics {
   recentActivity: ActivityItem[];
 }
 
+export type KnowledgeStatus =
+  'queued' | 'extracting' | 'indexing' | 'ready' | 'failed' | 'superseded';
+
+export interface KnowledgeVersionView {
+  id: string;
+  version: number;
+  status: KnowledgeStatus;
+  active: boolean;
+  chunks: number;
+  pages: number | null;
+  updatedAt: string;
+}
+
 export interface KnowledgeDoc {
+  /** Absent for the plain policy files that predate the document store. */
+  id?: string;
   source: string;
+  title?: string | null;
+  origin?: 'folder' | 'upload';
+  version?: number;
+  status?: KnowledgeStatus;
+  /** What is happening right now, in plain words ("Reading page 12 of 55"). */
+  stage?: string | null;
+  progress?: number;
+  pages?: number | null;
+  ocrPages?: number;
+  sizeBytes?: number | null;
+  error?: { code: string; message: string } | null;
+  warnings?: string[];
   chunks: number;
   headings: string[];
   characters: number;
+  createdAt?: string;
   updatedAt: string;
+  /** Older versions of the same document (their chunks are gone; the row is history). */
+  versions?: KnowledgeVersionView[];
+}
+
+/** What a test question against the knowledge base found, and why. */
+export interface KnowledgeSearchResult {
+  question: string;
+  /** The text actually searched (a short follow-up is joined to the topic it refers to). */
+  searched: string;
+  relevant: boolean;
+  /** Plain-language reason for the decision. */
+  reason: string;
+  embedding: string;
+  passages: Citation[];
+  /** The best candidate even when it was rejected, with its scores. */
+  closest?: Citation;
+  timings: {
+    embedMs: number;
+    vectorMs: number;
+    keywordMs: number;
+    rerankMs?: number;
+    totalMs: number;
+  };
+  /** Passages found before duplicates were removed and the relevance bar was applied. */
+  considered: number;
 }
 
 /**
@@ -218,9 +296,17 @@ export type TurnEvent =
       type: 'turn.started';
       conversationId: string;
       /** Voice channel only: how this company's agent should sound (style preferences, no business data). */
-      speech?: { speaker?: string; speed: number; language: string; progressLine?: string };
+      speech?: {
+        speaker?: string;
+        speed: number;
+        language: string;
+        progressLine?: string;
+        progress?: { knowledge?: string; tools: Record<string, string> };
+      };
     }
   | { type: 'agent.thinking' }
+  | { type: 'knowledge.searching' }
+  | { type: 'turn.timing'; timings: TurnTimings }
   | { type: 'knowledge.used'; sources: string[] }
   | { type: 'tool.started'; tool: string }
   | { type: 'tool.completed'; tool: string; status: 'ok' | 'blocked' | 'error' }

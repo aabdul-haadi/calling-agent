@@ -5,20 +5,42 @@ import { connectDb, evalsRepo, runMigrations } from './database';
 import { createApp } from './app';
 import { createServices } from './container';
 import { clientDir } from './clients';
-import { createEmbeddingProvider, ingestClient } from './knowledge';
+import { createEmbeddingProvider, hashProvider, ingestClient } from './knowledge';
 import { resolve } from 'node:path';
 
 const env = loadEnv();
 const logger = createLogger(env.LOG_LEVEL);
 const handle = await connectDb(env.DATABASE_URL, env.DATABASE_SSL);
-const services = createServices(env, handle.db, logger);
+
+// The semantic model is downloaded once (about 34 MB). Without it (offline on first run) the search
+// falls back to word matching, which still works but understands paraphrases less well.
+let embeddings = createEmbeddingProvider(env);
+try {
+  const started = Date.now();
+  await embeddings.warmUp?.();
+  logger.info({ model: embeddings.name, ms: Date.now() - started }, 'embedding model ready');
+} catch (err) {
+  logger.error(
+    { err: err instanceof Error ? err.message : String(err) },
+    'embedding model unavailable; using offline word matching (set EMBEDDING_PROVIDER=hash to silence this)',
+  );
+  embeddings = hashProvider;
+}
+const services = createServices(env, handle.db, logger, embeddings);
+await services.reranker
+  ?.warmUp?.()
+  .catch((err) =>
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      'reranker unavailable; ranking without it',
+    ),
+  );
 
 try {
   await runMigrations(handle);
   const interrupted = await evalsRepo.failInterruptedRuns(handle.db);
   if (interrupted > 0) logger.warn({ interrupted }, 'marked interrupted eval runs as stopped');
   // Keep the policy index in sync with the files on disk (cheap: a few dozen chunks).
-  const embeddings = createEmbeddingProvider(env);
   for (const m of services.registry.list()) {
     const n = await ingestClient(
       handle.db,
@@ -28,6 +50,7 @@ try {
     ).catch(() => 0);
     logger.info({ client: m.config.id, chunks: n }, 'knowledge ingested');
   }
+  await services.knowledge.resume();
 } catch (err) {
   // Keep serving /health so the UI shows "degraded" and the developer sees what to fix.
   logger.error(
@@ -43,6 +66,8 @@ const app = createApp({
   registry: services.registry,
   chat: services.chat,
   evals: services.evals,
+  knowledge: services.knowledge,
+  searcher: services.searcher,
 });
 const server = app.listen(env.BACKEND_PORT, () =>
   logger.info(`backend listening on :${env.BACKEND_PORT}`),

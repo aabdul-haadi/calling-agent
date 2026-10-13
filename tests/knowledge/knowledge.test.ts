@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { chunkMarkdown } from '@backend/knowledge';
 import { NO_POLICY_REPLY } from '@backend/knowledge/types';
-import { MAX_RESULTS } from '@backend/knowledge/retrieve';
+import { DEFAULT_RETRIEVAL } from '@backend/knowledge/retrieve';
 import { createRetriever, localProvider } from '@backend/knowledge';
 import { createLogger } from '@backend/logger';
 import { knowledgeRepo } from '@backend/database';
@@ -65,7 +65,7 @@ describe('retrieval (RAG)', () => {
     expect(res.relevant).toBe(true);
     expect(res.citations.map((c) => c.source)).toContain(source);
     expect(res.citations[0]?.snippet.length).toBeGreaterThan(20);
-    expect(res.citations.length).toBeLessThanOrEqual(MAX_RESULTS);
+    expect(res.citations.length).toBeLessThanOrEqual(DEFAULT_RETRIEVAL.maxResults);
   });
 
   it.each([

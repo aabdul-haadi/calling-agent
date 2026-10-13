@@ -3,3 +3,8 @@ export * from './chunk';
 export * from './embeddings';
 export * from './ingest';
 export * from './retrieve';
+export * from './documents';
+export * from './pdf';
+export * from './safety';
+export * from './rerank';
+export * from './gate';

@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: adk-docproc
+Version: 0.1.0
+Summary: PDF text, structure, table and OCR extraction for the Agent Delivery Kit knowledge base
+Requires-Python: <3.14,>=3.11
+Requires-Dist: pypdf>=5.0
+Requires-Dist: pdfplumber>=0.11
+Requires-Dist: pypdfium2>=4.30
+Requires-Dist: rapidocr>=3.0
+Requires-Dist: onnxruntime>=1.20
+Requires-Dist: numpy>=1.26
+Requires-Dist: pillow>=10
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: reportlab>=4.0; extra == "dev"

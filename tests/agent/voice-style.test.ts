@@ -114,10 +114,12 @@ describe('the voice profile is validated like the rest of the configuration', ()
     expect(sky.persona.voice?.verbosity).toBe('brief');
     expect(nova.persona.voice?.verbosity).toBe('balanced');
     expect(sky.persona.voice?.speech.speaker).not.toBe(nova.persona.voice?.speech.speaker);
-    // style fields hold no permissions, rules or tool names
+    // style fields hold no permissions or rules, and name no tool; the only tool names are the keys of
+    // the waiting lines, which must belong to tools the company really has
     for (const c of [sky, nova]) {
-      const style = JSON.stringify(c.persona.voice);
-      for (const tool of c.tools) expect(style).not.toContain(tool);
+      const { progress, ...style } = c.persona.voice!;
+      for (const tool of c.tools) expect(JSON.stringify(style)).not.toContain(tool);
+      for (const tool of Object.keys(progress?.tools ?? {})) expect(c.tools).toContain(tool);
     }
   });
 });
@@ -149,9 +151,11 @@ describe('speech preferences travel with the turn', () => {
     expect((await turnStarted('skylink-air', 'chat')).speech).toBeUndefined();
   });
 
-  it('carries style only: no business data, tool names or reasoning', async () => {
+  it('carries style only: no business data or reasoning', async () => {
     const wire = JSON.stringify(await turnStarted('skylink-air', 'voice'));
-    expect(wire).not.toMatch(/verify_customer|change_flight|SK1001|Rahman|system|prompt/i);
+    expect(wire).not.toMatch(/SK1001|Rahman|system|prompt|reasoning/i);
+    // the progress lines are keyed by tool name (the events already name tools), but no arguments or results travel
+    expect(wire).not.toMatch(/bookingRef|lastName|flightId/i);
   });
 });
 

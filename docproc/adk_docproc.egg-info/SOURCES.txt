@@ -1,0 +1,10 @@
+pyproject.toml
+adk_docproc.egg-info/PKG-INFO
+adk_docproc.egg-info/SOURCES.txt
+adk_docproc.egg-info/dependency_links.txt
+adk_docproc.egg-info/requires.txt
+adk_docproc.egg-info/top_level.txt
+docproc/__init__.py
+docproc/__main__.py
+docproc/cli.py
+docproc/extract.py

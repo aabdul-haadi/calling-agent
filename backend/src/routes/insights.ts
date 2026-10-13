@@ -24,11 +24,5 @@ export function insightsRouter(db: Db, registry: ClientRegistry): Router {
     });
   });
 
-  router.get('/clients/:id/knowledge', async (req, res) => {
-    const id = knownClient(req.params.id);
-    if (!id) throw new HttpError(404, 'NOT_FOUND', 'Unknown client');
-    res.json({ data: await insightsRepo.listKnowledgeDocs(db, id) });
-  });
-
   return router;
 }
