@@ -260,3 +260,81 @@ describe('contact-center webhook security', () => {
     expect(calls).toBe(1); // no retry on a 4xx
   });
 });
+
+describe('taking yourself back out of the queue', () => {
+  it.each([
+    'No, no, you find it, please.',
+    'Keep me out of the queue and let me know my flight',
+    "I don't want a human, I want you to help",
+    'Cancel the transfer please',
+    "Let's continue with you",
+  ])('%s -> back to the assistant', async (message) => {
+    const { wantsToStayWithAssistant } = await import('@backend/handoff');
+    expect(wantsToStayWithAssistant(message)).toBe(true);
+  });
+
+  it.each([
+    'I want to talk to a person',
+    "You can't help me, get me a human",
+    'How long is the queue?',
+    'Yes please transfer me',
+    'My booking reference is SK1001',
+  ])('%s -> stays in the queue', async (message) => {
+    const { wantsToStayWithAssistant } = await import('@backend/handoff');
+    expect(wantsToStayWithAssistant(message)).toBe(false);
+  });
+
+  it('a waiting customer can carry on with the assistant; the handoff is closed and audited', async () => {
+    const first = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'This is ridiculous, I am furious',
+    });
+    expect(first.handoff).toBeDefined();
+    const stuck = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: first.conversationId,
+      message: 'Tell me about baggage',
+    });
+    expect(stuck.reply).toMatch(/queue/i); // an ordinary message is still told to wait
+    h.llm.reset();
+    h.llm.script(say('Of course. What is your booking reference?'));
+    const back = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: first.conversationId,
+      message: 'No, no, you find it, please',
+    });
+    expect(back.reply).toMatch(/booking reference/);
+    expect(back.state.handedOff).toBe(false);
+    const { auditRepo } = await import('@backend/database');
+    const types = (await auditRepo.listAuditEvents(h.db.db, first.conversationId)).map(
+      (a) => a.type,
+    );
+    expect(types).toContain('handoff_withdrawn');
+  });
+
+  it('once a person has accepted, the customer cannot pull the conversation back', async () => {
+    const first = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'I want to talk to a person',
+    });
+    const { handoffsRepo } = await import('@backend/database');
+    await handoffsRepo.acceptHandoff(h.db.db, first.handoff!.id);
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: first.conversationId,
+      message: 'No, no, you find it, please',
+    });
+    expect(res.reply).toBe('');
+    expect(res.state.handedOff).toBe(true);
+  });
+
+  it('a doubtful voice transcript never starts a handoff just because it sounded angry', async () => {
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'This is ridiculous, I am furious',
+      channel: 'voice',
+      voice: { lowConfidence: true },
+    });
+    expect(res.handoff).toBeUndefined();
+  });
+});

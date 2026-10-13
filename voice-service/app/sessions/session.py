@@ -36,6 +36,7 @@ from app.integrations.agent_runtime import AgentRuntime
 from app.observability.metrics import Metrics
 from app.protocols import events as ev
 from app.tts.base import Synthesizer
+from app.asr.spoken import normalize_spoken_codes
 from app.tts.pacing import Pacer
 from app.tts.text import Chunker, speakable
 
@@ -146,6 +147,9 @@ class VoiceSession:
         self._send_bytes = send_bytes
         self._input_rate = input_rate
         self._speech = SpeechPrefs()
+        self._awaiting_approval = False
+        self._frame_tokens = float(settings.max_frames_per_second) * 5
+        self._frame_tokens_at = clock()
         self._clock = clock
 
         # Two detectors on the same audio: a sensitive one to start a turn, a strict one to decide
@@ -284,12 +288,21 @@ class VoiceSession:
     # ------------------------------------------------------------------------------------------
 
     def allow_frame(self) -> bool:
-        """At most `max_frames_per_second` audio frames per second; more is a misbehaving client."""
+        """Token bucket: a steady `max_frames_per_second` is allowed, plus a burst of five seconds' worth.
+
+        A healthy browser sends 50 frames a second, but frames can arrive in a clump when the page
+        or this server stalls for a moment and then catches up. That is not misbehaviour; a
+        sustained flood still runs the bucket dry and is refused.
+        """
         now = self._clock()
-        if now - self._second_started >= 1.0:
-            self._second_started, self._frames_this_second = now, 0
-        self._frames_this_second += 1
-        return self._frames_this_second <= self.s.max_frames_per_second
+        rate = float(self.s.max_frames_per_second)
+        cap = rate * 5
+        self._frame_tokens = min(cap, self._frame_tokens + (now - self._frame_tokens_at) * rate)
+        self._frame_tokens_at = now
+        if self._frame_tokens < 1:
+            return False
+        self._frame_tokens -= 1
+        return True
 
     async def on_audio(self, pcm: bytes | memoryview) -> None:
         """Handle one frame of client audio (mono PCM16 at the declared rate)."""
@@ -444,14 +457,15 @@ class VoiceSession:
             await self._asr_failed(turn)
             return
         self._turn = None
-        text = final.text.strip()
+        text = normalize_spoken_codes(final.text.strip())  # "S K one zero zero one" -> "SK1001"
         spoken_ms = turn.fed_samples * 1000 / SAMPLE_RATE
         if not text or spoken_ms < MIN_TURN_SPEECH_MS:
             self.emit(ev.TURN_DISCARDED, turn.id, reason="no speech recognised")
             self._metrics.count("turns_discarded")
             self.state = State.LISTENING
             return
-        low = final.confidence < LOW_CONFIDENCE or final.weakest < LOW_WEAKEST
+        low = self._is_doubtful(final)
+        self._awaiting_approval = False  # this turn is the answer to any approval that was waiting
         self.emit(
             ev.TRANSCRIPT_FINAL,
             turn.id,
@@ -464,6 +478,21 @@ class VoiceSession:
         if low:
             self._metrics.count("low_confidence_transcripts")
         self._start_reply(turn, text, low)
+
+    def _is_doubtful(self, final: Any) -> bool:
+        """Should the agent be told not to act on this transcript and to ask again?
+
+        With only the live model, its own word probabilities decide. With the accurate second pass,
+        that pass is trusted for ordinary turns (the live model is the weaker of the two and often
+        disagrees on accents, which is not a reason to stop the customer from talking). The two
+        passes disagreeing matters where a wrong word is costly: the answer to a change that is
+        waiting for approval. Otherwise only a near-total disagreement counts.
+        """
+        if final.agreement is None:
+            return final.confidence < LOW_CONFIDENCE or final.weakest < LOW_WEAKEST
+        if self._awaiting_approval:
+            return final.agreement < 0.8
+        return final.agreement < 0.3
 
     # ------------------------------------------------------------------------------------------
     # the agent's reply
@@ -524,6 +553,7 @@ class VoiceSession:
                     self.emit(ev.TOOL_COMPLETED, turn.id, tool=str(event.get("tool", ""))[:64],
                               status=str(event.get("status", "ok"))[:16])
                 elif kind == "approval.required":
+                    self._awaiting_approval = True
                     self.emit(ev.APPROVAL_REQUIRED, turn.id, summary=str(event.get("summary", ""))[:500],
                               expiresAt=str(event.get("expiresAt", ""))[:40])
                 elif kind == "handoff.started":

@@ -16,13 +16,14 @@ import {
   handoffsRepo,
   type Db,
 } from '../database';
-import type { HandoffService } from '../handoff';
+import { wantsToStayWithAssistant, type HandoffService } from '../handoff';
 import type { Retriever } from '../knowledge/types';
 import type { LlmClient } from '../llm';
 import type { Logger } from '../logger';
 import { HttpError } from '../middleware/error-handler';
 import { clientCredentialsFetcher, createTokenCache, type TokenCache } from '../tools/auth';
 import { createApiClient, type RetryPolicy } from '../tools/http';
+import { auditEvent } from './audit';
 import { ALREADY_HANDED_OFF, runTurn } from './loop';
 import { newState, toStateView } from './state';
 
@@ -142,6 +143,20 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     // Already with a person: the agent stays out of it. The customer's words are kept for the
     // human. Until a human has accepted, the customer is told they are in the queue; after that
     // the human answers, so the agent says nothing.
+    if (convo.state.handedOff) {
+      const handoff = await handoffsRepo.latestForConversation(db, id);
+      const waiting = !handoff || handoff.status === 'pending';
+      if (waiting && wantsToStayWithAssistant(req.message)) {
+        // Nobody has picked this up yet and the customer asked to carry on: take them out of the queue.
+        if (handoff) await handoffsRepo.resolveHandoff(db, handoff.id);
+        const state = { ...convo.state, handedOff: false, pendingHandoff: undefined };
+        await repo.saveConversation(db, id, state, convo.simulator);
+        await auditRepo.addAuditEvents(db, id, req.clientId, [
+          auditEvent('handoff_withdrawn', { by: 'customer', handoffId: handoff?.id ?? null }),
+        ]);
+        convo = { ...convo, state };
+      }
+    }
     if (convo.state.handedOff) {
       const handoff = await handoffsRepo.latestForConversation(db, id);
       const waiting = !handoff || handoff.status === 'pending';

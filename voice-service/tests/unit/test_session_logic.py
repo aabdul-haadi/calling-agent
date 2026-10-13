@@ -424,7 +424,10 @@ async def test_audio_is_resampled_when_the_browser_uses_another_rate():
 async def test_frame_rate_limit():
     r = Rig(TURN)
     await r.start()
-    assert all(r.session.allow_frame() for _ in range(SETTINGS.max_frames_per_second))
+    # a clump of five seconds of audio (a stalled page catching up) is fine ...
+    burst = SETTINGS.max_frames_per_second * 5
+    assert all(r.session.allow_frame() for _ in range(burst))
+    # ... a sustained flood is not
     assert r.session.allow_frame() is False
     await r.close()
 
@@ -554,3 +557,50 @@ async def test_no_still_working_line_when_the_answer_comes_quickly_or_no_tool_ru
     await r.until(lambda: r.synth.phrases, timeout=6)
     assert r.synth.phrases == ["Happy to help."]
     await r.close()
+
+
+# ---- when a transcript counts as doubtful with the accurate second pass ---------------------------
+
+
+async def run_one_turn(r) -> dict:
+    await r.start()
+    await r.frames(frames_for(2.8))
+    await r.until(lambda: r.of(ev.TRANSCRIPT_FINAL))
+    return r.of(ev.TRANSCRIPT_FINAL)[0]
+
+
+async def test_the_live_and_accurate_passes_disagreeing_does_not_block_an_ordinary_turn():
+    # the live model is the weaker one; its disagreement alone must not stop the customer getting help
+    r = Rig(TURN, rec=FakeRecognizer(text="My name is Rahman and my reservation is SK1001", agreement=0.5))
+    final = await run_one_turn(r)
+    assert final["lowConfidence"] is False
+    await r.until(lambda: r.agent.calls)
+    assert r.agent.calls[0]["low_confidence"] is False
+    await r.close()
+
+
+async def test_a_near_total_disagreement_is_still_doubtful():
+    r = Rig(TURN, rec=FakeRecognizer(text="something", agreement=0.1))
+    assert (await run_one_turn(r))["lowConfidence"] is True
+    await r.close()
+
+
+async def test_the_answer_to_a_waiting_approval_must_be_clearly_heard():
+    r = Rig(TURN, rec=FakeRecognizer(text="yes", agreement=0.6))
+    r.agent.script({"type": "approval.required", "summary": "Move you to SK110", "expiresAt": "x"}, *text("Say yes to confirm."))
+    # first turn only sets the approval up (agreement is irrelevant to it: nothing was waiting yet)
+    await run_one_turn(r)
+    await r.until(lambda: "turn.completed" in r.types())
+    assert r.session._awaiting_approval is True
+    await r.close()
+
+
+def test_with_only_the_live_model_its_own_confidence_decides():
+    from app.asr.base import Transcript
+
+    r = Rig(TURN)
+    assert r.session._is_doubtful(Transcript("x", 0.3, 0.5)) is True
+    assert r.session._is_doubtful(Transcript("x", 0.9, 0.5)) is False
+    r.session._awaiting_approval = True
+    assert r.session._is_doubtful(Transcript("yes", 0.9, 0.9, "YES", 0.5)) is True   # waiting approval: strict
+    assert r.session._is_doubtful(Transcript("yes", 0.9, 0.9, "YES", 0.95)) is False

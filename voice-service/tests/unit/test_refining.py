@@ -80,3 +80,33 @@ def test_overlong_turns_keep_the_live_transcript():
     s = RefiningRecognizer(_Live("HELLO"), _Off("never used"), max_seconds=1).create_stream()
     s.accept(np.zeros(32000, np.float32))
     assert s.finish().text == "HELLO"
+
+
+import pytest
+
+from app.asr.spoken import normalize_spoken_codes
+
+
+@pytest.mark.parametrize(
+    "heard, written",
+    [
+        ("My booking reference is S K one zero zero one and my last name is Rahman.", "My booking reference is SK1001 and my last name is Rahman."),
+        ("MY BOOKING REFERENCE IS S K ONE ZERO ZERO ONE", "MY BOOKING REFERENCE IS SK1001"),
+        ("It is N T two zero zero two.", "It is NT2002."),
+        ("S.K. 1 0 0 2, Okafor", "SK1002, Okafor"),
+        ("SK one double zero two", "SK1002"),
+        ("S K 1001", "SK1001"),
+        ("flight S K one one zero and SK one two zero", "flight SK110 and SK120"),
+        ("it is SK1001 already", "it is SK1001 already"),
+    ],
+)
+def test_spelled_out_codes_become_the_code(heard, written):
+    assert normalize_spoken_codes(heard) == written
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["I have two bags and one carry on", "my number is one zero zero one", "at three fifty", "A one two three", "is one two three"],
+)
+def test_ordinary_sentences_and_bare_numbers_are_left_alone(text):
+    assert normalize_spoken_codes(text) == text

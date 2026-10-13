@@ -10,6 +10,7 @@ export const AUDIT_TYPES = [
   'handoff_accepted',
   'human_reply',
   'handoff_resolved',
+  'handoff_withdrawn',
   'turn_cancelled',
 ] as const;
 export type AuditType = (typeof AUDIT_TYPES)[number];

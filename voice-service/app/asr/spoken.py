@@ -72,3 +72,55 @@ def agreement(a: str, b: str) -> float:
     if [w for w in x if w in _NUMBER_WORDS] != [w for w in y if w in _NUMBER_WORDS]:
         score = min(score, 0.5)
     return score
+
+
+# --------------------------------------------------------------------------------------------
+# Spoken codes written out in words -> the code itself
+# --------------------------------------------------------------------------------------------
+
+_DIGIT_WORD = {"zero": "0", "oh": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+               "six": "6", "seven": "7", "eight": "8", "nine": "9"}
+_DW = "|".join(_DIGIT_WORD)
+_DIGIT_TOKEN = rf"(?:(?:double|triple)\s+)?(?:{_DW}|\d+)"
+_SPOKEN_CODE = re.compile(
+    rf"(?<![A-Za-z0-9])"
+    rf"(?P<letters>(?:[A-Za-z][\s.\-]+){{1,3}}[A-Za-z]|(?-i:[A-Z]{{2,3}}))"      # S K  |  S.K.  |  SK (capitals only, so "is one two" is not a code)
+    rf"[\s.\-]+"
+    rf"(?P<digits>{_DIGIT_TOKEN}(?:[\s,.\-]+{_DIGIT_TOKEN}){{1,7}}|\d{{3,}})"
+    rf"(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+
+
+def _digits_of(run: str) -> str:
+    out: list[str] = []
+    mult = 1
+    for tok in re.findall(r"[A-Za-z]+|\d+", run.lower()):
+        if tok == "double":
+            mult = 2
+        elif tok == "triple":
+            mult = 3
+        else:
+            out.append((_DIGIT_WORD.get(tok) or tok) * mult)
+            mult = 1
+    return "".join(out)
+
+
+def normalize_spoken_codes(text: str) -> str:
+    """"my reference is S K one zero zero one" -> "my reference is SK1001".
+
+    Speech recognizers often write a code letter by letter and digit by digit. The tools need the
+    code itself. Only a run of letters directly followed by at least three digits is joined, so
+    ordinary sentences ("I have two bags") are left alone. This changes formatting, never a letter or
+    digit: what was heard is what is written.
+    """
+
+    def join(m: re.Match[str]) -> str:
+        digits = _digits_of(m.group("digits"))
+        letters = re.sub(r"[^A-Za-z]", "", m.group("letters"))
+        # "a" / "I" followed by numbers is usually a word ("I two..."), so require 2+ letters
+        if len(digits) < 3 or len(letters) < 2:
+            return m.group(0)
+        return letters.upper() + digits
+
+    return _SPOKEN_CODE.sub(join, text)

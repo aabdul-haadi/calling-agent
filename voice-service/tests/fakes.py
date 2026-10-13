@@ -75,7 +75,8 @@ class FakeStream:
         if self.owner.fail_on_finish:
             raise RuntimeError("asr finish exploded")
         t = self.owner.text
-        return Transcript(t, self.owner.confidence if t else 0.0, self.owner.weakest if t else 0.0)
+        return Transcript(t, self.owner.confidence if t else 0.0, self.owner.weakest if t else 0.0,
+                          agreement=self.owner.agreement)
 
 
 @dataclass
@@ -83,6 +84,7 @@ class FakeRecognizer:
     text: str = "I would like to change my flight"
     confidence: float = 0.9
     weakest: float = 0.6
+    agreement: float | None = None  # set to imitate the two-pass recognizer
     fail_on_accept: bool = False
     fail_on_finish: bool = False
     sample_rate: int = 16000

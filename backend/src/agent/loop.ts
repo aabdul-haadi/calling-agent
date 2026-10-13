@@ -309,7 +309,12 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     }
   }
 
-  const preReason = evaluatePreTurn(config, classification);
+  // Words the recognizer was unsure of say little about the customer's mood, so a doubtful
+  // transcript never starts a handoff for frustration. (A plain request for a person still does.)
+  const preReason = evaluatePreTurn(
+    config,
+    uncertain ? { ...classification, sentiment: 'neutral' } : classification,
+  );
   if (preReason) {
     return finish('I understand, and I want to make sure you get the right help.', preReason);
   }
