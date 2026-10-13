@@ -22,7 +22,13 @@
     "voice:models": "node scripts/voice.mjs models",
     "voice": "node scripts/voice.mjs run",
     "voice:test": "node scripts/voice.mjs test",
-    "voice:bench": "node scripts/voice.mjs bench"
+    "voice:bench": "node scripts/voice.mjs bench",
+    "docs:setup": "node scripts/docs.mjs setup",
+    "docs:corpus": "node scripts/docs.mjs corpus",
+    "docs:test": "node scripts/docs.mjs test",
+    "docs:read": "node scripts/docs.mjs read",
+    "rag:eval": "pnpm --filter @adk/backend rag-eval",
+    "latency:bench": "pnpm --filter @adk/backend latency-bench"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",

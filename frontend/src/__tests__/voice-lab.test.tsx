@@ -115,6 +115,35 @@ async function serious(container: HTMLElement) {
 }
 
 describe('Voice Lab with the local engine', () => {
+  it('shows searching the policies, then the document and page the answer rests on', async () => {
+    const user = userEvent.setup();
+    renderLab();
+    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await waitFor(() => expect(hoisted.last).toBeDefined());
+    await emit(server({ type: 'session.started', protocol: 1, inputSampleRate: 16000, outputSampleRate: 16000, conversationId: null }));
+    await emit(server({ type: 'transcript.final', turn: 1, text: 'Can I get a refund?', confidence: 0.9, lowConfidence: false }));
+    await emit(server({ type: 'knowledge.searching', turn: 1 }));
+    expect(screen.getByText('Searching policy documents…')).toBeInTheDocument();
+    await emit(
+      server({
+        type: 'knowledge.used',
+        turn: 1,
+        sources: ['handbook.pdf'],
+        passages: [
+          { source: 'handbook.pdf', heading: 'Handbook > Refunds', page: 5, version: 2, excerpt: 'Refunds are paid within 7 business days.' },
+        ],
+      }),
+    );
+    const sources = screen.getByRole('list', { name: 'Sources for the last answer' });
+    expect(within(sources).getByText('handbook.pdf')).toBeInTheDocument();
+    expect(within(sources).getByText('page 5')).toBeInTheDocument();
+    expect(within(sources).getByText('version 2')).toBeInTheDocument();
+    expect(within(sources).getByText(/within 7 business days/)).toBeInTheDocument();
+    // a new question clears the sources of the old answer
+    await emit(server({ type: 'transcript.final', turn: 2, text: 'Thanks', confidence: 0.9, lowConfidence: false }));
+    expect(screen.queryByRole('list', { name: 'Sources for the last answer' })).not.toBeInTheDocument();
+  });
+
   it('uses the local engine when it is running and says what it is made of', async () => {
     renderLab();
     expect(await screen.findByRole('button', { name: 'Start voice session' })).toBeInTheDocument();
@@ -175,7 +204,7 @@ describe('Voice Lab with the local engine', () => {
 
     // live tool activity, not replayed after the fact
     await emit(server({ type: 'tool.started', turn: 1, tool: 'search_alternatives' }));
-    expect(screen.getByText('Checking a system…')).toBeInTheDocument();
+    expect(screen.getByText('Finding available flights…')).toBeInTheDocument();
     expect(screen.getAllByText('search_alternatives').length).toBeGreaterThan(0);
     await emit(
       server({ type: 'tool.completed', turn: 1, tool: 'search_alternatives', status: 'ok' }),

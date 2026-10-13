@@ -6,6 +6,7 @@ export type AgentMode =
   | 'idle'
   | 'listening'
   | 'thinking'
+  | 'searching'
   | 'executing'
   | 'awaiting'
   | 'speaking'
@@ -89,6 +90,14 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
     drift: 2.6,
     glow: 1.1,
   },
+  searching: {
+    label: 'Searching policy documents',
+    color: [0.5, 0.82, 1],
+    hsl: '203 100% 74%',
+    spin: 2.1,
+    drift: 2,
+    glow: 1.15,
+  },
   executing: {
     label: 'Running a tool',
     color: [0.75, 0.95, 1],
@@ -152,6 +161,8 @@ export function describeAgent(mode: AgentMode, name: string, tool?: string): str
       return `${name} hit a problem`;
     case 'thinking':
       return `${name} is thinking`;
+    case 'searching':
+      return `${name} is searching the policy documents`;
     case 'listening':
       return `${name} is listening`;
     case 'speaking':

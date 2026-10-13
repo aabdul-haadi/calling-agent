@@ -186,6 +186,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
         idempotency,
         retrieve: deps.retrieve,
         handoff: deps.handoff,
+        speculate: env.AGENT_SPECULATIVE,
         makeApi: (sim) =>
           createApiClient({
             baseUrl: base,

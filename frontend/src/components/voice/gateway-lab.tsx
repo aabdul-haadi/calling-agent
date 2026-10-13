@@ -1,4 +1,4 @@
-import { Mic, MicOff, PhoneOff, RotateCcw, Square, Wrench } from 'lucide-react';
+import { FileText, Mic, MicOff, PhoneOff, RotateCcw, Square, Wrench } from 'lucide-react';
 import type { ClientDetail } from '@adk/shared';
 import { AgentOrb } from '@/agent3d/agent-orb';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Waveform } from '@/components/voice/voice-controls';
 import { useVoiceGateway } from '@/hooks/use-voice-gateway';
 import { cn } from '@/lib/utils';
 import { gatewayAgentMode } from '@/voice/agent-mode';
-import { STATUS_TEXT } from '@/voice/state';
+import { STATUS_TEXT, toolPhrase } from '@/voice/state';
 
 /** Voice with the local engine: audio goes to the voice gateway, the same agent answers. */
 export function GatewayLab({ client }: { client: ClientDetail }) {
@@ -46,7 +46,11 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
               state.partial ? 'italic' : 'text-muted-foreground',
             )}
           >
-            {state.partial ? `“${state.partial}”` : STATUS_TEXT[state.status]}
+            {state.partial
+              ? `“${state.partial}”`
+              : state.status === 'executing_tool'
+                ? toolPhrase(state.activeTool)
+                : STATUS_TEXT[state.status]}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -137,6 +141,41 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
               <p className="text-sm text-muted-foreground">
                 Nothing running. Tools show here the moment the agent starts them.
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sources for the last answer</CardTitle>
+            <Badge>{state.sources.length}</Badge>
+          </CardHeader>
+          <CardContent>
+            {state.sources.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                When an answer comes from the policy documents, the document and page show here. They
+                are never read aloud.
+              </p>
+            ) : (
+              <ul aria-label="Sources for the last answer" className="space-y-2 text-sm">
+                {state.sources.map((p, i) => (
+                  <li key={`${p.source}-${p.page ?? 0}-${i}`} className="rounded-md border border-border bg-elevated p-2.5">
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                      <FileText className="h-4 w-4 text-accent" aria-hidden="true" />
+                      <span className="font-mono text-xs">{p.source}</span>
+                      {p.page && (
+                        <Badge tone="accent">
+                          page {p.page}
+                          {p.pageEnd && p.pageEnd !== p.page ? `–${p.pageEnd}` : ''}
+                        </Badge>
+                      )}
+                      {p.version && p.version > 1 && <Badge>version {p.version}</Badge>}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{p.heading}</p>
+                    <p className="mt-1 text-xs">“{p.excerpt}”</p>
+                  </li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>

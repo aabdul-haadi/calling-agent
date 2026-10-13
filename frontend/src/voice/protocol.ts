@@ -50,6 +50,16 @@ export function parseOutput(data: ArrayBuffer): OutputFrame {
   };
 }
 
+/** Where an answer came from. Shown on screen; never spoken. */
+export interface KnowledgePassage {
+  source: string;
+  heading: string;
+  page?: number;
+  pageEnd?: number;
+  version?: number;
+  excerpt: string;
+}
+
 /** Everything the server may send as JSON. `seq` is strictly increasing within a session. */
 export interface ServerEventBase {
   session: string;
@@ -80,7 +90,8 @@ export type ServerEvent = ServerEventBase &
         reason: 'barge_in' | 'client_request' | 'new_turn';
         droppedChunks: number;
       }
-    | { type: 'knowledge.used'; sources: string[] }
+    | { type: 'knowledge.searching' }
+    | { type: 'knowledge.used'; sources: string[]; passages?: KnowledgePassage[] }
     | { type: 'tool.started'; tool: string }
     | { type: 'tool.completed'; tool: string; status: 'ok' | 'blocked' | 'error' }
     | { type: 'approval.required'; summary: string; expiresAt: string }

@@ -14,3 +14,15 @@ export function needsKnowledge(message: string): boolean {
   if (SMALL_TALK.test(text)) return false;
   return tokenize(text).length > 0;
 }
+
+const PERSON =
+  /\b(?:human|real person|live agent|representative|someone real|talk to (?:a |an )?(?:person|agent|someone)|speak (?:to|with) (?:a |an )?(?:person|agent|someone|manager)|customer service|supervisor|manager)\b/i;
+
+/** An explicit request for a person: the answer is a handoff, so no model answer is worth starting. */
+export const asksForPerson = (message: string): boolean => PERSON.test(message);
+
+const QUESTION =
+  /\?|^\s*(?:what|when|where|which|who|why|how|can|could|do|does|did|is|are|am|will|would|should|may)\b/i;
+
+/** Does the message ask something (as opposed to giving details or answering)? */
+export const looksLikeQuestion = (message: string): boolean => QUESTION.test(message);

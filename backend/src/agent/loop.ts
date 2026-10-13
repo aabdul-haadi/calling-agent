@@ -15,7 +15,7 @@ import type {
 import type { ClientModule } from '../clients/types';
 import { evaluatePostTurn, evaluatePreTurn, type HandoffReason } from '../handoff/triggers';
 import type { HandoffService } from '../handoff/types';
-import { needsKnowledge } from '../knowledge/gate';
+import { asksForPerson, looksLikeQuestion, needsKnowledge } from '../knowledge/gate';
 import { NO_POLICY_REPLY, type Retriever } from '../knowledge/types';
 import type { LlmClient, LlmMessage, LlmToolSpec } from '../llm';
 import type { Logger } from '../logger';
@@ -40,6 +40,8 @@ export interface TurnDeps {
   idempotency: IdempotencyStore;
   retrieve?: Retriever;
   handoff: HandoffService;
+  /** Start the model's first answer while the message is still being classified (default on). */
+  speculate?: boolean;
 }
 
 export interface TurnInput {
@@ -296,12 +298,126 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   // "before we even try" handoff triggers.
   emit?.({ type: 'agent.thinking' });
   const pendingChange = state.proposal?.status === 'pending' ? state.proposal.summary : undefined;
-  const heard = await timed('understand', 'classify the message', () =>
+  const allowed = module.tools.filter((t) => config.tools.includes(t.name));
+  const specs = toolSpecs(allowed);
+  // Each client has its own tool set (two clients may both have a `verify_customer`).
+  const registry = new Map(module.tools.map((t) => [t.name, t]));
+  const deps2 = { registry, allowed: config.tools, rules: config.rules };
+  const api = deps.makeApi(input.simulator);
+  const messages: LlmMessage[] = [
+    ...input.history.map((m): LlmMessage => ({ role: m.role, content: m.content })),
+    { role: 'user', content: input.userMessage },
+  ];
+
+
+
+  /**
+   * One model call, started now. While `speculative`, what it writes is held back until `release()`;
+   * `abort()` throws the call away. `done` settles with the model's answer either way.
+   */
+  interface ModelRound {
+    done: ReturnType<typeof timedModel>;
+    release(): void;
+    abort(): void;
+    streamedChars(): number;
+  }
+  const timedModel = (i: number, run: () => ReturnType<LlmClient['complete']>, first: () => number | undefined) =>
+    timed('llm', `model call ${i + 1}`, run, () => {
+      const firstTokenMs = first();
+      return firstTokenMs === undefined ? {} : { firstTokenMs };
+    });
+  function startModelCall(i: number, speculative: boolean): ModelRound {
+    const system = buildSystemPrompt({
+      config,
+      state,
+      channel: input.channel,
+      knowledge: citations,
+      voiceUncertain: uncertain,
+    });
+    const controller = new AbortController();
+    const signal = input.signal ? AbortSignal.any([input.signal, controller.signal]) : controller.signal;
+    const callStart = performance.now();
+    let open = !speculative;
+    let streamed = 0;
+    let firstTokenMs: number | undefined;
+    const held: string[] = [];
+    const say = (text: string) => {
+      streamed += text.length;
+      spoken += text;
+      emit?.({ type: 'agent.text.delta', text });
+    };
+    const done = timedModel(
+      i,
+      () =>
+        deps.llm.complete(
+          { system, messages, tools: specs },
+          {
+            signal,
+            onTextDelta: emit
+              ? (text) => {
+                  firstTokenMs ??= Math.round(performance.now() - callStart);
+                  if (open) say(text);
+                  else held.push(text);
+                }
+              : undefined,
+          },
+        ),
+      () => firstTokenMs,
+    );
+    return {
+      done,
+      release() {
+        open = true;
+        for (const text of held.splice(0)) say(text);
+      },
+      abort: () => controller.abort(),
+      streamedChars: () => streamed,
+    };
+  }
+
+  const uncertain = input.voice?.lowConfidence === true;
+  let lastToolFailed: 'error' | 'ok' | 'none' = 'none';
+
+  // Understanding the message and searching the policies do not depend on each other, so they run
+  // together. The search starts at once; the classification is not awaited until it is needed.
+  const classifyP = timed('understand', 'classify the message', () =>
     classifyTurn(deps.llm, config, input.history, input.userMessage, pendingChange, input.signal),
   );
+  const wantsKnowledge = Boolean(deps.retrieve) && needsKnowledge(input.userMessage);
+  if (wantsKnowledge) emit?.({ type: 'knowledge.searching' });
+  const recentQuestions = input.history
+    .filter((m) => m.role === 'user')
+    .map((m) => m.content)
+    .slice(-3);
+  const retrievalP = wantsKnowledge
+    ? timed('retrieve', 'search the policies', () =>
+        deps.retrieve!(config.id, input.userMessage, { recentQuestions }),
+      )
+    : undefined;
+
+  // The model's first answer is the slowest step, and it needs only the question and the policy
+  // excerpts. So it is started now, while the message is still being classified, and nothing it says
+  // or asks for is used until the classification has been checked: a handoff, an approval, or a
+  // refusal first discards it. (When a change is waiting for approval the classification decides
+  // what the model is told, so that case is not started early.)
+  let early: ModelRound | undefined;
+  let foundEarly: Awaited<NonNullable<typeof retrievalP>> | undefined;
+  if (!pendingChange && deps.speculate !== false && !asksForPerson(input.userMessage)) {
+    foundEarly = retrievalP ? await retrievalP : undefined;
+    citations = foundEarly?.citations ?? [];
+    // A question the documents do not answer ends with the fixed "not sure" reply, never a model
+    // call, so there is nothing to start early.
+    const willRefuse = foundEarly !== undefined && !foundEarly.relevant && looksLikeQuestion(input.userMessage);
+    if (!willRefuse) early = startModelCall(0, true);
+  }
+  const abandon = () => {
+    early?.abort();
+    void early?.done.catch(() => undefined);
+  };
+
+  const heard = await classifyP;
   // A transcript the speech recognizer was unsure about can never approve a change: a misheard
   // "yes" must not authorise anything. The agent is told to ask again (see the prompt).
-  const uncertain = input.voice?.lowConfidence === true;
   const classification =
     uncertain && heard.confirmation !== 'none'
       ? { ...heard, confirmation: 'none' as const }
@@ -314,7 +430,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       'warn',
     );
   }
-  if (isCancelled()) return cancelTurn();
+  if (isCancelled()) {
+    abandon();
+    return cancelTurn();
+  }
   addTrace(
     'intent',
     `Understood intent: ${classification.intent.replace(/_/g, ' ')}`,
@@ -352,22 +471,19 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     uncertain ? { ...classification, sentiment: 'neutral' } : classification,
   );
   if (preReason) {
+    abandon();
     return finish('I understand, and I want to make sure you get the right help.', preReason);
   }
 
   // 2. Policy lookup (RAG). No policy found for a policy question => safe fallback, no improvising.
   // A greeting, a thanks or a bare yes/no has nothing to look up, so it skips the search.
-  if (deps.retrieve && needsKnowledge(input.userMessage)) {
-    emit?.({ type: 'knowledge.searching' });
-    const recentQuestions = input.history
-      .filter((m) => m.role === 'user')
-      .map((m) => m.content)
-      .slice(-3);
-    const found = await timed('retrieve', 'search the policies', () =>
-      deps.retrieve!(config.id, input.userMessage, { recentQuestions }),
-    );
+  if (retrievalP) {
+    const found = foundEarly ?? (await retrievalP);
     citations = found.citations;
-    if (isCancelled()) return cancelTurn();
+    if (isCancelled()) {
+      abandon();
+      return cancelTurn();
+    }
     if (found.relevant) {
       const sources = [...new Set(citations.map((c) => c.source))];
       addTrace(
@@ -377,36 +493,30 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         found.timings?.totalMs,
         { citations, searched: found.searched, reason: found.reason, timings: found.timings },
       );
-      emit?.({ type: 'knowledge.used', sources });
+      emit?.({
+        type: 'knowledge.used',
+        sources,
+        passages: citations.slice(0, 5).map((c) => ({
+          source: c.source,
+          heading: c.heading,
+          ...(c.page ? { page: c.page } : {}),
+          ...(c.pageEnd ? { pageEnd: c.pageEnd } : {}),
+          ...(c.version ? { version: c.version } : {}),
+          excerpt: c.snippet.replace(/\s+/g, ' ').slice(0, 220),
+        })),
+      });
     } else if (classification.isPolicyQuestion) {
-      addTrace(
-        'knowledge',
-        'Searched policies, found nothing relevant',
-        'warn',
-        found.timings?.totalMs,
-        {
-          searched: found.searched,
-          reason: found.reason,
-          timings: found.timings,
-        },
-      );
+      addTrace('knowledge', 'Searched policies, found nothing relevant', 'warn', found.timings?.totalMs, {
+        searched: found.searched,
+        reason: found.reason,
+        timings: found.timings,
+      });
+      abandon();
       return finish(NO_POLICY_REPLY, null);
     }
   }
 
   // 3. The agent loop.
-  const allowed = module.tools.filter((t) => config.tools.includes(t.name));
-  const specs = toolSpecs(allowed);
-  // Each client has its own tool set (two clients may both have a `verify_customer`).
-  const registry = new Map(module.tools.map((t) => [t.name, t]));
-  const deps2 = { registry, allowed: config.tools, rules: config.rules };
-  const api = deps.makeApi(input.simulator);
-  const messages: LlmMessage[] = [
-    ...input.history.map((m): LlmMessage => ({ role: m.role, content: m.content })),
-    { role: 'user', content: input.userMessage },
-  ];
-
-  let lastToolFailed: 'error' | 'ok' | 'none' = 'none';
   let lastErrorCode = '';
   let reply = '';
   let loopGuardHit = false;
@@ -418,43 +528,17 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       break;
     }
     if (isCancelled()) return cancelTurn();
-    const system = buildSystemPrompt({
-      config,
-      state,
-      channel: input.channel,
-      knowledge: citations,
-      voiceUncertain: uncertain,
-    });
     const started = Date.now();
     // Text is forwarded as the model writes it. Anything said before a tool call is kept: the
     // customer heard it, so it stays part of the reply.
-    let streamed = 0;
     if (emit && spoken.trim()) {
       spoken += ' ';
       emit({ type: 'agent.text.delta', text: ' ' });
     }
-    const callStart = performance.now();
-    let firstTokenMs: number | undefined;
-    const res = await timed(
-      'llm',
-      `model call ${i + 1}`,
-      () =>
-        deps.llm.complete(
-          { system, messages, tools: specs },
-          {
-            signal: input.signal,
-            onTextDelta: emit
-              ? (text) => {
-                  firstTokenMs ??= Math.round(performance.now() - callStart);
-                  streamed += text.length;
-                  spoken += text;
-                  emit({ type: 'agent.text.delta', text });
-                }
-              : undefined,
-          },
-        ),
-      () => (firstTokenMs === undefined ? {} : { firstTokenMs }),
-    );
+    const round = i === 0 && early ? early : startModelCall(i, false);
+    round.release(); // the classification has been checked: what the model wrote may now be said
+    const res = await round.done;
+    const streamed = round.streamedChars();
     if (isCancelled()) return cancelTurn();
     if (!res.ok) {
       aiUnavailable = true;

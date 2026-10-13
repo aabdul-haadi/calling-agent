@@ -44,6 +44,10 @@ describe('spoken style lives in configuration, safety lives in the engine', () =
     expect(p).toMatch(/Do not open with "Certainly"/);
     expect(p).toMatch(/Do not end with "Let me know if there is anything else"/);
     expect(p).toMatch(/Apologize once/);
+    expect(p).toMatch(/You are an AI assistant/);
+    expect(p).toMatch(/I heard Rahman\. Is that right\?/);
+    expect(p).toMatch(/Never ask the same question twice in a row/);
+    expect(p).toMatch(/recommend one using facts from the tools/);
     expect(p).toMatch(/NEVER use bullet points, numbered lists, markdown, URLs/);
     // the model writes digits; the speech layer says them (so the model cannot garble a flight number)
     expect(p).toMatch(/Do NOT spell them out in words/);

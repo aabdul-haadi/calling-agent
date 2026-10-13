@@ -307,7 +307,19 @@ export type TurnEvent =
   | { type: 'agent.thinking' }
   | { type: 'knowledge.searching' }
   | { type: 'turn.timing'; timings: TurnTimings }
-  | { type: 'knowledge.used'; sources: string[] }
+  | {
+      type: 'knowledge.used';
+      sources: string[];
+      /** Which passages the answer may rest on: document, page, heading and a short excerpt (never spoken). */
+      passages?: {
+        source: string;
+        heading: string;
+        page?: number;
+        pageEnd?: number;
+        version?: number;
+        excerpt: string;
+      }[];
+    }
   | { type: 'tool.started'; tool: string }
   | { type: 'tool.completed'; tool: string; status: 'ok' | 'blocked' | 'error' }
   | { type: 'approval.required'; summary: string; expiresAt: string }

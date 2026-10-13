@@ -14,6 +14,8 @@ export function gatewayAgentMode(s: VoiceState): { mode: AgentMode; tool?: strin
       return { mode: 'handoff' };
     case 'executing_tool':
       return { mode: 'executing', tool: s.activeTool };
+    case 'searching_policy':
+      return { mode: 'searching' };
     case 'thinking':
       return { mode: 'thinking' };
     case 'speaking':

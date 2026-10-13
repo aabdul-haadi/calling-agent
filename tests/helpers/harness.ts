@@ -48,6 +48,8 @@ export function createScriptedLlm(
   const queue: ScriptStep[] = [];
   const calls: LlmRequest[] = [];
   const judgeVerdict = { pass: true, reason: 'Looks good.' };
+  /** Make classification slow, to test what happens while it is still running. */
+  const timing = { classifyDelayMs: 0 };
   let toolId = 0;
 
   const client: LlmClient = {
@@ -70,6 +72,7 @@ export function createScriptedLlm(
               : 'none',
           ...classify(msg),
         };
+        if (timing.classifyDelayMs) await new Promise((r) => setTimeout(r, timing.classifyDelayMs));
         return ok({ text: JSON.stringify(c), toolCalls: [] });
       }
       if (req.system.startsWith('Summarise')) return fail('UNAVAILABLE', 'no summariser in tests');
@@ -115,9 +118,11 @@ export function createScriptedLlm(
     script: (...steps: ScriptStep[]) => queue.push(...steps),
     remaining: () => queue.length,
     judgeVerdict,
+    timing,
     reset: () => {
       judgeVerdict.pass = true;
       judgeVerdict.reason = 'Looks good.';
+      timing.classifyDelayMs = 0;
       queue.length = 0;
       calls.length = 0;
     },

@@ -96,6 +96,24 @@ SendBytes = Callable[[bytes], Awaitable[None]]
 DetectorFactory = Callable[..., Any]
 
 
+def _passages(value: Any) -> list[dict[str, Any]]:
+    """Where an answer came from: document, page, heading and a short excerpt. Shown on screen only."""
+    if not isinstance(value, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for p in value[:5]:
+        if not isinstance(p, dict) or not isinstance(p.get("source"), str):
+            continue
+        item: dict[str, Any] = {"source": p["source"][:120], "heading": str(p.get("heading", ""))[:200],
+                                "excerpt": str(p.get("excerpt", ""))[:240]}
+        for key in ("page", "pageEnd", "version"):
+            v = p.get(key)
+            if isinstance(v, int) and not isinstance(v, bool) and 0 < v < 100000:
+                item[key] = v
+        out.append(item)
+    return out
+
+
 def _line(value: Any) -> str | None:
     return value.strip()[:120] if isinstance(value, str) and value.strip() else None
 
@@ -637,7 +655,8 @@ class VoiceSession:
                     self.emit(ev.AGENT_THINKING, turn.id)
                 elif kind == "knowledge.used":
                     acks.done("knowledge")
-                    self.emit(ev.KNOWLEDGE_USED, turn.id, sources=_strings(event.get("sources")))
+                    self.emit(ev.KNOWLEDGE_USED, turn.id, sources=_strings(event.get("sources")),
+                              passages=_passages(event.get("passages")))
                 elif kind == "tool.started":
                     self.emit(ev.TOOL_STARTED, turn.id, tool=str(event.get("tool", ""))[:64])
                     tool = str(event.get("tool", ""))[:64]

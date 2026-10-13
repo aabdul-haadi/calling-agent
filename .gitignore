@@ -17,3 +17,9 @@ voice-service/tests/fixtures/generated/
 voice-service/diagnostics/
 
 /data/
+
+**/__pycache__/
+*.egg-info/
+docproc/.venv/
+docproc/tests/corpus/
+backend/eval-results/

@@ -24,6 +24,17 @@ export function splitCitations(text: string): Piece[] {
   return out;
 }
 
+/** `[Source: handbook.pdf, page 3]` names the document and page; find the matching excerpt. */
+export function findCitation(citations: Citation[], label: string): Citation | undefined {
+  const [name, rest] = label.split(/\s*,\s*/, 2) as [string, string | undefined];
+  const page = rest ? Number(/page\s+(\d+)/i.exec(rest)?.[1]) : NaN;
+  const same = citations.filter((c) => c.source === name || c.source === label);
+  return (
+    same.find((c) => Number.isFinite(page) && c.page !== undefined && c.page <= page && page <= (c.pageEnd ?? c.page)) ??
+    same[0]
+  );
+}
+
 function CitationChip({ source, citation }: { source: string; citation?: Citation }) {
   const [open, setOpen] = useState(false);
   return (
@@ -44,7 +55,10 @@ function CitationChip({ source, citation }: { source: string; citation?: Citatio
       </button>
       {open && citation && (
         <span className="my-1.5 block rounded-md border border-border bg-background/60 p-2.5 text-xs text-muted-foreground">
-          <span className="mb-1 block font-medium text-foreground">{citation.heading}</span>
+          <span className="mb-1 block font-medium text-foreground">
+            {citation.heading}
+            {citation.page ? ` · page ${citation.page}${citation.pageEnd ? `–${citation.pageEnd}` : ''}` : ''}
+          </span>
           {citation.snippet}
         </span>
       )}
@@ -89,7 +103,7 @@ export function CitationText({
       <CitationChip
         key={i}
         source={p.source}
-        citation={citations.find((c) => c.source === p.source)}
+        citation={findCitation(citations, p.source)}
       />
     ) : (
       <Inline key={i} text={p.text ?? ''} />

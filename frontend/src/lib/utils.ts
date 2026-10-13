@@ -30,3 +30,16 @@ export function relativeTime(iso: string, now = Date.now()): string {
   if (h < 24) return `${h} h ago`;
   return `${Math.round(h / 24)} d ago`;
 }
+
+/** 1536 -> "1.5 KB", 5242880 -> "5 MB". */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return `${value >= 10 ? Math.round(value) : Math.round(value * 10) / 10} ${units[i]}`;
+}

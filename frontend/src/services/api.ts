@@ -9,6 +9,7 @@ import type {
   EvalRunView,
   HandoffView,
   KnowledgeDoc,
+  KnowledgeSearchResult,
   OverviewMetrics,
   SimulatorControls,
 } from '@adk/shared';
@@ -103,4 +104,24 @@ export const api = {
     call<VoiceSession>('/voice/session', json('POST', { clientId, conversationId })),
   knowledge: (clientId: string) =>
     call<KnowledgeDoc[]>(`/clients/${encodeURIComponent(clientId)}/knowledge`),
+  /** Sends the PDF as the request body; the server reads it in the background and reports progress. */
+  uploadKnowledge: (clientId: string, file: File) =>
+    call<{ document: KnowledgeDoc; unchanged: boolean }>(
+      `/clients/${encodeURIComponent(clientId)}/knowledge/documents?name=${encodeURIComponent(file.name)}`,
+      { method: 'POST', body: file, headers: { 'content-type': 'application/pdf' } },
+    ),
+  reindexKnowledge: (clientId: string, id: string, reextract = false) =>
+    call<KnowledgeDoc>(
+      `/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}/reindex`,
+      json('POST', { reextract }),
+    ),
+  retryKnowledge: (clientId: string, id: string) =>
+    call<KnowledgeDoc>(`/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}/retry`, json('POST')),
+  deleteKnowledge: (clientId: string, id: string) =>
+    call<{ removed: string }>(`/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}`, json('DELETE')),
+  searchKnowledge: (clientId: string, question: string, history: string[] = []) =>
+    call<KnowledgeSearchResult>(
+      `/clients/${encodeURIComponent(clientId)}/knowledge/search`,
+      json('POST', { question, history }),
+    ),
 };

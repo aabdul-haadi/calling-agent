@@ -137,7 +137,16 @@ export function KnowledgeCard({ citations }: { citations: Citation[] }) {
                 className="rounded-md border border-border bg-background/50 p-3 text-sm"
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <Badge tone="accent">{c.source}</Badge>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone="accent">{c.source}</Badge>
+                    {c.page && (
+                      <Badge>
+                        page {c.page}
+                        {c.pageEnd ? `–${c.pageEnd}` : ''}
+                      </Badge>
+                    )}
+                    {c.version && c.version > 1 && <Badge>version {c.version}</Badge>}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     match {Math.round(c.score * 100)}%
                   </span>

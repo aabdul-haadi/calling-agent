@@ -147,10 +147,10 @@ function Orbit({
 
     // Tool execution: a bright node races around the first ring.
     if (runner.current) {
-      const on = l.mode === 'executing' || l.mode === 'thinking';
+      const on = l.mode === 'executing' || l.mode === 'thinking' || l.mode === 'searching';
       runner.current.visible = on;
       if (on) {
-        const a = t * (l.mode === 'executing' ? 4.2 : 2.2);
+        const a = t * (l.mode === 'executing' ? 4.2 : l.mode === 'searching' ? 3 : 2.2);
         runner.current.position.set(Math.cos(a) * 1.45, 0, Math.sin(a) * 1.45);
       }
     }
