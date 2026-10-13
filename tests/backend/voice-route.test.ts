@@ -54,13 +54,14 @@ describe('POST /voice/session', () => {
     expect(mac).toBe(createHmac('sha256', SECRET).update(body!).digest('hex'));
   });
 
-  it('refuses unknown tenants, chat-only tenants and bad bodies', async () => {
+  it('refuses unknown tenants and bad bodies', async () => {
     expect((await request(on.app).post('/voice/session').send({ clientId: 'nope' })).status).toBe(
       404,
     );
-    const chatOnly = await request(on.app).post('/voice/session').send({ clientId: 'novatel' });
-    expect(chatOnly.status).toBe(400);
-    expect(chatOnly.body.error.code).toBe('CHANNEL_NOT_SUPPORTED');
+    // NovaTel has a voice persona too, so it is accepted (a chat-only tenant would get CHANNEL_NOT_SUPPORTED)
+    expect(
+      (await request(on.app).post('/voice/session').send({ clientId: 'novatel' })).status,
+    ).toBe(200);
     expect((await request(on.app).post('/voice/session').send({})).status).toBe(400);
     expect(
       (

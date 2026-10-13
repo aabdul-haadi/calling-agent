@@ -110,9 +110,11 @@ class FakeSynth:
     fail_on: str | None = None
     phrases: list[str] = field(default_factory=list)
     cancelled_midway: int = 0
+    prefs: list = field(default_factory=list)
 
-    def synthesize(self, text: str, sink, cancel: threading.Event) -> bool:
+    def synthesize(self, text: str, sink, cancel: threading.Event, **_prefs) -> bool:
         self.phrases.append(text)
+        self.prefs.append(_prefs)
         if self.fail_on and self.fail_on in text:
             raise RuntimeError("tts exploded")
         words = text.split()

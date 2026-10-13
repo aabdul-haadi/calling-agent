@@ -29,7 +29,7 @@ class TestSpeakable:
         assert "S K, 1 0 0 1" in out and "S K, 1 1 0" in out
 
     def test_iso_dates_become_words(self):
-        assert speakable("It leaves 2026-11-10T11:00:00.000Z") == "It leaves November 10 at 11:00 UTC"
+        assert speakable("It leaves 2026-11-10T11:00:00.000Z") == "It leaves November tenth at eleven A M U T C"
 
     def test_keeps_ordinary_sentences_untouched(self):
         s = "I can move you to the next flight, and there is no charge."
@@ -88,3 +88,47 @@ class TestChunker:
     def test_same_result_whatever_the_delivery_granularity(self, step):
         text = "First sentence here. Second sentence follows, and it has a clause. Third?"
         assert chunks(text, step) == chunks(text, 1000)
+
+
+class TestSpokenRendering:
+    def test_money_percent_and_ordinals(self):
+        out = speakable("The fee is $45.50, or $120 for two bags, 20% off on the 3rd.")
+        assert "forty-five dollars and fifty cents" in out and "one hundred twenty dollars" in out
+        assert "20 percent" in out and "the third" in out
+
+    def test_clock_times_read_naturally(self):
+        assert speakable("Boarding at 3:50 PM.") == "Boarding at three fifty P M."
+        assert speakable("Departs 9:05 am.") == "Departs nine oh five A M."
+        assert speakable("Arrives 15:05 today.") == "Arrives fifteen oh five today."
+
+    def test_short_weekdays_months_and_abbreviations(self):
+        assert speakable("Mon, Oct 12") == "Monday, October 12"
+        assert speakable("Bring ID, e.g. a passport") == "Bring I D, for example a passport"
+
+    def test_codes_stay_digit_by_digit(self):
+        assert "S K, 1 1 0" in speakable("Flight SK110")
+
+    def test_numbers_that_are_not_money_or_time_are_untouched(self):
+        assert speakable("Refunds take 7 business days.") == "Refunds take 7 business days."
+
+    def test_ordinal_words(self):
+        from app.tts.text import ordinal_words
+        assert [ordinal_words(n) for n in (1, 2, 3, 12, 20, 21, 30)] == [
+            "first", "second", "third", "twelfth", "twentieth", "twenty-first", "thirtieth"]
+
+
+class TestChunkingForNaturalSpeech:
+    def test_a_restated_sentence_is_spoken_once(self):
+        assert chunks("I can move you to flight one ten. I can move you to flight one ten. Shall I?") == [
+            "I can move you to flight one ten.", "Shall I?"]
+
+    def test_tiny_later_phrases_join_the_next_one(self):
+        out = chunks("I found two flights for you today. Okay. Do you want the earlier one or the later one?")
+        assert out == ["I found two flights for you today.", "Okay. Do you want the earlier one or the later one?"]
+
+    def test_the_first_short_phrase_is_not_held_back(self):
+        assert chunks("Sure. I can check that for you right now.")[0] == "Sure."
+
+
+def test_money_glued_to_a_word_still_reads_as_money():
+    assert speakable("The fee is$45.50") == "The fee is forty-five dollars and fifty cents"

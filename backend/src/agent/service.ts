@@ -123,7 +123,21 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       convo = await load(newId);
     }
     const id = convo.id;
-    opts?.onEvent?.({ type: 'turn.started', conversationId: id });
+    const profile = module.config.persona.voice;
+    opts?.onEvent?.({
+      type: 'turn.started',
+      conversationId: id,
+      ...(channel === 'voice'
+        ? {
+            speech: {
+              ...(profile?.speech.speaker ? { speaker: profile.speech.speaker } : {}),
+              speed: profile?.speech.speed ?? 1,
+              language: profile?.language ?? 'en-US',
+              ...(profile?.progressLine ? { progressLine: profile.progressLine } : {}),
+            },
+          }
+        : {}),
+    });
 
     // Already with a person: the agent stays out of it. The customer's words are kept for the
     // human. Until a human has accepted, the customer is told they are in the queue; after that

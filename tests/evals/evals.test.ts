@@ -15,9 +15,9 @@ import { createHarness, say, callTool, type Harness } from '../helpers/harness';
 const scenarioDir = resolve(REPO_ROOT, 'clients/skylink-air/scenarios');
 
 describe('SkyLink scenario files', () => {
-  it('has 20 valid scenarios covering the required cases', async () => {
+  it('has 23 valid scenarios (20 chat and 3 voice) covering the required cases', async () => {
     const scenarios = await loadScenarios(scenarioDir);
-    expect(scenarios).toHaveLength(20);
+    expect(scenarios).toHaveLength(23);
     const ids = scenarios.map((s) => s.id).join(' ');
     for (const needle of [
       'happy-path',

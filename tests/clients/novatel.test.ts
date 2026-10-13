@@ -37,7 +37,10 @@ describe('NovaTel: second client on the same engine', () => {
       'transfer_to_human',
     ]);
     expect(novatelModule.config.accent).toBe('violet');
-    expect(registry.summaries().find((c) => c.id === 'novatel')?.channels).toEqual(['chat']);
+    expect(registry.summaries().find((c) => c.id === 'novatel')?.channels).toEqual([
+      'chat',
+      'voice',
+    ]);
   });
 
   it('explains a higher bill after verification', async () => {
@@ -118,19 +121,18 @@ describe('NovaTel: second client on the same engine', () => {
     expect(unknown.reply).toBe(NO_POLICY_REPLY);
   });
 
-  it('rejects voice (NovaTel is chat-only)', async () => {
-    await expect(
-      h.chat.chat({ clientId: 'novatel', message: 'hi', channel: 'voice' }),
-    ).rejects.toMatchObject({ code: 'CHANNEL_NOT_SUPPORTED' });
+  it('accepts voice, with its own friendly, plain-spoken persona', async () => {
+    expect(novatelModule.config.channels).toContain('voice');
+    expect(novatelModule.config.persona.voice?.verbosity).toBe('balanced');
   });
 
-  it('has 5 policy documents and 8 valid scenarios', async () => {
+  it('has 5 policy documents and 9 valid scenarios', async () => {
     const { readdirSync } = await import('node:fs');
     expect(
       readdirSync(resolve(REPO_ROOT, 'clients/novatel/knowledge')).filter((f) => f.endsWith('.md')),
     ).toHaveLength(5);
     const scenarios = await loadScenarios(resolve(REPO_ROOT, 'clients/novatel/scenarios'));
-    expect(scenarios).toHaveLength(8);
+    expect(scenarios).toHaveLength(9);
     const tools = new Set(novatelModule.config.tools);
     for (const s of scenarios)
       for (const t of [...s.expectedTools, ...s.forbiddenTools])

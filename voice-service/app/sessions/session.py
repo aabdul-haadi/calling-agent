@@ -16,6 +16,7 @@ Vocabulary
 from __future__ import annotations
 
 import asyncio
+import re
 import enum
 import logging
 import threading
@@ -35,6 +36,7 @@ from app.integrations.agent_runtime import AgentRuntime
 from app.observability.metrics import Metrics
 from app.protocols import events as ev
 from app.tts.base import Synthesizer
+from app.tts.pacing import Pacer
 from app.tts.text import Chunker, speakable
 
 log = logging.getLogger("voice.session")
@@ -92,6 +94,28 @@ SendBytes = Callable[[bytes], Awaitable[None]]
 DetectorFactory = Callable[..., Any]
 
 
+@dataclass
+class SpeechPrefs:
+    """How this company's agent should sound. Style only; supplied by the runtime, validated here."""
+
+    speaker: str | None = None
+    speed: float = 1.0
+    progress_line: str | None = None
+
+    @classmethod
+    def from_event(cls, raw: Any) -> "SpeechPrefs":
+        if not isinstance(raw, dict):
+            return cls()
+        speaker = raw.get("speaker")
+        speed = raw.get("speed")
+        line = raw.get("progressLine")
+        return cls(
+            speaker=speaker if isinstance(speaker, str) and re.fullmatch(r"[a-z0-9_]{1,40}", speaker) else None,
+            speed=min(1.25, max(0.8, float(speed))) if isinstance(speed, (int, float)) and not isinstance(speed, bool) else 1.0,
+            progress_line=line.strip()[:120] if isinstance(line, str) and line.strip() else None,
+        )
+
+
 class VoiceSession:
     def __init__(
         self,
@@ -121,6 +145,7 @@ class VoiceSession:
         self._send_json = send_json
         self._send_bytes = send_bytes
         self._input_rate = input_rate
+        self._speech = SpeechPrefs()
         self._clock = clock
 
         # Two detectors on the same audio: a sensitive one to start a turn, a strict one to decide
@@ -466,6 +491,7 @@ class VoiceSession:
         marks = turn.marks
         marks["agent_request"] = self._clock()
         status = "completed"
+        progress: asyncio.Task[None] | None = None
         try:
             events = self._agent.stream_turn(
                 client_id=self.client_id,
@@ -479,6 +505,7 @@ class VoiceSession:
                     return
                 kind = event.get("type")
                 if kind == "turn.started":
+                    self._speech = SpeechPrefs.from_event(event.get("speech"))
                     cid = event.get("conversationId")
                     if isinstance(cid, str) and cid != self.conversation_id:
                         self.conversation_id = cid
@@ -489,7 +516,11 @@ class VoiceSession:
                     self.emit(ev.KNOWLEDGE_USED, turn.id, sources=_strings(event.get("sources")))
                 elif kind == "tool.started":
                     self.emit(ev.TOOL_STARTED, turn.id, tool=str(event.get("tool", ""))[:64])
+                    if progress is None and self._speech.progress_line:
+                        progress = asyncio.create_task(self._progress_update(turn, gen, phrases, self._speech.progress_line))
                 elif kind == "tool.completed":
+                    if progress is not None and not progress.done():
+                        progress.cancel()
                     self.emit(ev.TOOL_COMPLETED, turn.id, tool=str(event.get("tool", ""))[:64],
                               status=str(event.get("status", "ok"))[:16])
                 elif kind == "approval.required":
@@ -501,6 +532,8 @@ class VoiceSession:
                     delta = str(event.get("text", ""))
                     if not delta:
                         continue
+                    if progress is not None and not progress.done():
+                        progress.cancel()  # the real answer is arriving: no filler needed
                     marks.setdefault("first_text", self._clock())
                     self.emit(ev.AGENT_TEXT_DELTA, turn.id, text=delta)
                     for phrase in chunker.push(delta):
@@ -536,9 +569,19 @@ class VoiceSession:
                           message="Something went wrong while answering")
                 self._finish_reply(turn, "error")
         finally:
+            if progress is not None and not progress.done():
+                progress.cancel()
             if not tts_task.done():
                 tts_task.cancel()
                 await asyncio.gather(tts_task, return_exceptions=True)
+
+    async def _progress_update(self, turn: _Turn, gen: int, phrases: "asyncio.Queue[str | None]", line: str) -> None:
+        """Say one short, true "still working" line if a lookup really is running and nothing has been
+        said yet. Started only by a real tool.started event; cancelled by the tool finishing or any text."""
+        await asyncio.sleep(self.s.progress_after_s)
+        if gen == self._gen and not self._first_audio_sent:
+            phrases.put_nowait(speakable(line))
+            self._metrics.count("progress_updates")
 
     def _finish_reply(self, turn: _Turn, status: str) -> None:
         marks = turn.marks
@@ -615,7 +658,11 @@ class VoiceSession:
                     return False
             return True
 
-        self._synth.synthesize(phrase, sink, cancel)
+        pacer = Pacer(sink, self._synth.sample_rate, phrase, last_phrase=False,
+                      sentence_ms=self.s.pause_sentence_ms, clause_ms=self.s.pause_clause_ms)
+        done = self._synth.synthesize(phrase, pacer, cancel, speaker=self._speech.speaker, speed=self._speech.speed)
+        if done is not False and not cancel.is_set() and gen == self._gen:
+            pacer.finish()
 
     async def _enqueue_audio(self, turn: int, gen: int, data: bytes, last: bool) -> None:
         if gen != self._gen:

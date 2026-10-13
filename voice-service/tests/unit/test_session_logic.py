@@ -468,3 +468,89 @@ async def test_a_faint_voice_cannot_interrupt_but_the_same_person_speaking_up_ca
         await r.session.on_audio(loud)
     await r.until(lambda: "agent.interrupted" in r.types())
     await r.close()
+
+
+# ---- how the agent sounds: speech preferences and the truthful progress line --------------------
+
+FAST_PROGRESS = Settings(
+    gateway_secret="s", end_silence_ms=600, barge_in_min_ms=160, pre_roll_ms=300, barge_in_min_rms=0.0,
+    progress_after_s=0.2,
+)
+
+
+async def turn(r, seconds_of_audio: float = 2.8) -> None:
+    await r.start()
+    await r.frames(frames_for(seconds_of_audio))
+
+
+async def test_the_voice_uses_the_speaker_and_speed_the_runtime_asks_for():
+    r = Rig(TURN)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": {"speaker": "af_bella", "speed": 0.9, "language": "en-US"}},
+        *text("Here you go."),
+    )
+    await turn(r)
+    await r.until(lambda: r.synth.phrases)
+    assert r.synth.prefs[0] == {"speaker": "af_bella", "speed": 0.9}
+    await r.close()
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ({"speaker": "../../etc", "speed": 9}, {"speaker": None, "speed": 1.25}),
+        ({"speaker": "af_heart", "speed": 0.1}, {"speaker": "af_heart", "speed": 0.8}),
+        ({"speed": "fast"}, {"speaker": None, "speed": 1.0}),
+        ({"speed": True}, {"speaker": None, "speed": 1.0}),
+        ("nonsense", {"speaker": None, "speed": 1.0}),
+    ],
+)
+def test_speech_preferences_are_validated_never_trusted(raw, expected):
+    from app.sessions.session import SpeechPrefs
+
+    p = SpeechPrefs.from_event(raw)
+    assert {"speaker": p.speaker, "speed": p.speed} == expected
+
+
+async def test_a_still_working_line_is_spoken_only_while_a_lookup_really_runs():
+    r = Rig(TURN, settings=FAST_PROGRESS)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": {"progressLine": "One moment, I am still checking."}},
+        {"type": "tool.started", "tool": "search_alternatives"},
+        1.0,
+        {"type": "tool.completed", "tool": "search_alternatives", "status": "ok"},
+        *text("I found two flights."),
+    )
+    await turn(r)
+    await r.until(lambda: len(r.synth.phrases) >= 2, timeout=6)
+    assert r.synth.phrases[0] == "One moment, I am still checking."
+    assert r.synth.phrases[1] == "I found two flights."
+    assert r.of(ev.TOOL_STARTED) and r.of(ev.TOOL_COMPLETED)
+    await r.close()
+
+
+async def test_no_still_working_line_when_the_answer_comes_quickly_or_no_tool_runs():
+    r = Rig(TURN, settings=FAST_PROGRESS)
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": {"progressLine": "One moment, I am still checking."}},
+        {"type": "tool.started", "tool": "get_booking"},
+        0.05,
+        {"type": "tool.completed", "tool": "get_booking", "status": "ok"},
+        0.4,
+        *text("Your flight is on time."),
+    )
+    await turn(r)
+    await r.until(lambda: r.synth.phrases, timeout=6)
+    assert r.synth.phrases == ["Your flight is on time."]
+    await r.close()
+
+    r = Rig(TURN, settings=FAST_PROGRESS)  # a slow model with no tool: nothing true to say, so silence
+    r.agent.script(
+        {"type": "turn.started", "conversationId": "c1", "speech": {"progressLine": "One moment, I am still checking."}},
+        0.6,
+        *text("Happy to help."),
+    )
+    await turn(r)
+    await r.until(lambda: r.synth.phrases, timeout=6)
+    assert r.synth.phrases == ["Happy to help."]
+    await r.close()

@@ -1,0 +1,10 @@
+id: voice-baggage-policy
+title: Voice call - short spoken policy answer
+persona: Economy passenger asking out loud before a trip
+channel: voice
+turns:
+  - How many bags can I take in economy
+forbiddenTools:
+  - get_booking
+  - change_flight
+expectedOutcome: Agent answers in one or two spoken sentences with the real numbers (1 free checked bag, 23 kg) and does not read a source label aloud.

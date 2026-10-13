@@ -1,0 +1,14 @@
+id: voice-bill-question
+title: Voice call - bill explained in plain words
+persona: Customer Alvarez, account NT2002, on a voice call, surprised by a higher bill
+channel: voice
+turns:
+  - Why is my bill higher this month
+  - It's N T two zero zero two, last name Alvarez
+expectedTools:
+  - verify_customer
+  - get_bill
+expectHandoff: false
+expectedOutcome:
+  Agent asks for the account and last name, verifies, then explains in plain spoken words that the 18 dollar roaming charge sits on top of the 40 dollar plan.
+  No jargon, no lists, one idea at a time.

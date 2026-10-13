@@ -60,7 +60,13 @@ class Engine:
             self._add_refiner()
             self.load_seconds["asr_warmup"] = round(self.recognizer.warm_up(), 2)
             if self.synth is None:
-                self.synth = SherpaTts(s.tts_model, s.tts_threads, s.tts_speed)
+                try:
+                    self.synth = SherpaTts(s.tts_model, s.tts_threads, s.tts_speed)
+                except MissingModelError as exc:
+                    if s.tts_model == "piper-amy-low":
+                        raise
+                    log.warning("voice %s is not installed (%s); falling back to piper-amy-low", s.tts_model, exc)
+                    self.synth = SherpaTts("piper-amy-low", s.tts_threads, s.tts_speed)
                 self.load_seconds["tts_load"] = round(self.synth.load_seconds, 2)  # type: ignore[attr-defined]
             self.load_seconds["tts_warmup"] = round(self.synth.warm_up(), 2)
             self.detector_factory(threshold=0.5, min_speech_ms=100, min_silence_ms=600)  # fails fast if missing

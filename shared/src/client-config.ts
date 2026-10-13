@@ -40,6 +40,33 @@ export const journeySchema = z.object({
     .min(2),
 });
 
+/**
+ * How the agent sounds when it speaks. Style and speech preferences only: nothing here can change
+ * what the agent is allowed to do (rules, tools, verification and approvals live elsewhere).
+ */
+export const voiceProfileSchema = z.object({
+  /** Language the voice speaks and understands (BCP-47). */
+  language: z.string().min(2).max(20).default('en-US'),
+  /** brief: one or two sentences. balanced: up to four. detailed: as many as the answer needs. */
+  verbosity: z.enum(['brief', 'balanced', 'detailed']).default('brief'),
+  /** Extra spoken-style guidance for this company, one short instruction per line. */
+  style: z.array(z.string().min(1).max(240)).max(8).default([]),
+  speech: z
+    .object({
+      /** Name of a speaker on a multi-speaker voice model; ignored by single-voice models. */
+      speaker: z
+        .string()
+        .regex(/^[a-z0-9_]{1,40}$/)
+        .optional(),
+      /** 1 is normal speed. */
+      speed: z.number().min(0.8).max(1.25).default(1),
+    })
+    .default({ speed: 1 }),
+  /** Said once, only if a lookup is really running and takes more than a few seconds. */
+  progressLine: z.string().min(1).max(120).optional(),
+});
+export type VoiceProfile = z.infer<typeof voiceProfileSchema>;
+
 export const clientConfigSchema = z.object({
   id: idSchema,
   displayName: z.string().min(1),
@@ -47,7 +74,12 @@ export const clientConfigSchema = z.object({
   accent: z.enum(['sky', 'violet']),
   tagline: z.string(),
   channels: z.array(z.enum(['chat', 'voice'])).min(1),
-  persona: z.object({ name: z.string(), tone: z.string(), voiceStyle: z.string() }),
+  persona: z.object({
+    name: z.string(),
+    tone: z.string(),
+    voiceStyle: z.string(),
+    voice: voiceProfileSchema.optional(),
+  }),
   scope: z.array(z.string()).min(1),
   outOfScope: z.array(z.string()),
   intents: z.array(idSchema).min(1),

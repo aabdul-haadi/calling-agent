@@ -15,7 +15,8 @@ class Synthesizer(Protocol):
     sample_rate: int
     name: str
 
-    def synthesize(self, text: str, sink: ChunkSink, cancel: threading.Event) -> bool:
+    def synthesize(self, text: str, sink: ChunkSink, cancel: threading.Event, *,
+                   speaker: str | None = None, speed: float | None = None) -> bool:
         """Blocking. Generates audio for `text` and hands pieces to `sink` as they are ready.
 
         Stops as soon as `cancel` is set or `sink` returns False. Returns True only if all of the

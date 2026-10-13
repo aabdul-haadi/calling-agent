@@ -214,7 +214,12 @@ export interface KnowledgeDoc {
  * tools and their outcome only: never tool arguments, never model reasoning.
  */
 export type TurnEvent =
-  | { type: 'turn.started'; conversationId: string }
+  | {
+      type: 'turn.started';
+      conversationId: string;
+      /** Voice channel only: how this company's agent should sound (style preferences, no business data). */
+      speech?: { speaker?: string; speed: number; language: string; progressLine?: string };
+    }
   | { type: 'agent.thinking' }
   | { type: 'knowledge.used'; sources: string[] }
   | { type: 'tool.started'; tool: string }

@@ -1,4 +1,4 @@
-import type { Channel, Citation, ParsedClientConfig } from '@adk/shared';
+import type { Channel, Citation, ParsedClientConfig, VoiceProfile } from '@adk/shared';
 import type { ConversationState } from './state';
 
 // Engine-wide rules that apply to every client. Client-specific text comes from the config.
@@ -14,6 +14,39 @@ const SAFETY_RULES = [
   'When you quote policy, state the exact numbers, time limits, amounts and conditions from the excerpts (for example "7 business days"). Never replace them with vague words like "a few days" or "soon".',
   'When you must decline or cannot help, say briefly what you CAN help with (your scope) instead of only offering a human agent.',
 ];
+
+const SENTENCE_LIMIT: Record<VoiceProfile['verbosity'], string> = {
+  brief: 'Most replies are one or two short sentences, three at the most.',
+  balanced: 'Keep replies to a few short sentences, four at the most.',
+  detailed: 'Give the full answer, but in short spoken sentences and in small steps.',
+};
+
+/**
+ * How the agent talks on a voice call. This only shapes wording. Facts, policy, permissions and the
+ * confirmation steps come from the rules above and are enforced by the system, not by this text.
+ */
+export function voiceStyleLines(voiceStyle: string, voice?: VoiceProfile): string[] {
+  const verbosity = voice?.verbosity ?? 'brief';
+  return [
+    'This is a VOICE call. Your words will be spoken aloud, so write the way a calm, kind person talks, not the way a form reads. ' +
+      voiceStyle +
+      '.',
+    SENTENCE_LIMIT[verbosity],
+    'How to sound:',
+    '- Warm, clear and calm. Use contractions. One thought at a time, and ask only one question at a time.',
+    '- Answer first. Do not repeat the customer’s request back. Do not open with "Certainly", "Of course", "Sure", "Absolutely" or "I’m happy to help". Often the best start is just the answer.',
+    '- Do not end with "Let me know if there is anything else" or a similar stock line. Stop when you have answered, or ask the one question you need.',
+    '- Match the customer’s mood without copying it. If they are upset, one short sincere line ("Sorry about that.") and then help. Apologize once, not repeatedly. Never claim feelings you do not have.',
+    '- Be honest about what you do not know ("I’m not sure about that"), then say what you can do.',
+    '- NEVER use bullet points, numbered lists, markdown, URLs, field names or tool names: everything is read aloud. Say what the policy says in a short sentence; the source is shown on screen. Do not describe your internal steps ("I am calling the system").',
+    '- Write numbers, times, dates, money and codes the normal way (SK110, 3:50 PM, November 10, $45.50, 7 business days). Do NOT spell them out in words: the voice reads them aloud correctly, and spelling them yourself causes mistakes. When the customer spells a code aloud ("N T two zero zero two"), write it as one code (NT2002).',
+    '- With more than two options, say how many there are and offer to go through them ("I found three. Want me to go through them?"). When they say yes, give them one at a time in a flowing sentence, never as a list.',
+    '- You are speaking, so say "say yes" or "tell me", never "reply" or "type".',
+    '- Only say you are checking something if you really are calling a tool in this same reply. Never promise availability, a refund, a payment or a change until a tool result says so; say "I can try" or "let me check" until then.',
+    '- Before any change, say plainly what will change: the exact flight or plan, the date and time, and any fee. Casual wording must never hide a cost or a detail. Then ask for a clear yes.',
+    ...(voice?.style ?? []).map((l) => `- ${l}`),
+  ];
+}
 
 export interface PromptInput {
   config: ParsedClientConfig;
@@ -60,10 +93,8 @@ export function buildSystemPrompt({
   }
 
   if (channel === 'voice') {
+    parts.push('', ...voiceStyleLines(p.voiceStyle, p.voice));
     parts.push(
-      '',
-      'This is a VOICE call. ' + p.voiceStyle + '.',
-      'Keep replies to 1-3 short sentences. No lists, no markdown. Confirm key details (names, flight numbers, times) back to the customer.',
       "The customer's words come from speech recognition, which can mishear names, booking references, numbers and flight times. Never guess a value you are not sure of: ask the customer to repeat it or spell it letter by letter. When you are about to use a booking reference or account number, read it back to them first if they only said it once. When you ask for approval of a change, read out the exact flight number and time so they can correct you.",
     );
     if (voiceUncertain) {

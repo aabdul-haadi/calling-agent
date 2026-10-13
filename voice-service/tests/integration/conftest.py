@@ -32,7 +32,7 @@ ORIGIN = "http://localhost:5173"
 
 
 def pytest_collection_modifyitems(items):
-    needed = [MODELS_DIR / "silero_vad.onnx", MODELS_DIR / "vits-piper-en_US-amy-low" / "tokens.txt"]
+    needed = [MODELS_DIR / "silero_vad.onnx", MODELS_DIR / "vits-piper-en_US-amy-medium" / "tokens.txt"]
     if all(p.exists() for p in needed):
         return
     skip = pytest.mark.skip(reason="speech models not downloaded (python -m app.tools.download_models)")

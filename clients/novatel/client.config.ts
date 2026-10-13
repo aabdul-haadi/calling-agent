@@ -8,11 +8,22 @@ export const novatel: ClientConfig = {
   accent: 'violet',
   tagline:
     'Understand your bill, check outages in your area, or talk to a person about cancelling.',
-  channels: ['chat'],
+  channels: ['chat', 'voice'],
   persona: {
     name: 'Nia',
     tone: 'friendly, clear, patient with technical questions',
     voiceStyle: 'Use short sentences and avoid jargon',
+    voice: {
+      language: 'en-US',
+      verbosity: 'balanced',
+      style: [
+        'Friendly, patient and straightforward. Explain bills and plans in everyday words and skip technical terms unless the customer asks for them.',
+        'When you explain a charge, say what it is for, how much it is, and when it applies, one piece at a time.',
+        'Never say a payment, credit or account change went through unless a tool result confirms it.',
+      ],
+      speech: { speaker: 'af_bella', speed: 1 },
+      progressLine: 'Bear with me, I am still looking at your account.',
+    },
   },
   scope: ['bill explanations', 'outage and coverage checks', 'billing and cancellation policy'],
   outOfScope: ['legal disputes', 'device repairs', 'payment plan negotiation'],

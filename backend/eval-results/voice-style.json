@@ -1,0 +1,172 @@
+{
+  "model": "openai/openai/gpt-oss-120b",
+  "at": "2026-10-13T06:39:06.771Z",
+  "runs": [
+    {
+      "client": "skylink-air",
+      "variant": "previous",
+      "summary": {
+        "replies": 6,
+        "meanWords": 27,
+        "meanSentences": 2.5,
+        "stockOpenerRate": 0,
+        "multiQuestionRate": 0,
+        "unspeakableRate": 0.17,
+        "uncontractedShare": 0.33,
+        "meanApologies": 0.17,
+        "narratesToolsRate": 0
+      },
+      "scenarios": [
+        {
+          "scenario": "voice-baggage-policy",
+          "turns": [
+            "How many bags can I take in economy"
+          ],
+          "replies": [
+            "Economy passengers may check one bag free of charge. Additional bags cost $60 each, and overweight bags between 23 kg and 32 kg cost $45 extra. Bags over 32 kg cannot be accepted. [Source: checked-baggage]"
+          ],
+          "failures": []
+        },
+        {
+          "scenario": "voice-no-false-promise",
+          "turns": [
+            "Can you put me on the nine a m flight tomorrow"
+          ],
+          "replies": [
+            "I’m happy to help. Could you please share your booking reference and the last name on the reservation? This will let me check the available options for tomorrow’s 9 AM flight."
+          ],
+          "failures": []
+        },
+        {
+          "scenario": "voice-rebook-flow",
+          "turns": [
+            "Hi, my flight got cancelled and I don't know what to do",
+            "It's S K one zero zero one and my last name is Rahman",
+            "The first one sounds good",
+            "Yes, go ahead"
+          ],
+          "replies": [
+            "I’m sorry to hear that. May I have your booking reference and the last name on the reservation, please?",
+            "Your SK100 flight from New York to London on November 10 at 7 AM was cancelled. I can look for alternative flights for you. May I search for options?",
+            "I can move you to flight SK110, departing at 11 AM and arriving at 6 PM on November 10. Shall I go ahead?",
+            "I’ll move your booking to flight SK110, departing 11 AM and arriving 6 PM on November 10, at no charge. Please reply “yes” to confirm."
+          ],
+          "failures": [
+            "Expected tools in order [verify_customer > search_alternatives > change_flight] but succeeded: [verify_customer > get_booking > search_alternatives] (called: [verify_customer > get_booking > search_alternatives])"
+          ]
+        }
+      ]
+    },
+    {
+      "client": "skylink-air",
+      "variant": "new",
+      "summary": {
+        "replies": 6,
+        "meanWords": 21,
+        "meanSentences": 1.83,
+        "stockOpenerRate": 0,
+        "multiQuestionRate": 0,
+        "unspeakableRate": 0.17,
+        "uncontractedShare": 0.17,
+        "meanApologies": 0.17,
+        "narratesToolsRate": 0
+      },
+      "scenarios": [
+        {
+          "scenario": "voice-baggage-policy",
+          "turns": [
+            "How many bags can I take in economy"
+          ],
+          "replies": [
+            "Economy passengers may check one bag free of charge. [Source: checked-baggage]"
+          ],
+          "failures": []
+        },
+        {
+          "scenario": "voice-no-false-promise",
+          "turns": [
+            "Can you put me on the nine a m flight tomorrow"
+          ],
+          "replies": [
+            "May I have your booking reference and the last name on the reservation, please?"
+          ],
+          "failures": []
+        },
+        {
+          "scenario": "voice-rebook-flow",
+          "turns": [
+            "Hi, my flight got cancelled and I don't know what to do",
+            "It's S K one zero zero one and my last name is Rahman",
+            "The first one sounds good",
+            "Yes, go ahead"
+          ],
+          "replies": [
+            "I’m sorry about the cancellation. Can you tell me your booking reference and the last name on the reservation?",
+            "I found three later flights on the same route. Want me to go through them?",
+            "We'll move your booking SK one zero zero one from flight SK one hundred to flight SK one one zero. That flight departs November tenth at eleven AM and arrives at six PM, with no change fee. Say yes if that works for you.",
+            "Your flight is now confirmed on SK one one zero, departing November tenth at eleven AM and arriving at six PM. Safe travels!"
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "client": "novatel",
+      "variant": "previous",
+      "summary": {
+        "replies": 2,
+        "meanWords": 23.5,
+        "meanSentences": 2.5,
+        "stockOpenerRate": 0,
+        "multiQuestionRate": 0,
+        "unspeakableRate": 0,
+        "uncontractedShare": 0,
+        "meanApologies": 0,
+        "narratesToolsRate": 0
+      },
+      "scenarios": [
+        {
+          "scenario": "voice-bill-question",
+          "turns": [
+            "Why is my bill higher this month",
+            "It's N T two zero zero two, last name Alvarez"
+          ],
+          "replies": [
+            "I’m happy to help. Could you please tell me your account number and the last name on the account?",
+            "Your bill is $58, up $18 from last month. The extra $18 is for International roaming you used for 3 days. The payment is due by November 15."
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "client": "novatel",
+      "variant": "new",
+      "summary": {
+        "replies": 2,
+        "meanWords": 27.5,
+        "meanSentences": 2.5,
+        "stockOpenerRate": 0,
+        "multiQuestionRate": 0,
+        "unspeakableRate": 0,
+        "uncontractedShare": 0,
+        "meanApologies": 0,
+        "narratesToolsRate": 0
+      },
+      "scenarios": [
+        {
+          "scenario": "voice-bill-question",
+          "turns": [
+            "Why is my bill higher this month",
+            "It's N T two zero zero two, last name Alvarez"
+          ],
+          "replies": [
+            "I can check that for you. Could you tell me your account number and the last name on the account?",
+            "Your total this month is $58, up $18 from last month. The extra $18 is for three days of international roaming, which shows as a separate line item. The bill is due by November 15."
+          ],
+          "failures": []
+        }
+      ]
+    }
+  ]
+}

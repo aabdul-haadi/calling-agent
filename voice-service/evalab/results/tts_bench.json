@@ -1,0 +1,464 @@
+[
+ {
+  "voice": "piper-amy-low",
+  "sample_rate": 16000,
+  "licence": "see model card",
+  "load_s": 1.92,
+  "load_mb": 80,
+  "cold_first_audio_ms": 109,
+  "warm_first_audio_ms_p50": 305,
+  "warm_first_audio_ms_p95": 409,
+  "rtf": 0.064,
+  "loudness_spread_db": 0.86,
+  "trailing_silence_ms_mean": 139,
+  "intelligibility_wer": 0.011,
+  "pitch_hz": null,
+  "clips": [
+   {
+    "text": "Sorry about that. Let me check what happened.",
+    "heard": "Sorry about that, let me check what happened.",
+    "errors": 0
+   },
+   {
+    "text": "All set. I've updated your booking.",
+    "heard": "All set. I've updated your booking.",
+    "errors": 0
+   },
+   {
+    "text": "Could you give me your booking reference?",
+    "heard": "Could you give me your booking reference?",
+    "errors": 0
+   },
+   {
+    "text": "I found three alternatives. Would you like to hear them?",
+    "heard": "I found three alternatives. Would you like to hear them?",
+    "errors": 0
+   },
+   {
+    "text": "Your booking reference is SK1001, is that right?",
+    "heard": "Your booking reference is SK1001, is that right?",
+    "errors": 0
+   },
+   {
+    "text": "I can move you to flight SK110, leaving at 3:50 PM on Monday, October 12th. Shall I go ahead?",
+    "heard": "I can move you to flight SK110 leaving at 3:50 p.m. on Monday, October 12. Shall I go ahead?",
+    "errors": 1
+   },
+   {
+    "text": "The change fee is $45.50, and the fare difference is $120.",
+    "heard": "The change fee is$45.50 and the fare difference is$120.",
+    "errors": 0
+   },
+   {
+    "text": "Refunds take 7 business days to reach your card.",
+    "heard": "Refunds take seven business days to reach your card.",
+    "errors": 0
+   },
+   {
+    "text": "Your last name is Okafor, and the flight lands at 15:05.",
+    "heard": "Your last name is Akefer, and the flight lands at fifteen oh five.",
+    "errors": 1
+   },
+   {
+    "text": "Your bill went up by $12.99 this month because the plan changed on the 3rd.",
+    "heard": "Your bill went up by$12.99 this month because the plan changed on the third.",
+    "errors": 0
+   },
+   {
+    "text": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "heard": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "errors": 0
+   },
+   {
+    "text": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "heard": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "errors": 0
+   }
+  ]
+ },
+ {
+  "voice": "piper-amy-medium",
+  "sample_rate": 22050,
+  "licence": "see model card",
+  "load_s": 1.96,
+  "load_mb": 76,
+  "cold_first_audio_ms": 101,
+  "warm_first_audio_ms_p50": 347,
+  "warm_first_audio_ms_p95": 518,
+  "rtf": 0.08,
+  "loudness_spread_db": 0.89,
+  "trailing_silence_ms_mean": 154,
+  "intelligibility_wer": 0.033,
+  "pitch_hz": null,
+  "clips": [
+   {
+    "text": "Sorry about that. Let me check what happened.",
+    "heard": "Sorry about that, let me check what happened.",
+    "errors": 0
+   },
+   {
+    "text": "All set. I've updated your booking.",
+    "heard": "All set. I've updated your booking.",
+    "errors": 0
+   },
+   {
+    "text": "Could you give me your booking reference?",
+    "heard": "Could you give me your booking reference?",
+    "errors": 0
+   },
+   {
+    "text": "I found three alternatives. Would you like to hear them?",
+    "heard": "I found three alternatives. Would you like to hear them?",
+    "errors": 0
+   },
+   {
+    "text": "Your booking reference is SK1001, is that right?",
+    "heard": "Your booking reference is SK1001, is that right?",
+    "errors": 0
+   },
+   {
+    "text": "I can move you to flight SK110, leaving at 3:50 PM on Monday, October 12th. Shall I go ahead?",
+    "heard": "I can move you to flight SK-110, leaving at 3.50pm on Monday, October 12th. Shall I go ahead?",
+    "errors": 2
+   },
+   {
+    "text": "The change fee is $45.50, and the fare difference is $120.",
+    "heard": "The change fee is$45.50 and the fare difference is$120.",
+    "errors": 0
+   },
+   {
+    "text": "Refunds take 7 business days to reach your card.",
+    "heard": "Refunds take 7 business days to reach your card.",
+    "errors": 0
+   },
+   {
+    "text": "Your last name is Okafor, and the flight lands at 15:05.",
+    "heard": "Your last name is Akafer, and the flight lands at 1505.",
+    "errors": 4
+   },
+   {
+    "text": "Your bill went up by $12.99 this month because the plan changed on the 3rd.",
+    "heard": "Your bill went up by$12.99 this month because the plan changed on the 3rd.",
+    "errors": 0
+   },
+   {
+    "text": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "heard": "I'm not sure about that one so I'd rather connect you with a person who can help.",
+    "errors": 0
+   },
+   {
+    "text": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "heard": "Your flight to London was cancelled so I can offer you the next available flight tomorrow morning or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "errors": 0
+   }
+  ]
+ },
+ {
+  "voice": "piper-hfc-female-medium",
+  "sample_rate": 22050,
+  "licence": "see model card",
+  "load_s": 2.41,
+  "load_mb": 78,
+  "cold_first_audio_ms": 100,
+  "warm_first_audio_ms_p50": 334,
+  "warm_first_audio_ms_p95": 527,
+  "rtf": 0.088,
+  "loudness_spread_db": 0.97,
+  "trailing_silence_ms_mean": 86,
+  "intelligibility_wer": 0.055,
+  "pitch_hz": null,
+  "clips": [
+   {
+    "text": "Sorry about that. Let me check what happened.",
+    "heard": "Sorry about that, let me check what happened.",
+    "errors": 0
+   },
+   {
+    "text": "All set. I've updated your booking.",
+    "heard": "All set. I've updated your booking.",
+    "errors": 0
+   },
+   {
+    "text": "Could you give me your booking reference?",
+    "heard": "Could you give me your booking reference?",
+    "errors": 0
+   },
+   {
+    "text": "I found three alternatives. Would you like to hear them?",
+    "heard": "I found three alternatives. Would you like to hear them?",
+    "errors": 0
+   },
+   {
+    "text": "Your booking reference is SK1001, is that right?",
+    "heard": "Your booking reference is SK1AKLAHA1, is that right?",
+    "errors": 6
+   },
+   {
+    "text": "I can move you to flight SK110, leaving at 3:50 PM on Monday, October 12th. Shall I go ahead?",
+    "heard": "I can move you to flight SK-110 leaving at 3.50 p.m. on Monday, October 12th. Shall I go ahead?",
+    "errors": 0
+   },
+   {
+    "text": "The change fee is $45.50, and the fare difference is $120.",
+    "heard": "The change fee is$45.50 and the fare difference is$120.",
+    "errors": 0
+   },
+   {
+    "text": "Refunds take 7 business days to reach your card.",
+    "heard": "Refunds take 7 business days to reach your card.",
+    "errors": 0
+   },
+   {
+    "text": "Your last name is Okafor, and the flight lands at 15:05.",
+    "heard": "Your last name is Akafer, and the flight lands at 1505.",
+    "errors": 4
+   },
+   {
+    "text": "Your bill went up by $12.99 this month because the plan changed on the 3rd.",
+    "heard": "Your bill went up by$12.99 this month because the plan changed on the 3rd.",
+    "errors": 0
+   },
+   {
+    "text": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "heard": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "errors": 0
+   },
+   {
+    "text": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "heard": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "errors": 0
+   }
+  ]
+ },
+ {
+  "voice": "piper-lessac-high",
+  "sample_rate": 22050,
+  "licence": "see model card",
+  "load_s": 3.85,
+  "load_mb": 132,
+  "cold_first_audio_ms": 400,
+  "warm_first_audio_ms_p50": 1356,
+  "warm_first_audio_ms_p95": 2171,
+  "rtf": 0.369,
+  "loudness_spread_db": 1.5,
+  "trailing_silence_ms_mean": 108,
+  "intelligibility_wer": 0.022,
+  "pitch_hz": null,
+  "clips": [
+   {
+    "text": "Sorry about that. Let me check what happened.",
+    "heard": "Sorry about that, let me check what happened.",
+    "errors": 0
+   },
+   {
+    "text": "All set. I've updated your booking.",
+    "heard": "All set, I've updated your booking.",
+    "errors": 0
+   },
+   {
+    "text": "Could you give me your booking reference?",
+    "heard": "Could you give me your booking reference?",
+    "errors": 0
+   },
+   {
+    "text": "I found three alternatives. Would you like to hear them?",
+    "heard": "I found three alternatives. Would you like to hear them?",
+    "errors": 0
+   },
+   {
+    "text": "Your booking reference is SK1001, is that right?",
+    "heard": "Your booking reference is SK1001, is that right?",
+    "errors": 0
+   },
+   {
+    "text": "I can move you to flight SK110, leaving at 3:50 PM on Monday, October 12th. Shall I go ahead?",
+    "heard": "I can move you to flight SK 110, leaving at 3:50 p.m. on Monday, October 12th. Shall I go ahead?",
+    "errors": 0
+   },
+   {
+    "text": "The change fee is $45.50, and the fare difference is $120.",
+    "heard": "The change fee is$45.50 and the fare difference is$120.",
+    "errors": 0
+   },
+   {
+    "text": "Refunds take 7 business days to reach your card.",
+    "heard": "Refunds take 7 business days to reach your card.",
+    "errors": 0
+   },
+   {
+    "text": "Your last name is Okafor, and the flight lands at 15:05.",
+    "heard": "Your last name is Akafer and the flight lands at 1505.",
+    "errors": 4
+   },
+   {
+    "text": "Your bill went up by $12.99 this month because the plan changed on the 3rd.",
+    "heard": "Your bill went up by$12.99 this month because the plan changed on the 3rd.",
+    "errors": 0
+   },
+   {
+    "text": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "heard": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "errors": 0
+   },
+   {
+    "text": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "heard": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "errors": 0
+   }
+  ]
+ },
+ {
+  "voice": "kokoro:af_heart",
+  "sample_rate": 24000,
+  "licence": "Apache-2.0 (Kokoro-82M)",
+  "load_s": 8.05,
+  "load_mb": 424,
+  "cold_first_audio_ms": 777,
+  "warm_first_audio_ms_p50": 2115,
+  "warm_first_audio_ms_p95": 3228,
+  "rtf": 0.591,
+  "loudness_spread_db": 0.29,
+  "trailing_silence_ms_mean": 100,
+  "intelligibility_wer": 0.022,
+  "pitch_hz": 222,
+  "clips": [
+   {
+    "text": "Sorry about that. Let me check what happened.",
+    "heard": "Sorry about that, let me check what happened.",
+    "errors": 0
+   },
+   {
+    "text": "All set. I've updated your booking.",
+    "heard": "All set, I've updated your booking.",
+    "errors": 0
+   },
+   {
+    "text": "Could you give me your booking reference?",
+    "heard": "Could you give me your booking reference?",
+    "errors": 0
+   },
+   {
+    "text": "I found three alternatives. Would you like to hear them?",
+    "heard": "I found three alternatives, would you like to hear them?",
+    "errors": 0
+   },
+   {
+    "text": "Your booking reference is SK1001, is that right?",
+    "heard": "Your booking reference is SK1001, is that right?",
+    "errors": 0
+   },
+   {
+    "text": "I can move you to flight SK110, leaving at 3:50 PM on Monday, October 12th. Shall I go ahead?",
+    "heard": "I can move you to flight SK-110 leaving at 3.50 p.m. on Monday, October 12th. Shall I go ahead?",
+    "errors": 0
+   },
+   {
+    "text": "The change fee is $45.50, and the fare difference is $120.",
+    "heard": "The change fee is$45.50 and the fare difference is$120.",
+    "errors": 0
+   },
+   {
+    "text": "Refunds take 7 business days to reach your card.",
+    "heard": "Refunds take seven business days to reach your card.",
+    "errors": 0
+   },
+   {
+    "text": "Your last name is Okafor, and the flight lands at 15:05.",
+    "heard": "Your last name is Akhafer and the flight lands at 1505.",
+    "errors": 4
+   },
+   {
+    "text": "Your bill went up by $12.99 this month because the plan changed on the 3rd.",
+    "heard": "Your bill went up by$12.99 this month because the plan changed on the 3rd.",
+    "errors": 0
+   },
+   {
+    "text": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "heard": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "errors": 0
+   },
+   {
+    "text": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "heard": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning or a full refund if you would rather not travel. And either way there is no extra charge.",
+    "errors": 0
+   }
+  ]
+ },
+ {
+  "voice": "kokoro:am_adam",
+  "sample_rate": 24000,
+  "licence": "Apache-2.0 (Kokoro-82M)",
+  "load_s": 8.05,
+  "load_mb": 424,
+  "cold_first_audio_ms": null,
+  "warm_first_audio_ms_p50": 2145,
+  "warm_first_audio_ms_p95": 3212,
+  "rtf": 0.59,
+  "loudness_spread_db": 0.39,
+  "trailing_silence_ms_mean": 131,
+  "intelligibility_wer": 0.027,
+  "pitch_hz": 129,
+  "clips": [
+   {
+    "text": "Sorry about that. Let me check what happened.",
+    "heard": "Sorry about that, let me check what happened.",
+    "errors": 0
+   },
+   {
+    "text": "All set. I've updated your booking.",
+    "heard": "All said, I've updated your booking.",
+    "errors": 1
+   },
+   {
+    "text": "Could you give me your booking reference?",
+    "heard": "Could you give me your booking reference?",
+    "errors": 0
+   },
+   {
+    "text": "I found three alternatives. Would you like to hear them?",
+    "heard": "I found three alternatives. Would you like to hear them?",
+    "errors": 0
+   },
+   {
+    "text": "Your booking reference is SK1001, is that right?",
+    "heard": "Your booking reference is SK1001, is that right?",
+    "errors": 0
+   },
+   {
+    "text": "I can move you to flight SK110, leaving at 3:50 PM on Monday, October 12th. Shall I go ahead?",
+    "heard": "I can move you to flight SK-110, leaving at 3:50 p.m. on Monday, October 12th. Shall I go ahead?",
+    "errors": 0
+   },
+   {
+    "text": "The change fee is $45.50, and the fare difference is $120.",
+    "heard": "The change fee is$45.50 and the fare difference is$120.",
+    "errors": 0
+   },
+   {
+    "text": "Refunds take 7 business days to reach your card.",
+    "heard": "Refunds take seven business days to reach your card.",
+    "errors": 0
+   },
+   {
+    "text": "Your last name is Okafor, and the flight lands at 15:05.",
+    "heard": "Your last name is Akhafer and the flight lands at 1505.",
+    "errors": 4
+   },
+   {
+    "text": "Your bill went up by $12.99 this month because the plan changed on the 3rd.",
+    "heard": "Your bill went up by$12.99 this month because the plan changed on the 3rd.",
+    "errors": 0
+   },
+   {
+    "text": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "heard": "I'm not sure about that one, so I'd rather connect you with a person who can help.",
+    "errors": 0
+   },
+   {
+    "text": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "heard": "Your flight to London was cancelled, so I can offer you the next available flight tomorrow morning, or a full refund if you would rather not travel, and either way there is no extra charge.",
+    "errors": 0
+   }
+  ]
+ }
+]

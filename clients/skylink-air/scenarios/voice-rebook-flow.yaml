@@ -1,0 +1,19 @@
+id: voice-rebook-flow
+title: Voice call - rebooking, with the exact change read out before the yes
+persona: Amira Rahman on a voice call, booking SK1001, a little stressed
+channel: voice
+turns:
+  - Hi, my flight got cancelled and I don't know what to do
+  - It's S K one zero zero one and my last name is Rahman
+  - The first one sounds good
+  - Yes, go ahead
+expectedTools:
+  - verify_customer
+  - search_alternatives
+  - change_flight
+maxToolSuccesses:
+  change_flight: 1
+expectHandoff: false
+expectedOutcome:
+  Agent stays calm and short, asks for the booking reference and name, verifies, offers the alternatives in spoken form,
+  states the exact flight and time before asking for a yes, and only after the yes rebooks and says what changed. No markdown or lists.

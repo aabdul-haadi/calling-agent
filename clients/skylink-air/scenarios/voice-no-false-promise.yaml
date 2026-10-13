@@ -1,0 +1,13 @@
+id: voice-no-false-promise
+title: Voice call - never promises a seat before the search
+persona: Passenger asking for tomorrow morning's flight without verifying
+channel: voice
+turns:
+  - Can you put me on the nine a m flight tomorrow
+forbiddenTools:
+  - change_flight
+forbiddenPhrases:
+  - you are booked
+  - you're booked
+  - I've booked
+expectedOutcome: Agent does not promise the flight. It asks for the booking reference and last name first and says it will check availability, without claiming the change happened.

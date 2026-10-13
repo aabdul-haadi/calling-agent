@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/database/migrate-cli.ts",
     "ingest": "tsx src/knowledge/ingest-cli.ts",
-    "eval": "tsx src/evals/cli.ts"
+    "eval": "tsx src/evals/cli.ts",
+    "voice-style": "tsx src/evals/voice-style.ts"
   },
   "dependencies": {
     "@adk/shared": "workspace:*",

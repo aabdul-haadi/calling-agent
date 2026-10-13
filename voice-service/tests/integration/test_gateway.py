@@ -31,7 +31,7 @@ async def test_a_valid_session_starts_and_announces_its_limits(gateway):
     c = await Client.connect(gateway)
     started = await c.wait_for("session.started", 5)
     assert started["protocol"] == 1 and started["inputSampleRate"] == 16000
-    assert started["outputSampleRate"] == 16000
+    assert started["outputSampleRate"] == gateway.engine.synth.sample_rate
     assert started["limits"]["maxFrameBytes"] == gateway.settings.max_frame_bytes
     assert started["seq"] == 1 and started["session"]
     await c.close()
@@ -223,7 +223,7 @@ async def test_speech_in_text_and_speech_out(gateway):
     call = gateway.agent.calls[-1]
     assert call["client_id"] == "skylink-air" and wer(GREETING, call["message"]) <= 0.35
     # speech came back as binary frames: right turn, right rate, real audio
-    assert c.frames and all(f.turn == final["turn"] and f.sample_rate == 16000 for _, f in c.frames)
+    assert c.frames and all(f.turn == final["turn"] and f.sample_rate == gateway.engine.synth.sample_rate for _, f in c.frames)
     pcm = np.concatenate([np.frombuffer(bytes(f.pcm), dtype="<i2") for _, f in c.frames]).astype(np.float32) / 32768
     assert pcm.size > 16000 and float(np.sqrt(np.mean(pcm**2))) > 0.01
     assert c.frames[-1][1].last

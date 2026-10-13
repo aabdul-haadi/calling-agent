@@ -41,8 +41,11 @@ class Settings:
     asr_refine: str = field(default_factory=lambda: os.environ.get("VOICE_ASR_REFINE", "parakeet-tdt-0.6b-v2"))
     asr_refine_threads: int = field(default_factory=lambda: _i("VOICE_ASR_REFINE_THREADS", 4))
     diagnostics: bool = field(default_factory=lambda: os.environ.get("VOICE_DIAGNOSTICS", "").lower() in ("1", "true", "yes"))
+    pause_sentence_ms: int = field(default_factory=lambda: _i("VOICE_PAUSE_SENTENCE_MS", 160))
+    pause_clause_ms: int = field(default_factory=lambda: _i("VOICE_PAUSE_CLAUSE_MS", 60))
+    progress_after_s: float = field(default_factory=lambda: _f("VOICE_PROGRESS_AFTER_S", 3.0))
     asr_threads: int = field(default_factory=lambda: _i("VOICE_ASR_THREADS", 2))
-    tts_model: str = field(default_factory=lambda: os.environ.get("VOICE_TTS_MODEL", "piper-amy-low"))
+    tts_model: str = field(default_factory=lambda: os.environ.get("VOICE_TTS_MODEL", "piper-amy-medium"))
     tts_threads: int = field(default_factory=lambda: _i("VOICE_TTS_THREADS", 2))
     tts_speed: float = field(default_factory=lambda: _f("VOICE_TTS_SPEED", 1.0))
 
