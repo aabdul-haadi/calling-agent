@@ -31,6 +31,8 @@ export interface ChatServiceDeps {
   db: Db;
   registry: ClientRegistry;
   llm: LlmClient;
+  /** A faster model for classifying each message (optional). */
+  classifier?: LlmClient;
   logger: Logger;
   env: Env;
   retrieve?: Retriever;
@@ -182,6 +184,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     const out = await runTurn(
       {
         llm: deps.llm,
+        classifier: deps.classifier,
         logger: deps.logger,
         idempotency,
         retrieve: deps.retrieve,

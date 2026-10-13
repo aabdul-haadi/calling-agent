@@ -42,12 +42,19 @@ class FakeDetector:
         return out
 
 
-def detector_pair(normal: list[tuple[int, str]], strict: list[tuple[int, str]] | None = None):
+def detector_pair(normal: list[tuple[int, str]], strict: list[tuple[int, str]] | None = None,
+                  pre: list[tuple[int, str]] | None = None):
     """A factory that hands out the scripted detectors in order: normal first, strict second."""
     made = [FakeDetector(normal), FakeDetector(strict if strict is not None else normal)]
 
-    def factory(**_: Any) -> FakeDetector:
-        return made.pop(0)
+    def factory(**kw: Any) -> FakeDetector:
+        if made:
+            return made.pop(0)
+        # the third one (closing-pause detector) reports the end of speech earlier than the main one
+        if pre is not None:
+            return FakeDetector(pre)
+        shift = max(0, int(16000 * (600 - kw.get("min_silence_ms", 300)) / 1000))
+        return FakeDetector([(p - shift if k == "end" else p, k) for p, k in normal])
 
     return factory
 
@@ -71,6 +78,12 @@ class FakeStream:
         n = min(len(words), self.samples // 3200)
         return " ".join(words[:n])
 
+    def prefetch(self) -> None:
+        self.owner.prefetch_calls += 1
+
+    def discard_prefetch(self) -> None:
+        self.owner.discards += 1
+
     def finish(self) -> Transcript:
         if self.owner.fail_on_finish:
             raise RuntimeError("asr finish exploded")
@@ -86,6 +99,8 @@ class FakeRecognizer:
     weakest: float = 0.6
     agreement: float | None = None  # set to imitate the two-pass recognizer
     fail_on_accept: bool = False
+    prefetch_calls: int = 0
+    discards: int = 0
     fail_on_finish: bool = False
     sample_rate: int = 16000
     name: str = "fake-asr"

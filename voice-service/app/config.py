@@ -65,6 +65,9 @@ class Settings:
     # about 0.05; the agent's own voice echoed 20 dB down is about 0.009. 0 disables the gate.
     barge_in_min_rms: float = field(default_factory=lambda: _f("VOICE_BARGE_IN_MIN_RMS", 0.015))
     # Extra wait before ending a turn that stops on a word like "and" or "is". 0 turns it off.
+    # Start the accurate second pass this long into the pause at the end of a turn, so most of its
+    # work is done by the time the turn is confirmed over (0 turns it off).
+    prefetch_silence_ms: int = field(default_factory=lambda: _i("VOICE_PREFETCH_SILENCE_MS", 300))
     hold_for_hanging_word_ms: int = field(default_factory=lambda: _i("VOICE_HOLD_HANGING_MS", 600))
 
     # Limits (all enforced, see sessions/manager.py)

@@ -8,7 +8,7 @@ import { Waveform } from '@/components/voice/voice-controls';
 import { useVoiceGateway } from '@/hooks/use-voice-gateway';
 import { cn } from '@/lib/utils';
 import { gatewayAgentMode } from '@/voice/agent-mode';
-import { STATUS_TEXT, toolPhrase } from '@/voice/state';
+import { STATUS_TEXT, stripSourceTags, toolPhrase } from '@/voice/state';
 
 /** The server's own measurements, in the order a turn goes through them. */
 const TIMING_ROWS: [string, string][] = [
@@ -253,7 +253,7 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
                     <span className="font-medium">
                       {l.who === 'you' ? 'You' : client.persona.name}:{' '}
                     </span>
-                    {l.text}
+                    {l.who === 'agent' ? stripSourceTags(l.text) : l.text}
                     {l.uncertain && (
                       <Badge tone="warn" className="ml-2">
                         not sure I heard that

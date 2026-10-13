@@ -198,3 +198,10 @@ const TOOL_PHRASES: Record<string, string> = {
 };
 export const toolPhrase = (tool?: string): string =>
   (tool && TOOL_PHRASES[tool]) || 'Checking a system…';
+
+/** The model may still write "[Source: refunds, page 3]" out of habit. On a voice call the sources have their own panel, so the tag is not shown in the transcript. */
+export const stripSourceTags = (text: string): string =>
+  text
+    .replace(/\s*[[【(]\s*Source:[^\]】)]*[\]】)]/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();

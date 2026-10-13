@@ -22,6 +22,8 @@ class Transcript:
     streaming_text: str | None = None
     agreement: float | None = None
     refine_ms: float | None = None
+    # True when the accurate pass had already been started during the pause at the end of the turn.
+    prefetched: bool = False
 
 
 class RecognizerStream(Protocol):

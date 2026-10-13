@@ -36,6 +36,8 @@ export const MAX_LOOP_ITERATIONS = 6;
 
 export interface TurnDeps {
   llm: LlmClient;
+  /** Classifies each message when set (a faster model); otherwise `llm` does. */
+  classifier?: LlmClient;
   logger: Logger;
   makeApi: (sim: SimulatorControls) => ApiClient;
   idempotency: IdempotencyStore;

@@ -30,6 +30,8 @@ export const envSchema = z.object({
   EMBEDDING_PROVIDER: z.enum(['local', 'semantic', 'hash', 'openai']).default('semantic'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
 
+  /** Optional smaller, faster model just for classifying each message (intent, mood, yes/no). Same provider and key. */
+  LLM_CLASSIFIER_MODEL: z.string().min(1).optional(),
   /** Handle a bare yes / no / greeting / thanks by rules instead of a model call. */
   AGENT_FAST_CLASSIFY: z
     .enum(['on', 'off'])

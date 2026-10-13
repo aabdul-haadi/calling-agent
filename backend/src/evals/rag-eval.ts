@@ -17,6 +17,8 @@ import {
   type EmbeddingProvider,
 } from '../knowledge';
 import { createLogger } from '../logger';
+import { clientDir, loadClients } from '../clients';
+import { ingestClient } from '../knowledge';
 
 // Usage: pnpm --filter @adk/backend rag-eval [semantic|hash] [label]
 // Builds a knowledge base from the test PDFs (docproc/tests/corpus, made by `pnpm docs:corpus`),
@@ -49,7 +51,10 @@ const facts = JSON.parse(await readFile(resolve(CORPUS, 'facts.json'), 'utf8')) 
 
 const providerName = process.argv[2]?.startsWith('hash') ? 'hash' : 'semantic';
 const useRerank = process.argv[2]?.endsWith('+rerank') ?? false;
-const label = process.argv[3] ?? (useRerank ? `${providerName}-rerank` : providerName);
+const label =
+  process.argv[3] ??
+  (useRerank ? `${providerName}-rerank` : providerName) +
+    (process.env.RAG_EVAL_BUILTINS === '1' ? '-builtins' : '');
 const embeddings: EmbeddingProvider = providerName === 'hash' ? hashProvider : semanticProvider();
 await embeddings.warmUp?.();
 
@@ -76,6 +81,19 @@ async function upload(clientId: string, file: string, as: string) {
 }
 
 const ingestMs: Record<string, number> = {};
+// RAG_EVAL_BUILTINS=1 also indexes each company's own built-in policy files next to the PDFs, as a
+// real tenant has them. Several documents then say similar things, which is the harder case.
+const withBuiltins = process.env.RAG_EVAL_BUILTINS === '1';
+if (withBuiltins) {
+  for (const m of loadClients().list()) {
+    await ingestClient(
+      db.db,
+      embeddings,
+      m.config.id,
+      resolve(clientDir(m), m.config.knowledgeDir),
+    );
+  }
+}
 // The old edition goes in first and is then replaced by the current one under the same name.
 ingestMs['skylink v1'] = await upload('skylink-air', 'skylink-handbook-v1', 'skylink-handbook.pdf');
 ingestMs['skylink v2 (replaces v1)'] = await upload(
@@ -219,6 +237,8 @@ const summary = {
   label,
   embeddings: embeddings.name,
   reranker: reranker?.name ?? null,
+  withBuiltIns: withBuiltins,
+  rerankTop: retrievalFor(embeddings).rerankTop,
   at: new Date().toISOString(),
   ingestMs,
   questions: rows.length,

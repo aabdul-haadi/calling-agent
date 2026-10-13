@@ -93,9 +93,8 @@ const read = () =>
   });
 
 const stop = Date.now() + seconds * 1000;
-let state = await read();
 while (Date.now() < stop) {
-  state = await read();
+  const state = await read();
   const at = ((Date.now() - t0) / 1000).toFixed(1);
   if (state.status !== lastStatus) {
     seen.push({ at: Number(at), status: state.status });

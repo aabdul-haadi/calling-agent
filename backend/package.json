@@ -15,7 +15,8 @@
     "latency-bench": "tsx src/evals/latency-bench.ts",
     "rag-eval": "tsx src/evals/rag-eval.ts",
     "rag-answers": "tsx src/evals/rag-answers.ts",
-    "rag-scale": "tsx src/evals/rag-scale.ts"
+    "rag-scale": "tsx src/evals/rag-scale.ts",
+    "classify-eval": "tsx src/evals/classify-eval.ts"
   },
   "dependencies": {
     "@adk/shared": "workspace:*",

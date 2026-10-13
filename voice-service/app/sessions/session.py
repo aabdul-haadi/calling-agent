@@ -79,6 +79,7 @@ class _Turn:
     first_partial_at: float | None = None
     end_deadline: float | None = None  # set while a turn is held open for a hanging word
     held: bool = False
+    prefetching: bool = False  # the accurate second pass was started during the closing pause
     marks: dict[str, float] = field(default_factory=dict)
     agent_timings: dict[str, Any] | None = None  # the runtime's per-stage timings for this turn
 
@@ -276,6 +277,17 @@ class VoiceSession:
             min_speech_ms=settings.barge_in_min_ms,
             min_silence_ms=settings.end_silence_ms,
         )
+        # A third, quicker one notices the start of the closing pause, so the accurate second pass
+        # can begin before the turn is confirmed over (see RefiningStream.prefetch).
+        self._pre = (
+            detector_factory(
+                threshold=settings.vad_threshold,
+                min_speech_ms=settings.min_speech_ms,
+                min_silence_ms=settings.prefetch_silence_ms,
+            )
+            if 0 < settings.prefetch_silence_ms < settings.end_silence_ms
+            else None
+        )
 
         self.state = State.LISTENING
         self._started = clock()
@@ -432,6 +444,7 @@ class VoiceSession:
 
         normal = self._vad.feed(x)
         strict = self._barge.feed(x)
+        pre = self._pre.feed(x) if self._pre is not None else []
 
         began = False  # a turn that begins now is fed from the look-back buffer, which includes x
         # 1. The customer is interrupting the agent (thinking or speaking). The strict detector must
@@ -459,6 +472,7 @@ class VoiceSession:
                 return
             turn = self._turn
             turn_s = turn.fed_samples / SAMPLE_RATE
+            self._watch_closing_pause(turn, pre)
             if ended and self._hold_for_hanging_word(turn, now):
                 ended = False
             elif turn.end_deadline is not None:
@@ -472,6 +486,20 @@ class VoiceSession:
                 self.emit(ev.SESSION_ERROR, self._turn.id, code=ev.E_TOO_LONG, fatal=False,
                           message="That was a very long turn, so I took it as finished")
                 await self._end_turn(now, silence_ms=0)
+
+    def _watch_closing_pause(self, turn: _Turn, pre: list[VadEvent]) -> None:
+        """Start the accurate second pass early, and drop it if the customer was only pausing."""
+        prefetch = getattr(turn.stream, "prefetch", None)
+        if prefetch is None:
+            return
+        if turn.prefetching and any(e.kind == "start" for e in pre):
+            turn.stream.discard_prefetch()  # type: ignore[attr-defined]
+            turn.prefetching = False
+            self._metrics.count("prefetch_discarded")
+        if not turn.prefetching and any(e.kind == "end" for e in pre) and turn.fed_samples >= SAMPLE_RATE // 2:
+            turn.prefetching = True
+            self._metrics.count("prefetch_started")
+            asyncio.create_task(asyncio.to_thread(prefetch), name=f"prefetch-{self.id}-{turn.id}")
 
     def _hold_for_hanging_word(self, turn: _Turn, now: float) -> bool:
         """Silence was detected, but the sentence ends on a word that cannot end a sentence."""
@@ -587,6 +615,8 @@ class VoiceSession:
         )
         self._metrics.observe("speech_end_to_final_ms", (turn.marks["final"] - speech_end) * 1000)
         self._metrics.observe("final_asr_ms", asr_ms)
+        if getattr(final, "prefetched", False):
+            self._metrics.count("prefetch_used")
         if low:
             self._metrics.count("low_confidence_transcripts")
         self._start_reply(turn, text, low)

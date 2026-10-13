@@ -734,3 +734,48 @@ async def test_where_an_answer_came_from_is_forwarded_for_the_screen_and_validat
     await r.until(lambda: r.synth.phrases)
     assert all("Handbook" not in p and "page" not in p for p in r.synth.phrases)
     await r.close()
+
+
+# ---- starting the accurate pass during the closing pause ---------------------------------------
+
+
+async def test_the_accurate_pass_starts_in_the_pause_before_the_turn_is_confirmed_over():
+    rec = FakeRecognizer(text="Can I get a refund")
+    r = Rig(TURN, rec=rec)
+    await r.start()
+    await r.frames(frames_for(2.45))  # past the start of the pause (2.3 s), before the turn ends (2.6 s)
+    await r.until(lambda: rec.prefetch_calls == 1)
+    assert "transcript.final" not in r.types()
+    await r.frames(frames_for(0.4))
+    await r.until(lambda: r.of(ev.TRANSCRIPT_FINAL))
+    assert rec.prefetch_calls == 1
+    assert r.metrics.snapshot()["counts"]["prefetch_started"] == 1
+    await r.close()
+
+
+async def test_a_pause_that_was_only_a_breath_throws_the_early_pass_away():
+    rec = FakeRecognizer(text="I would like to change my flight")
+    # the closing-pause detector hears a pause at 1.7 s and speech again at 1.9 s; the turn ends at 3.9 s
+    r = Rig([(seconds(0.6), "start"), (seconds(3.9), "end")], rec=rec)
+    r.session._pre = None  # replaced below by a scripted one
+    from tests.fakes import FakeDetector
+
+    r.session._pre = FakeDetector([(seconds(0.6), "start"), (seconds(1.7), "end"), (seconds(1.9), "start"), (seconds(3.3), "end")])
+    await r.start()
+    await r.frames(frames_for(4.0))
+    await r.until(lambda: r.of(ev.TRANSCRIPT_FINAL))
+    assert rec.prefetch_calls == 2  # one at the breath, one at the real pause
+    assert rec.discards == 1  # the first result was dropped when speech resumed
+    assert r.metrics.snapshot()["counts"]["prefetch_discarded"] == 1
+    await r.close()
+
+
+async def test_nothing_is_started_early_when_it_is_switched_off():
+    rec = FakeRecognizer(text="Hello")
+    off = Settings(gateway_secret="s", end_silence_ms=600, barge_in_min_ms=160, pre_roll_ms=300,
+                   barge_in_min_rms=0.0, prefetch_silence_ms=0)
+    r = Rig(TURN, rec=rec, settings=off)
+    await turn(r)
+    await r.until(lambda: r.of(ev.TRANSCRIPT_FINAL))
+    assert rec.prefetch_calls == 0 and r.session._pre is None
+    await r.close()

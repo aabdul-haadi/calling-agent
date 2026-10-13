@@ -358,6 +358,17 @@ describe('Voice Lab with the local engine', () => {
   });
 });
 
+describe('Voice Lab transcript', () => {
+  it('does not show source tags the model wrote out of habit', async () => {
+    const { stripSourceTags } = await import('@/voice/state');
+    expect(
+      stripSourceTags('Refunds take seven days [Source: refunds, page 3]. Anything else?'),
+    ).toBe('Refunds take seven days. Anything else?');
+    expect(stripSourceTags('Yes 【Source: a】 and (Source: b.pdf).')).toBe('Yes and.');
+    expect(stripSourceTags('Plain answer.')).toBe('Plain answer.');
+  });
+});
+
 describe('Voice Lab timing', () => {
   it('shows where the time of the last turn went', async () => {
     const user = userEvent.setup();

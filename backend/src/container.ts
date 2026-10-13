@@ -16,7 +16,7 @@ import {
   type KnowledgeService,
   type Searcher,
 } from './knowledge';
-import { createLlm, type LlmClient } from './llm';
+import { createClassifierLlm, createLlm, type LlmClient } from './llm';
 import type { Logger } from './logger';
 
 export interface Services {
@@ -42,6 +42,7 @@ export function createServices(
 ): Services {
   const registry = loadClients();
   const llm = createLlm(env);
+  const classifier = createClassifierLlm(env);
   const retrieve = createRetriever(db, embeddings, logger, retrievalFor(embeddings), reranker);
   const searcher = createSearcher(db, embeddings, retrievalFor(embeddings), reranker);
   const knowledge = createKnowledgeService({
@@ -60,7 +61,7 @@ export function createServices(
       secret: env.WEBHOOK_SECRET,
     },
   });
-  const base = { db, registry, llm, logger, env, retrieve };
+  const base = { db, registry, llm, classifier, logger, env, retrieve };
   const chat = createChatService({ ...base, handoff });
   const evalChat = createChatService({ ...base, handoff: evalHandoffService });
   const evals = createEvalService({

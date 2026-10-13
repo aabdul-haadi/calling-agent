@@ -74,9 +74,9 @@ Open <http://localhost:5173>. The dark theme is the default; the toggle in the t
 | Traces         | `/traces`          | Any conversation, turn by turn, with search, filters, expandable JSON and the audit log              |
 | Human Handoffs | `/handoffs`        | Queue and filters, reason, summary, conversation, **accept, reply to the customer, resolve**         |
 | Evaluations    | `/evaluations`     | Run a suite, per-category pass rates, run-to-run comparison, expected vs actual, judge kept separate |
-| Knowledge      | `/knowledge`       | The policy documents the agent can cite                                                              |
+| Knowledge      | `/knowledge`       | **Upload policy PDFs** (large and scanned ones too), progress, versions, errors, delete, re-index, and **test a question** against them (passages, pages, scores) |
 | Tenants        | `/tenants/:tenant` | Persona, tools, rules, escalation, journeys, validation, runtime status (change controls disabled)   |
-| Voice Lab      | `/voice`           | Browser voice with a mic-driven waveform, mute, stop, disconnect, transcript                         |
+| Voice Lab      | `/voice`           | Browser voice (browser speech, or the local interruptible engine): waveform, transcript, **sources with page numbers**, **where the time went** |
 | Architecture   | `/architecture`    | The turn lifecycle, phases, security principles, stack and limits                                    |
 
 `Ctrl/Cmd + K` opens a command palette. The tenant selector in the top bar scopes every page.
@@ -90,12 +90,16 @@ New read-only backend endpoints that feed it: `GET /overview`, `GET /conversatio
 ## Running tests
 
 ```bash
-pnpm test        # 185 backend/integration tests + 88 frontend tests (incl. axe accessibility + WCAG contrast)
+pnpm test        # 312 backend/integration tests + 136 frontend tests (incl. axe accessibility + WCAG contrast)
+pnpm voice:test  # Python voice gateway: 149 unit/security tests + 21 integration tests with the real speech models
+pnpm docs:test   # Python PDF reader: 11 tests on generated PDFs (digital, scanned, encrypted, damaged)
 pnpm typecheck
 pnpm lint
 pnpm eval skylink-air     # scenario suite against the REAL LLM (needs an API key and `pnpm dev` mock services running)
 pnpm eval novatel
 ```
+
+Voice, PDF knowledge base and latency work are described in `docs/VOICE.md` and `docs/KNOWLEDGE.md`; measured results are in those files.
 
 Unit tests never call a real model or Docker: the LLM is scripted and Postgres runs in-process (PGlite with pgvector). The scenario evals are separate because they use the real model.
 

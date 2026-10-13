@@ -12,11 +12,11 @@ export { createAnthropicClient, createOpenAiClient };
  * `openai` also covers any OpenAI-compatible server via OPENAI_BASE_URL (Ollama, Groq,
  * OpenRouter...). Local servers like Ollama need no real key.
  */
-export function createLlm(env: Env): LlmClient {
+export function createLlm(env: Env, model: string = env.LLM_MODEL): LlmClient {
   if (env.LLM_PROVIDER === 'openai' && env.OPENAI_BASE_URL) {
     return createOpenAiClient({
       apiKey: isConfigured(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : 'not-needed',
-      model: env.LLM_MODEL,
+      model,
       baseUrl: env.OPENAI_BASE_URL,
       reasoningEffort: env.LLM_REASONING_EFFORT,
     });
@@ -29,10 +29,18 @@ export function createLlm(env: Env): LlmClient {
     };
   }
   return env.LLM_PROVIDER === 'anthropic'
-    ? createAnthropicClient({ apiKey: key, model: env.LLM_MODEL })
+    ? createAnthropicClient({ apiKey: key, model })
     : createOpenAiClient({
         apiKey: key,
-        model: env.LLM_MODEL,
+        model,
         reasoningEffort: env.LLM_REASONING_EFFORT,
       });
+}
+
+/**
+ * A separate, usually smaller and faster, model for the one-line classification of each message
+ * (set LLM_CLASSIFIER_MODEL). Undefined when not set: the main model classifies, as before.
+ */
+export function createClassifierLlm(env: Env): LlmClient | undefined {
+  return env.LLM_CLASSIFIER_MODEL ? createLlm(env, env.LLM_CLASSIFIER_MODEL) : undefined;
 }

@@ -36,7 +36,7 @@ export const DEFAULT_RETRIEVAL: RetrievalConfig = {
   minSimilarity: 0.55,
   minOverlap: 0.34,
   duplicateOverlap: 0.6,
-  rerankTop: 3,
+  rerankTop: Number(process.env.RAG_RERANK_TOP) || 3,
   minRerank: -4.5,
 };
 
