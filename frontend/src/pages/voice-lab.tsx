@@ -1,13 +1,15 @@
 import { Mic, MicOff, PhoneOff, Square, Wrench } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ClientDetail } from '@adk/shared';
 import { AgentOrb } from '@/agent3d/agent-orb';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/state-views';
+import { GatewayLab } from '@/components/voice/gateway-lab';
 import { VOICE_STATUS_TEXT, Waveform, voiceStatus } from '@/components/voice/voice-controls';
 import { useTenant } from '@/context/tenant';
 import { useAgentSignals, lastTurnTools } from '@/hooks/use-agent-signals';
@@ -16,8 +18,10 @@ import { useChat } from '@/hooks/use-chat';
 import { useVoice } from '@/hooks/use-voice';
 import { cn } from '@/lib/utils';
 import { api } from '@/services/api';
+import { voiceEngineSupported } from '@/voice/client';
 
-function Lab({ client }: { client: ClientDetail }) {
+/** The original engine: the browser's own speech recognition and synthesis. */
+function BrowserSpeechLab({ client }: { client: ClientDetail }) {
   const chat = useChat(client.id);
   const voiceRef = useRef<ReturnType<typeof useVoice> | undefined>(undefined);
   const voice = useVoice({
@@ -51,14 +55,7 @@ function Lab({ client }: { client: ClientDetail }) {
   const awaiting = chat.state?.pendingApproval;
 
   return (
-    <div data-accent={client.accent} className="space-y-5">
-      <PageHeader
-        eyebrow={`Voice Lab · ${client.displayName}`}
-        title="Talk to the agent"
-        description="Browser-based voice using your microphone and the browser's speech recognition and synthesis. You can interrupt the agent by speaking. This is not a phone line."
-        actions={chat.handoff && <Badge tone="warn">Handed to a human</Badge>}
-      />
-
+    <div>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Card className="overflow-hidden">
           <div className="flex flex-col items-center gap-4 p-4 sm:p-6">
@@ -225,6 +222,65 @@ function Lab({ client }: { client: ClientDetail }) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+type Engine = 'local' | 'browser';
+
+function Lab({ client }: { client: ClientDetail }) {
+  const status = useAsync(() => api.voiceStatus(), [client.id], 8000);
+  const supported = voiceEngineSupported();
+  const available = supported && status.data?.available === true;
+  const [choice, setChoice] = useState<Engine>();
+  // Use the local engine whenever it is running; otherwise fall back to the browser's own speech.
+  const engine: Engine = choice ?? (available ? 'local' : 'browser');
+
+  return (
+    <div data-accent={client.accent} className="space-y-5">
+      <PageHeader
+        eyebrow={`Voice Lab · ${client.displayName}`}
+        title="Talk to the agent"
+        description={
+          engine === 'local'
+            ? 'Speak naturally and interrupt whenever you like: the local voice engine stops mid-sentence and listens. This is not a phone line.'
+            : "Browser-based voice using your microphone and the browser's speech recognition and synthesis. You can interrupt the agent by speaking. This is not a phone line."
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented<Engine>
+          ariaLabel="Voice engine"
+          value={engine}
+          onChange={(v) => setChoice(v === 'local' && !available ? 'browser' : v)}
+          options={[
+            { value: 'local', label: 'Local engine' },
+            { value: 'browser', label: 'Browser speech' },
+          ]}
+        />
+        <p className="text-xs text-muted-foreground" role="status">
+          {available ? (
+            <>
+              <Badge tone="ok">Ready</Badge> {status.data?.asr} + {status.data?.tts}
+            </>
+          ) : !supported ? (
+            'This browser cannot run the local engine (it needs microphone, AudioWorklet and WebSocket support).'
+          ) : status.data?.configured === false ? (
+            'Local engine not configured: set VOICE_GATEWAY_SECRET in .env and start voice-service (see RUN.md).'
+          ) : status.loading ? (
+            'Checking the local engine…'
+          ) : (
+            <>
+              Local engine not running. Start voice-service (see RUN.md).{' '}
+              <button type="button" className="underline" onClick={status.reload}>
+                Check again
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+
+      {engine === 'local' ? <GatewayLab client={client} /> : <BrowserSpeechLab client={client} />}
     </div>
   );
 }

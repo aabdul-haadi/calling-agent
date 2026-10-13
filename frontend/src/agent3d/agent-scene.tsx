@@ -105,7 +105,10 @@ function Orbit({
     // speaking (browser speech audio cannot be analysed, so this is a pulse, not a waveform).
     let pulse = 1 + Math.sin(t * 1.4) * 0.025;
     if (l.mode === 'listening') pulse = 1 + l.level * 0.35;
-    else if (l.mode === 'speaking') pulse = 1 + (Math.sin(t * 9) * 0.5 + 0.5) * 0.12;
+    else if (l.mode === 'speaking')
+      // With a real playback level (voice gateway) the core follows the audio being played; with
+      // the browser's own speech nothing can be measured, so it pulses on a fixed rhythm.
+      pulse = l.level > 0.02 ? 1 + l.level * 0.3 : 1 + (Math.sin(t * 9) * 0.5 + 0.5) * 0.12;
     else if (l.mode === 'thinking') pulse = 1 + Math.sin(t * 5) * 0.04;
     else if (l.mode === 'error') pulse = 1 + (Math.sin(t * 17) > 0.7 ? 0.05 : 0);
     else if (l.mode === 'awaiting') pulse = 1 + Math.sin(t * 1.1) * 0.05;

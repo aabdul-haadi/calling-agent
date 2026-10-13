@@ -17,7 +17,12 @@
     "eval": "pnpm --filter @adk/backend eval",
     "db:migrate": "pnpm --filter @adk/backend db:migrate",
     "db:generate": "pnpm --filter @adk/backend db:generate",
-    "ingest": "pnpm --filter @adk/backend ingest"
+    "ingest": "pnpm --filter @adk/backend ingest",
+    "voice:setup": "node scripts/voice.mjs setup",
+    "voice:models": "node scripts/voice.mjs models",
+    "voice": "node scripts/voice.mjs run",
+    "voice:test": "node scripts/voice.mjs test",
+    "voice:bench": "node scripts/voice.mjs bench"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",

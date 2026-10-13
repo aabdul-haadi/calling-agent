@@ -66,6 +66,14 @@ MANIFEST: tuple[Model, ...] = (
         note="Default streaming English recognizer (296 MB download, about 320 MB on disk)",
     ),
     Model(
+        key="asr-offline",
+        url=f"{RELEASES}/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2",
+        sha256="157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad",
+        expect="sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/tokens.txt",
+        licence="CC-BY-4.0 (NVIDIA Parakeet TDT 0.6B v2; attribution required)",
+        note="Accurate final-pass recognizer, re-decodes each finished turn (460 MB download, about 670 MB on disk)",
+    ),
+    Model(
         key="tts",
         url=f"{RELEASES}/tts-models/vits-piper-en_US-amy-low.tar.bz2",
         sha256="c70f5284a09a7fd4ed203b39b2ff51cac1432b422b852eb647b481dade3cf639",

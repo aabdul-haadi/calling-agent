@@ -41,6 +41,8 @@ vi.mock('@/services/api', async () => {
       conversations: vi.fn(),
       audit: vi.fn(),
       knowledge: vi.fn(),
+      voiceStatus: vi.fn(),
+      voiceSession: vi.fn(),
     },
   };
 });
@@ -83,6 +85,7 @@ beforeEach(() => {
   mocked.conversation.mockResolvedValue(conversationView);
   mocked.audit.mockResolvedValue([]);
   mocked.knowledge.mockResolvedValue(knowledgeDocs);
+  mocked.voiceStatus.mockResolvedValue({ configured: true, available: false, url: '' });
   mocked.chat.mockResolvedValue(reply());
 });
 

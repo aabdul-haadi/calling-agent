@@ -13,3 +13,5 @@ voice-service/**/__pycache__/
 voice-service/*.egg-info/
 voice-service/.pytest_cache/
 voice-service/tests/fixtures/generated/
+
+voice-service/diagnostics/

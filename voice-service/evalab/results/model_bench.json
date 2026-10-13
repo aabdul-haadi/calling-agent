@@ -1,0 +1,2106 @@
+{
+ "summary": {
+  "sherpa-onnx/zipformer-large": {
+   "load_s": 5.57,
+   "wer_all": 0.129,
+   "wer_by_condition": {
+    "clean": 0.115,
+    "snr20": 0.103,
+    "snr10": 0.103,
+    "snr5": 0.158,
+    "babble10": 0.152,
+    "telephone": 0.115,
+    "fast": 0.085,
+    "pause": 0.255,
+    "real_speech": 0.0
+   },
+   "critical_exact": 0.292,
+   "critical_n": 24,
+   "booking_ref_exact": 0.5,
+   "times_exact": 1.0,
+   "decode_ms_p50": 53,
+   "decode_ms_p95": 70,
+   "rtf": 0.011
+  },
+  "sherpa-onnx/parakeet-tdt-0.6b-v2": {
+   "load_s": 9.42,
+   "wer_all": 0.024,
+   "wer_by_condition": {
+    "clean": 0.03,
+    "snr20": 0.012,
+    "snr10": 0.012,
+    "snr5": 0.042,
+    "babble10": 0.024,
+    "telephone": 0.012,
+    "fast": 0.024,
+    "pause": 0.036,
+    "real_speech": 0.015
+   },
+   "critical_exact": 0.625,
+   "critical_n": 24,
+   "booking_ref_exact": 0.938,
+   "times_exact": 1.0,
+   "decode_ms_p50": 499,
+   "decode_ms_p95": 1463,
+   "rtf": 0.139
+  }
+ },
+ "rows": {
+  "sherpa-onnx/zipformer-large": [
+   {
+    "clip": "yes.clean",
+    "cond": "clean",
+    "ref": "Yes",
+    "got": "NAS",
+    "ms": 59.876699990127236,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.snr20",
+    "cond": "snr20",
+    "ref": "Yes",
+    "got": "NASCA",
+    "ms": 58.17819997901097,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.snr10",
+    "cond": "snr10",
+    "ref": "Yes",
+    "got": "NASC",
+    "ms": 59.26290003117174,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.snr5",
+    "cond": "snr5",
+    "ref": "Yes",
+    "got": "THUS",
+    "ms": 60.051700042095035,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.babble10",
+    "cond": "babble10",
+    "ref": "Yes",
+    "got": "NEST LIKE",
+    "ms": 59.429200016893446,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.telephone",
+    "cond": "telephone",
+    "ref": "Yes",
+    "got": "NEFF",
+    "ms": 60.718499997165054,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.fast",
+    "cond": "fast",
+    "ref": "Yes",
+    "got": "YES I",
+    "ms": 28.406400000676513,
+    "audio_s": 0.464,
+    "critical": false
+   },
+   {
+    "clip": "yes.pause",
+    "cond": "pause",
+    "ref": "Yes",
+    "got": "NOW SOME",
+    "ms": 24.666199984494597,
+    "audio_s": 2.424,
+    "critical": false
+   },
+   {
+    "clip": "no.clean",
+    "cond": "clean",
+    "ref": "No",
+    "got": "NO",
+    "ms": 31.147999980021268,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.snr20",
+    "cond": "snr20",
+    "ref": "No",
+    "got": "NO I",
+    "ms": 26.740400004200637,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.snr10",
+    "cond": "snr10",
+    "ref": "No",
+    "got": "NO I",
+    "ms": 27.48210000572726,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.snr5",
+    "cond": "snr5",
+    "ref": "No",
+    "got": "NO I",
+    "ms": 29.367400042247027,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.babble10",
+    "cond": "babble10",
+    "ref": "No",
+    "got": "SNOW AND",
+    "ms": 27.50620001461357,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.telephone",
+    "cond": "telephone",
+    "ref": "No",
+    "got": "NO",
+    "ms": 32.27040002821013,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.fast",
+    "cond": "fast",
+    "ref": "No",
+    "got": "NO",
+    "ms": 53.66060003871098,
+    "audio_s": 0.384,
+    "critical": false
+   },
+   {
+    "clip": "no.pause",
+    "cond": "pause",
+    "ref": "No",
+    "got": "NO IVO",
+    "ms": 58.03409998770803,
+    "audio_s": 2.296,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.clean",
+    "cond": "clean",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 55.00720004783943,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.snr20",
+    "cond": "snr20",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 51.66939995251596,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.snr10",
+    "cond": "snr10",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 53.870200004894286,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.snr5",
+    "cond": "snr5",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 56.32959998911247,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.babble10",
+    "cond": "babble10",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 52.062599977944046,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.telephone",
+    "cond": "telephone",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 52.151900017634034,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.fast",
+    "cond": "fast",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GO AHEAD",
+    "ms": 65.35460002487525,
+    "audio_s": 1.344,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.pause",
+    "cond": "pause",
+    "ref": "Yes please go ahead",
+    "got": "YES PLEASE GOD THOUGH AHEAD",
+    "ms": 29.878599976655096,
+    "audio_s": 3.4,
+    "critical": false
+   },
+   {
+    "clip": "greeting.clean",
+    "cond": "clean",
+    "ref": "Hello I would like to change my flight please",
+    "got": "THE LOW I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+    "ms": 31.984500004909933,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.snr20",
+    "cond": "snr20",
+    "ref": "Hello I would like to change my flight please",
+    "got": "BELOW I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+    "ms": 26.74140001181513,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.snr10",
+    "cond": "snr10",
+    "ref": "Hello I would like to change my flight please",
+    "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+    "ms": 27.647199982311577,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.snr5",
+    "cond": "snr5",
+    "ref": "Hello I would like to change my flight please",
+    "got": "HULLO I WOULD LIKE TO CHANGE MY WHITE FACE",
+    "ms": 26.786500005982816,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.babble10",
+    "cond": "babble10",
+    "ref": "Hello I would like to change my flight please",
+    "got": "BELOW I WOULD LIKE TO CHANGE MY FLIGHT PLEACE",
+    "ms": 29.701199964620173,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.telephone",
+    "cond": "telephone",
+    "ref": "Hello I would like to change my flight please",
+    "got": "THE LOW I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+    "ms": 27.94439997524023,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.fast",
+    "cond": "fast",
+    "ref": "Hello I would like to change my flight please",
+    "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+    "ms": 35.25620000436902,
+    "audio_s": 2.4,
+    "critical": false
+   },
+   {
+    "clip": "greeting.pause",
+    "cond": "pause",
+    "ref": "Hello I would like to change my flight please",
+    "got": "THE LOW I WOULD LIKE TO CHANGE THE CHANGE MY FLIGHT PLEASE",
+    "ms": 54.39509998541325,
+    "audio_s": 4.856,
+    "critical": false
+   },
+   {
+    "clip": "ref.clean",
+    "cond": "clean",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS K ONE'S ERRO ZERO ONE",
+    "ms": 53.73459996189922,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.snr20",
+    "cond": "snr20",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO ONE",
+    "ms": 53.350400005001575,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.snr10",
+    "cond": "snr10",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO ONE",
+    "ms": 56.87540001235902,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.snr5",
+    "cond": "snr5",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY LOOKING REFERENCE IS K ONE'S ERRO ZERO ONE",
+    "ms": 51.97490000864491,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.babble10",
+    "cond": "babble10",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS K ONE'S ERO ZERO ONE",
+    "ms": 54.15910005103797,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.telephone",
+    "cond": "telephone",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS K ONE'S ERO ZERO ONE",
+    "ms": 54.33509999420494,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.fast",
+    "cond": "fast",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS S K ONE ZERO ZERO ONE",
+    "ms": 55.62200001440942,
+    "audio_s": 2.992,
+    "critical": true
+   },
+   {
+    "clip": "ref.pause",
+    "cond": "pause",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "MY BOOK IN REFERENCE IS S CAPABLE A ONE'S YEAR O'S HERO ONE",
+    "ms": 74.57070000236854,
+    "audio_s": 5.4,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.clean",
+    "cond": "clean",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE'S ERRO ZERO TWO AND MY LAST NAME IS AUGAFFER",
+    "ms": 30.21860000444576,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.snr20",
+    "cond": "snr20",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO TWO AND MY LAST NAME IS AUCAPHER",
+    "ms": 28.615999966859818,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.snr10",
+    "cond": "snr10",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO TWO AND MY LAST NAME IS AUKAFER",
+    "ms": 29.902599984779954,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.snr5",
+    "cond": "snr5",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MIGHT BOTH BEING REFERENCE IS K ONE ZERO ZERO TWO AND MY LAST NAME IS ARKAFER",
+    "ms": 28.44680001726374,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.babble10",
+    "cond": "babble10",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO TWO AND MY LAST NAME IS AUGAFER",
+    "ms": 27.326199982780963,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.telephone",
+    "cond": "telephone",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE'S ERO ZERO TWO AND MY LAST NAME IS AUGAFFER",
+    "ms": 25.50709998467937,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.fast",
+    "cond": "fast",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO TWO AND MY LAST NAME IS AUKKE",
+    "ms": 30.127600010018796,
+    "audio_s": 4.672,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.pause",
+    "cond": "pause",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "MY BOOK IN REFERENCE IS K ONE'S HERO'S DE ZERO TOO AND MY LAST NAME IS AKAFFER",
+    "ms": 72.57050002226606,
+    "audio_s": 7.416,
+    "critical": true
+   },
+   {
+    "clip": "cancelled.clean",
+    "cond": "clean",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBOCK IT FOR TO MORROW",
+    "ms": 27.931000047829002,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.snr20",
+    "cond": "snr20",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO RUB OF IT FOR TO MORROW",
+    "ms": 25.218800001312047,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.snr10",
+    "cond": "snr10",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBOCK IT FOR TO MORROW",
+    "ms": 28.90160004608333,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.snr5",
+    "cond": "snr5",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBLICATE FOR TO MORROW",
+    "ms": 28.61869998741895,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.babble10",
+    "cond": "babble10",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO RABBOCK IT FOR TO MORROW",
+    "ms": 26.7458000453189,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.telephone",
+    "cond": "telephone",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO RUBBIT IT FOR TO MORROW",
+    "ms": 26.87649999279529,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.fast",
+    "cond": "fast",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBUCK IT FOR TO MORROW",
+    "ms": 58.349500002805144,
+    "audio_s": 3.536,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.pause",
+    "cond": "pause",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "MY FLIGHT TO LONDON WAS CANCELLED BY THE OLD AND I NEED TO REBOCK IT FOR TO MORROW",
+    "ms": 54.01820002589375,
+    "audio_s": 6.2,
+    "critical": false
+   },
+   {
+    "clip": "pick.clean",
+    "cond": "clean",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 80.43119998183101,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.snr20",
+    "cond": "snr20",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 53.09449997730553,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.snr10",
+    "cond": "snr10",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 53.58639999758452,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.snr5",
+    "cond": "snr5",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 55.694200040306896,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.babble10",
+    "cond": "babble10",
+    "ref": "Please book me on the first option you listed",
+    "got": "THE PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED AND",
+    "ms": 56.13500002073124,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.telephone",
+    "cond": "telephone",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 55.88849994819611,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.fast",
+    "cond": "fast",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 35.95999995013699,
+    "audio_s": 2.416,
+    "critical": false
+   },
+   {
+    "clip": "pick.pause",
+    "cond": "pause",
+    "ref": "Please book me on the first option you listed",
+    "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+    "ms": 40.87029997026548,
+    "audio_s": 4.68,
+    "critical": false
+   },
+   {
+    "clip": "refund.clean",
+    "cond": "clean",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 59.00539999129251,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.snr20",
+    "cond": "snr20",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 55.538699962198734,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.snr10",
+    "cond": "snr10",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REEFEND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 54.89490000763908,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.snr5",
+    "cond": "snr5",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 72.59809999959543,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.babble10",
+    "cond": "babble10",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 53.42539999401197,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.telephone",
+    "cond": "telephone",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REEFEND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 87.28119998704642,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.fast",
+    "cond": "fast",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+    "ms": 82.81329995952547,
+    "audio_s": 2.976,
+    "critical": false
+   },
+   {
+    "clip": "refund.pause",
+    "cond": "pause",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "CAN I GET A REEFUND AND HOW LONG IT LONG DOES IT TAKE TO ARRIVE",
+    "ms": 30.250399955548346,
+    "audio_s": 5.32,
+    "critical": false
+   },
+   {
+    "clip": "bags.clean",
+    "cond": "clean",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 55.84620003355667,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.snr20",
+    "cond": "snr20",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 58.09990002308041,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.snr10",
+    "cond": "snr10",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 55.4314999608323,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.snr5",
+    "cond": "snr5",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECK BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 56.51750002289191,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.babble10",
+    "cond": "babble10",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 70.23670000489801,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.telephone",
+    "cond": "telephone",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 67.4342000274919,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.fast",
+    "cond": "fast",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+    "ms": 69.41539997933432,
+    "audio_s": 2.912,
+    "critical": false
+   },
+   {
+    "clip": "bags.pause",
+    "cond": "pause",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "HOW MANY CHECKED BAGS CAN I BRING UP BRING ON AN ECONOMY FAIR",
+    "ms": 31.689500028733164,
+    "audio_s": 5.288,
+    "critical": false
+   },
+   {
+    "clip": "human.clean",
+    "cond": "clean",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 29.992499970830977,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.snr20",
+    "cond": "snr20",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 27.44199999142438,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.snr10",
+    "cond": "snr10",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 27.355199970770627,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.snr5",
+    "cond": "snr5",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 30.00999998766929,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.babble10",
+    "cond": "babble10",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 25.3859999938868,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.telephone",
+    "cond": "telephone",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 29.446500004269183,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.fast",
+    "cond": "fast",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 57.66799999400973,
+    "audio_s": 2.224,
+    "critical": false
+   },
+   {
+    "clip": "human.pause",
+    "cond": "pause",
+    "ref": "I want to talk to a real person right now",
+    "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+    "ms": 57.411300018429756,
+    "audio_s": 4.504,
+    "critical": false
+   },
+   {
+    "clip": "long.clean",
+    "cond": "clean",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 60.770199983380735,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.snr20",
+    "cond": "snr20",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I BOOK THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 55.58559997007251,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.snr10",
+    "cond": "snr10",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "HIGH BOOK THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 51.37030000332743,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.snr5",
+    "cond": "snr5",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "FIBUS THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELED SO UNEQUE TO KNOW WHAT MY AUCTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 55.70530000841245,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.babble10",
+    "cond": "babble10",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I BOOK THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY AUCTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRACT",
+    "ms": 55.232099955901504,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.telephone",
+    "cond": "telephone",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 53.00409998744726,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.fast",
+    "cond": "fast",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE ERLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY AUCTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 59.04540000483394,
+    "audio_s": 10.656,
+    "critical": false
+   },
+   {
+    "clip": "long.pause",
+    "cond": "pause",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I KNOW NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+    "ms": 69.16300003649667,
+    "audio_s": 14.68,
+    "critical": false
+   },
+   {
+    "clip": "ambiguous_time.clean",
+    "cond": "clean",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 25.796799978706986,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.snr20",
+    "cond": "snr20",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 32.26690000155941,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.snr10",
+    "cond": "snr10",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 29.99509999062866,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.snr5",
+    "cond": "snr5",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 28.305599989835173,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.babble10",
+    "cond": "babble10",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 28.127299970947206,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.telephone",
+    "cond": "telephone",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 31.223899975884706,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.fast",
+    "cond": "fast",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+    "ms": 56.19119998300448,
+    "audio_s": 3.536,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.pause",
+    "cond": "pause",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR FOUR MAY BE THE ONE AT FIVE FIFTEEN",
+    "ms": 53.40689996955916,
+    "audio_s": 6.136,
+    "critical": true
+   },
+   {
+    "clip": "interrupter.clean",
+    "cond": "clean",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 41.91939998418093,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.snr20",
+    "cond": "snr20",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 33.07700000004843,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.snr10",
+    "cond": "snr10",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 27.073799981735647,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.snr5",
+    "cond": "snr5",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 27.09719998529181,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.babble10",
+    "cond": "babble10",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 32.9749999800697,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.telephone",
+    "cond": "telephone",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 37.42869995767251,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.fast",
+    "cond": "fast",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+    "ms": 67.97410000581294,
+    "audio_s": 2.352,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.pause",
+    "cond": "pause",
+    "ref": "Actually make that the evening flight instead",
+    "got": "ACTUALLY MAKE THAT THE EARLY EVENING FLIGHT INSTEAD",
+    "ms": 58.032099972479045,
+    "audio_s": 4.495625,
+    "critical": false
+   },
+   {
+    "clip": "librispeech.0.wav",
+    "cond": "real_speech",
+    "ref": "AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP HERE AND THERE THE SQUALID QUARTER OF THE BROTHELS",
+    "got": "AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP HERE AND THERE THE SQUALID QUARTER OF THE BROTHELS",
+    "ms": 33.65500003565103,
+    "audio_s": 6.625,
+    "critical": false
+   },
+   {
+    "clip": "librispeech.1.wav",
+    "cond": "real_speech",
+    "ref": "GOD AS A DIRECT CONSEQUENCE OF THE SIN WHICH MAN THUS PUNISHED HAD GIVEN HER A LOVELY CHILD WHOSE PLACE WAS ON THAT SAME DISHONOURED BOSOM TO CONNECT HER PARENT FOR EVER WITH THE RACE AND DESCENT OF MORTALS AND TO BE FINALLY A BLESSED SOUL IN HEAVEN",
+    "got": "GOD AS A DIRECT CONSEQUENCE OF THE SIN WHICH MAN THUS PUNISHED HAD GIVEN HER A LOVELY CHILD WHOSE PLACE WAS ON THAT SAME DISHONOURED BOSOM TO CONNECT HER PARENT FOR EVER WITH THE RACE AND DESCENT OF MORTALS AND TO BE FINALLY A BLESSED SOUL IN HEAVEN",
+    "ms": 59.85079996753484,
+    "audio_s": 16.715,
+    "critical": false
+   }
+  ],
+  "sherpa-onnx/parakeet-tdt-0.6b-v2": [
+   {
+    "clip": "yes.clean",
+    "cond": "clean",
+    "ref": "Yes",
+    "got": "Yes.",
+    "ms": 243.41830000048503,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.snr20",
+    "cond": "snr20",
+    "ref": "Yes",
+    "got": "Yes.",
+    "ms": 169.51560002053156,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.snr10",
+    "cond": "snr10",
+    "ref": "Yes",
+    "got": "Yes.",
+    "ms": 175.19440001342446,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.snr5",
+    "cond": "snr5",
+    "ref": "Yes",
+    "got": "Yeah.",
+    "ms": 192.52250000135973,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.babble10",
+    "cond": "babble10",
+    "ref": "Yes",
+    "got": "Nashya.",
+    "ms": 179.76050003198907,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.telephone",
+    "cond": "telephone",
+    "ref": "Yes",
+    "got": "Yes.",
+    "ms": 167.5571000087075,
+    "audio_s": 0.624,
+    "critical": false
+   },
+   {
+    "clip": "yes.fast",
+    "cond": "fast",
+    "ref": "Yes",
+    "got": "Yes.",
+    "ms": 159.61929998593405,
+    "audio_s": 0.464,
+    "critical": false
+   },
+   {
+    "clip": "yes.pause",
+    "cond": "pause",
+    "ref": "Yes",
+    "got": "Yes,",
+    "ms": 388.7055999948643,
+    "audio_s": 2.424,
+    "critical": false
+   },
+   {
+    "clip": "no.clean",
+    "cond": "clean",
+    "ref": "No",
+    "got": "No.",
+    "ms": 173.96650003502145,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.snr20",
+    "cond": "snr20",
+    "ref": "No",
+    "got": "No.",
+    "ms": 198.99499998427927,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.snr10",
+    "cond": "snr10",
+    "ref": "No",
+    "got": "No.",
+    "ms": 189.73019998520613,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.snr5",
+    "cond": "snr5",
+    "ref": "No",
+    "got": "No.",
+    "ms": 150.32690000953153,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.babble10",
+    "cond": "babble10",
+    "ref": "No",
+    "got": "No, it's",
+    "ms": 158.7588000111282,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.telephone",
+    "cond": "telephone",
+    "ref": "No",
+    "got": "No.",
+    "ms": 149.38279998023063,
+    "audio_s": 0.496,
+    "critical": false
+   },
+   {
+    "clip": "no.fast",
+    "cond": "fast",
+    "ref": "No",
+    "got": "No.",
+    "ms": 144.57230002153665,
+    "audio_s": 0.384,
+    "critical": false
+   },
+   {
+    "clip": "no.pause",
+    "cond": "pause",
+    "ref": "No",
+    "got": "No.",
+    "ms": 349.2435999796726,
+    "audio_s": 2.296,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.clean",
+    "cond": "clean",
+    "ref": "Yes please go ahead",
+    "got": "Yes, please go ahead.",
+    "ms": 279.8502000514418,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.snr20",
+    "cond": "snr20",
+    "ref": "Yes please go ahead",
+    "got": "Yes, please go ahead.",
+    "ms": 298.39469998842105,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.snr10",
+    "cond": "snr10",
+    "ref": "Yes please go ahead",
+    "got": "Yes please go ahead.",
+    "ms": 321.67309999931604,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.snr5",
+    "cond": "snr5",
+    "ref": "Yes please go ahead",
+    "got": "Yes please go ahead.",
+    "ms": 285.9197999932803,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.babble10",
+    "cond": "babble10",
+    "ref": "Yes please go ahead",
+    "got": "Yes, please go ahead.",
+    "ms": 294.6560999844223,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.telephone",
+    "cond": "telephone",
+    "ref": "Yes please go ahead",
+    "got": "Yes please go ahead.",
+    "ms": 294.6288000093773,
+    "audio_s": 1.6,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.fast",
+    "cond": "fast",
+    "ref": "Yes please go ahead",
+    "got": "Yes, please go ahead.",
+    "ms": 231.1288000200875,
+    "audio_s": 1.344,
+    "critical": false
+   },
+   {
+    "clip": "yes_please.pause",
+    "cond": "pause",
+    "ref": "Yes please go ahead",
+    "got": "Yes, please go ahead. Go ahead.",
+    "ms": 525.47950000735,
+    "audio_s": 3.4,
+    "critical": false
+   },
+   {
+    "clip": "greeting.clean",
+    "cond": "clean",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Below I would like to change my flight please.",
+    "ms": 507.01829994795844,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.snr20",
+    "cond": "snr20",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello I would like to change my flight please.",
+    "ms": 431.01439997553825,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.snr10",
+    "cond": "snr10",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello I would like to change my flight please.",
+    "ms": 434.33210003422573,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.snr5",
+    "cond": "snr5",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello I would like to change my flight fees.",
+    "ms": 395.44489997206256,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.babble10",
+    "cond": "babble10",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello I would like to change my flight please.",
+    "ms": 414.9536000331864,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.telephone",
+    "cond": "telephone",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello I would like to change my flight please.",
+    "ms": 543.8257000059821,
+    "audio_s": 3.056,
+    "critical": false
+   },
+   {
+    "clip": "greeting.fast",
+    "cond": "fast",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello I would like to change my flight please.",
+    "ms": 420.2371999854222,
+    "audio_s": 2.4,
+    "critical": false
+   },
+   {
+    "clip": "greeting.pause",
+    "cond": "pause",
+    "ref": "Hello I would like to change my flight please",
+    "got": "Hello, I would like to change my flight, please.",
+    "ms": 638.9918999630027,
+    "audio_s": 4.856,
+    "critical": false
+   },
+   {
+    "clip": "ref.clean",
+    "cond": "clean",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 499.71040000673383,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.snr20",
+    "cond": "snr20",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 477.10030002053827,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.snr10",
+    "cond": "snr10",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 501.48400000762194,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.snr5",
+    "cond": "snr5",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 600.3718000138178,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.babble10",
+    "cond": "babble10",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 510.90100000146776,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.telephone",
+    "cond": "telephone",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 504.02009999379516,
+    "audio_s": 3.6,
+    "critical": true
+   },
+   {
+    "clip": "ref.fast",
+    "cond": "fast",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 468.1999000022188,
+    "audio_s": 2.992,
+    "critical": true
+   },
+   {
+    "clip": "ref.pause",
+    "cond": "pause",
+    "ref": "My booking reference is S K one zero zero one",
+    "got": "My booking reference is SK1001.",
+    "ms": 715.2678000275046,
+    "audio_s": 5.4,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.clean",
+    "cond": "clean",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK one zero zero two and my last name is Akafer.",
+    "ms": 703.3492000191472,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.snr20",
+    "cond": "snr20",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akafer.",
+    "ms": 682.5359999784268,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.snr10",
+    "cond": "snr10",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akafer.",
+    "ms": 755.4394000326283,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.snr5",
+    "cond": "snr5",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akrafer.",
+    "ms": 689.9271999718621,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.babble10",
+    "cond": "babble10",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akafer.",
+    "ms": 684.1386000160128,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.telephone",
+    "cond": "telephone",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akafer.",
+    "ms": 723.8377000321634,
+    "audio_s": 5.616,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.fast",
+    "cond": "fast",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akeffer.",
+    "ms": 619.2113000433892,
+    "audio_s": 4.672,
+    "critical": true
+   },
+   {
+    "clip": "ref_and_name.pause",
+    "cond": "pause",
+    "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+    "got": "My booking reference is SK1002 and my last name is Akafer.",
+    "ms": 878.1195000046864,
+    "audio_s": 7.416,
+    "critical": true
+   },
+   {
+    "clip": "cancelled.clean",
+    "cond": "clean",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for tomorrow.",
+    "ms": 555.3762999479659,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.snr20",
+    "cond": "snr20",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for tomorrow.",
+    "ms": 570.9473000024445,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.snr10",
+    "cond": "snr10",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for tomorrow.",
+    "ms": 587.8748000250198,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.snr5",
+    "cond": "snr5",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to replicate for tomorrow.",
+    "ms": 575.7149999844842,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.babble10",
+    "cond": "babble10",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for tomorrow.",
+    "ms": 622.5132000399753,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.telephone",
+    "cond": "telephone",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for tomorrow.",
+    "ms": 573.0567999999039,
+    "audio_s": 4.4,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.fast",
+    "cond": "fast",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for to morrow.",
+    "ms": 571.2171999621205,
+    "audio_s": 3.536,
+    "critical": false
+   },
+   {
+    "clip": "cancelled.pause",
+    "cond": "pause",
+    "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+    "got": "My flight to London was cancelled and I need to rebook it for tomorrow.",
+    "ms": 812.0375000289641,
+    "audio_s": 6.2,
+    "critical": false
+   },
+   {
+    "clip": "pick.clean",
+    "cond": "clean",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 465.99329996388406,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.snr20",
+    "cond": "snr20",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 436.07980001252145,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.snr10",
+    "cond": "snr10",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 454.0411999914795,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.snr5",
+    "cond": "snr5",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 471.0540999658406,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.babble10",
+    "cond": "babble10",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 425.84000003989786,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.telephone",
+    "cond": "telephone",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 424.7017999878153,
+    "audio_s": 2.88,
+    "critical": false
+   },
+   {
+    "clip": "pick.fast",
+    "cond": "fast",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 338.22249999502674,
+    "audio_s": 2.416,
+    "critical": false
+   },
+   {
+    "clip": "pick.pause",
+    "cond": "pause",
+    "ref": "Please book me on the first option you listed",
+    "got": "Please book me on the first option you listed.",
+    "ms": 695.1143000042066,
+    "audio_s": 4.68,
+    "critical": false
+   },
+   {
+    "clip": "refund.clean",
+    "cond": "clean",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 509.81590000446886,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.snr20",
+    "cond": "snr20",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 499.0195999853313,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.snr10",
+    "cond": "snr10",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 492.6797999651171,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.snr5",
+    "cond": "snr5",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 490.3939999639988,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.babble10",
+    "cond": "babble10",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 660.5512999813072,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.telephone",
+    "cond": "telephone",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 542.5261999480426,
+    "audio_s": 3.52,
+    "critical": false
+   },
+   {
+    "clip": "refund.fast",
+    "cond": "fast",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 475.70459998678416,
+    "audio_s": 2.976,
+    "critical": false
+   },
+   {
+    "clip": "refund.pause",
+    "cond": "pause",
+    "ref": "Can I get a refund and how long does it take to arrive",
+    "got": "Can I get a refund and how long does it take to arrive?",
+    "ms": 699.9631999642588,
+    "audio_s": 5.32,
+    "critical": false
+   },
+   {
+    "clip": "bags.clean",
+    "cond": "clean",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 507.11050000973046,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.snr20",
+    "cond": "snr20",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 497.7103999699466,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.snr10",
+    "cond": "snr10",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 492.74150002747774,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.snr5",
+    "cond": "snr5",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many chest bags can I bring on an economy fair?",
+    "ms": 535.769900016021,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.babble10",
+    "cond": "babble10",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 538.9037999557331,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.telephone",
+    "cond": "telephone",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 551.0906000272371,
+    "audio_s": 3.488,
+    "critical": false
+   },
+   {
+    "clip": "bags.fast",
+    "cond": "fast",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 589.1391999903135,
+    "audio_s": 2.912,
+    "critical": false
+   },
+   {
+    "clip": "bags.pause",
+    "cond": "pause",
+    "ref": "How many checked bags can I bring on an economy fare",
+    "got": "How many checked bags can I bring on an economy fair?",
+    "ms": 657.6923999818973,
+    "audio_s": 5.288,
+    "critical": false
+   },
+   {
+    "clip": "human.clean",
+    "cond": "clean",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 384.72480000928044,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.snr20",
+    "cond": "snr20",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 368.95089998142794,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.snr10",
+    "cond": "snr10",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 404.1070000384934,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.snr5",
+    "cond": "snr5",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 434.08009997801855,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.babble10",
+    "cond": "babble10",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 377.8124999953434,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.telephone",
+    "cond": "telephone",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 494.64770004851744,
+    "audio_s": 2.704,
+    "critical": false
+   },
+   {
+    "clip": "human.fast",
+    "cond": "fast",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real person right now.",
+    "ms": 369.60889998590574,
+    "audio_s": 2.224,
+    "critical": false
+   },
+   {
+    "clip": "human.pause",
+    "cond": "pause",
+    "ref": "I want to talk to a real person right now",
+    "got": "I want to talk to a real real person right now.",
+    "ms": 573.5970999812707,
+    "audio_s": 4.504,
+    "critical": false
+   },
+   {
+    "clip": "long.clean",
+    "cond": "clean",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1516.374500002712,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.snr20",
+    "cond": "snr20",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1496.175599982962,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.snr10",
+    "cond": "snr10",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1495.2959000365809,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.snr5",
+    "cond": "snr5",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1481.1469000414945,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.babble10",
+    "cond": "babble10",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1462.544500012882,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.telephone",
+    "cond": "telephone",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1395.6019000033848,
+    "audio_s": 12.88,
+    "critical": false
+   },
+   {
+    "clip": "long.fast",
+    "cond": "fast",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1307.5069999904372,
+    "audio_s": 10.656,
+    "critical": false
+   },
+   {
+    "clip": "long.pause",
+    "cond": "pause",
+    "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+    "got": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra.",
+    "ms": 1624.882600037381,
+    "audio_s": 14.68,
+    "critical": false
+   },
+   {
+    "clip": "ambiguous_time.clean",
+    "cond": "clean",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at three fifty or maybe the one at five fifteen.",
+    "ms": 527.0121000357904,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.snr20",
+    "cond": "snr20",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at 3.50 or maybe the one at 5.15.",
+    "ms": 569.8871999629773,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.snr10",
+    "cond": "snr10",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at 3.50 or maybe the one at 5.15.",
+    "ms": 593.7469999771565,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.snr5",
+    "cond": "snr5",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at 3.50 or maybe the one at 5.15.",
+    "ms": 601.7815999803133,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.babble10",
+    "cond": "babble10",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at 3.50 or maybe the one at 5.15.",
+    "ms": 546.2762000388466,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.telephone",
+    "cond": "telephone",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at 3.50 or maybe the one at 5.15.",
+    "ms": 619.3310000235215,
+    "audio_s": 4.336,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.fast",
+    "cond": "fast",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at three fifty or maybe the one at five fifteen.",
+    "ms": 504.52830002177507,
+    "audio_s": 3.536,
+    "critical": true
+   },
+   {
+    "clip": "ambiguous_time.pause",
+    "cond": "pause",
+    "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+    "got": "I would take the flight at three fifty or or maybe the one at five fifteen.",
+    "ms": 914.4122999859974,
+    "audio_s": 6.136,
+    "critical": true
+   },
+   {
+    "clip": "interrupter.clean",
+    "cond": "clean",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 438.5219000396319,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.snr20",
+    "cond": "snr20",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 458.8120999978855,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.snr10",
+    "cond": "snr10",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 397.40310003980994,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.snr5",
+    "cond": "snr5",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 445.28769998578355,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.babble10",
+    "cond": "babble10",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 451.40590000664815,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.telephone",
+    "cond": "telephone",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 455.12580004287884,
+    "audio_s": 2.695625,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.fast",
+    "cond": "fast",
+    "ref": "Actually make that the evening flight instead",
+    "got": "actually make that the evening flight instead.",
+    "ms": 398.97099998779595,
+    "audio_s": 2.352,
+    "critical": false
+   },
+   {
+    "clip": "interrupter.pause",
+    "cond": "pause",
+    "ref": "Actually make that the evening flight instead",
+    "got": "Actually make that the evening flight instead.",
+    "ms": 602.7647000155412,
+    "audio_s": 4.495625,
+    "critical": false
+   },
+   {
+    "clip": "librispeech.0.wav",
+    "cond": "real_speech",
+    "ref": "AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP HERE AND THERE THE SQUALID QUARTER OF THE BROTHELS",
+    "got": "After early nightfall the yellow lamps would light up here and there the squalid quarter of the brothels.",
+    "ms": 816.8413999956101,
+    "audio_s": 6.625,
+    "critical": false
+   },
+   {
+    "clip": "librispeech.1.wav",
+    "cond": "real_speech",
+    "ref": "GOD AS A DIRECT CONSEQUENCE OF THE SIN WHICH MAN THUS PUNISHED HAD GIVEN HER A LOVELY CHILD WHOSE PLACE WAS ON THAT SAME DISHONOURED BOSOM TO CONNECT HER PARENT FOR EVER WITH THE RACE AND DESCENT OF MORTALS AND TO BE FINALLY A BLESSED SOUL IN HEAVEN",
+    "got": "God, as a direct consequence of the sin which man thus punished, had given her a lovely child, whose place was on that same dishonoured bosom to connect her parent for ever with the race and descent of mortals, and to be finally a blest soul in heaven.",
+    "ms": 1952.709200035315,
+    "audio_s": 16.715,
+    "critical": false
+   }
+  ]
+ }
+}

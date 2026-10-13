@@ -53,6 +53,21 @@ export interface AuditEntry {
   data: Record<string, unknown>;
 }
 
+export interface VoiceStatus {
+  configured: boolean;
+  available: boolean;
+  url: string;
+  asr?: string;
+  tts?: string;
+}
+
+export interface VoiceSession {
+  url: string;
+  token: string;
+  expiresAt: string;
+  protocol: number;
+}
+
 export const api = {
   health: () => call<{ status: string; db: string }>('/health'),
   clients: () => call<ClientSummary[]>('/clients'),
@@ -83,6 +98,9 @@ export const api = {
       `/conversations?limit=${limit}${clientId ? `&clientId=${encodeURIComponent(clientId)}` : ''}`,
     ),
   audit: (conversationId: string) => call<AuditEntry[]>(`/conversations/${conversationId}/audit`),
+  voiceStatus: () => call<VoiceStatus>('/voice/status'),
+  voiceSession: (clientId: string, conversationId?: string) =>
+    call<VoiceSession>('/voice/session', json('POST', { clientId, conversationId })),
   knowledge: (clientId: string) =>
     call<KnowledgeDoc[]>(`/clients/${encodeURIComponent(clientId)}/knowledge`),
 };

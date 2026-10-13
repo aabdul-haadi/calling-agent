@@ -101,6 +101,38 @@ pnpm --filter @adk/backend start          # :4000
 pnpm --filter @adk/frontend exec vite preview --port 5173
 ```
 
+## 3b. Voice engine (optional: local, interruptible voice)
+
+The Voice Lab works without this using the browser's own speech recognition. For natural turn-taking and talking over the agent, run the local voice gateway (Python 3.11 to 3.13 required; the first setup downloads about 460 MB of speech models):
+
+```bash
+pnpm voice:setup            # creates voice-service/.venv, installs packages, downloads the models
+```
+
+Add one line to `.env` (any random string; the backend and the gateway both read it):
+
+```
+VOICE_GATEWAY_SECRET=put-a-long-random-string-here
+```
+
+Then run three things (the backend must be restarted once after changing `.env`):
+
+```bash
+pnpm dev                    # backend, mock systems, frontend
+pnpm voice                  # voice gateway on http://localhost:8765 (models load in about 7 s)
+# open http://localhost:5173/voice in Chrome or Edge, press "Start talking", allow the microphone
+```
+
+Check it: <http://localhost:8765/health> should say `"ready": true`. The Voice Lab shows "Ready" next to the engine switch when it can use it.
+
+```bash
+pnpm voice:models           # download or verify the speech models (--only asr-small for the small recognizer)
+pnpm voice:test             # Python tests (unit, security, and integration with the real models)
+pnpm voice:bench            # latency and barge-in benchmark; add -- --quick for a short run
+```
+
+Use headphones if you can. Details, the wire protocol and measured performance: `docs/VOICE.md`.
+
 ## 4. Knowledge (policy documents)
 
 ```bash

@@ -1,0 +1,1154 @@
+{
+ "model": "sherpa-onnx/zipformer-large",
+ "chunk_ms": 100,
+ "table": [
+  {
+   "condition": "clean",
+   "clips": 14,
+   "wer": 0.115,
+   "exact": 0.43,
+   "confidence_mean": 0.669,
+   "stability": 0.792,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 842.9,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 56.5,
+    "p50": 49.1,
+    "p95": 95.5,
+    "max": 95.5
+   }
+  },
+  {
+   "condition": "snr20",
+   "clips": 14,
+   "wer": 0.103,
+   "exact": 0.36,
+   "confidence_mean": 0.639,
+   "stability": 0.807,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 842.9,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 56.1,
+    "p50": 53.6,
+    "p95": 110.2,
+    "max": 110.2
+   }
+  },
+  {
+   "condition": "snr10",
+   "clips": 14,
+   "wer": 0.133,
+   "exact": 0.21,
+   "confidence_mean": 0.573,
+   "stability": 0.798,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 900.0,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 59.3,
+    "p50": 44.5,
+    "p95": 130.9,
+    "max": 130.9
+   }
+  },
+  {
+   "condition": "snr5",
+   "clips": 14,
+   "wer": 0.139,
+   "exact": 0.21,
+   "confidence_mean": 0.553,
+   "stability": 0.789,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 921.4,
+    "p50": 900.0,
+    "p95": 1200.0,
+    "max": 1200.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 52.7,
+    "p50": 50.3,
+    "p95": 82.4,
+    "max": 82.4
+   }
+  },
+  {
+   "condition": "babble10",
+   "clips": 14,
+   "wer": 0.145,
+   "exact": 0.36,
+   "confidence_mean": 0.641,
+   "stability": 0.796,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 842.9,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 55.7,
+    "p50": 62.9,
+    "p95": 75.3,
+    "max": 75.3
+   }
+  },
+  {
+   "condition": "telephone",
+   "clips": 14,
+   "wer": 0.115,
+   "exact": 0.43,
+   "confidence_mean": 0.63,
+   "stability": 0.785,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 842.9,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 55.0,
+    "p50": 49.7,
+    "p95": 96.2,
+    "max": 96.2
+   }
+  },
+  {
+   "condition": "fast",
+   "clips": 14,
+   "wer": 0.127,
+   "exact": 0.43,
+   "confidence_mean": 0.668,
+   "stability": 0.803,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 785.7,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 66.9,
+    "p50": 44.0,
+    "p95": 150.3,
+    "max": 150.3
+   }
+  },
+  {
+   "condition": "pause",
+   "clips": 14,
+   "wer": 0.242,
+   "exact": 0.07,
+   "confidence_mean": 0.518,
+   "stability": 0.764,
+   "first_partial_s": {
+    "n": 14,
+    "mean": 842.9,
+    "p50": 900.0,
+    "p95": 900.0,
+    "max": 900.0
+   },
+   "final_ms": {
+    "n": 14,
+    "mean": 62.6,
+    "p50": 69.3,
+    "p95": 90.7,
+    "max": 90.7
+   }
+  },
+  {
+   "condition": "real_speech",
+   "clips": 2,
+   "wer": 0.0,
+   "exact": 1.0,
+   "confidence_mean": 0.739,
+   "stability": 0.675,
+   "first_partial_s": {
+    "n": 2,
+    "mean": 1200.0,
+    "p50": 1200.0,
+    "p95": 1200.0,
+    "max": 1200.0
+   },
+   "final_ms": {
+    "n": 2,
+    "mean": 57.5,
+    "p50": 39.1,
+    "p95": 76.0,
+    "max": 76.0
+   }
+  }
+ ],
+ "calibration": {
+  "right_n": 37,
+  "wrong_n": 46,
+  "tradeoff": [
+   {
+    "threshold": 0.2,
+    "correct_flagged": 0.0,
+    "wrong_caught": 0.2
+   },
+   {
+    "threshold": 0.3,
+    "correct_flagged": 0.0,
+    "wrong_caught": 0.26
+   },
+   {
+    "threshold": 0.4,
+    "correct_flagged": 0.0,
+    "wrong_caught": 0.26
+   },
+   {
+    "threshold": 0.5,
+    "correct_flagged": 0.0,
+    "wrong_caught": 0.35
+   },
+   {
+    "threshold": 0.6,
+    "correct_flagged": 0.05,
+    "wrong_caught": 0.7
+   },
+   {
+    "threshold": 0.7,
+    "correct_flagged": 0.32,
+    "wrong_caught": 1.0
+   }
+  ]
+ },
+ "clips": [
+  {
+   "clip": "yes.clean",
+   "ref": "Yes",
+   "got": "NAS",
+   "wer": 1.0,
+   "confidence": 0.258,
+   "weakest": 0.238
+  },
+  {
+   "clip": "yes.snr20",
+   "ref": "Yes",
+   "got": "THUS",
+   "wer": 1.0,
+   "confidence": 0.284,
+   "weakest": 0.144
+  },
+  {
+   "clip": "yes.snr10",
+   "ref": "Yes",
+   "got": "LAST",
+   "wer": 1.0,
+   "confidence": 0.046,
+   "weakest": 0.046
+  },
+  {
+   "clip": "yes.snr5",
+   "ref": "Yes",
+   "got": "THUS",
+   "wer": 1.0,
+   "confidence": 0.249,
+   "weakest": 0.086
+  },
+  {
+   "clip": "yes.babble10",
+   "ref": "Yes",
+   "got": "THUS",
+   "wer": 1.0,
+   "confidence": 0.661,
+   "weakest": 0.507
+  },
+  {
+   "clip": "yes.telephone",
+   "ref": "Yes",
+   "got": "LOVE",
+   "wer": 1.0,
+   "confidence": 0.189,
+   "weakest": 0.189
+  },
+  {
+   "clip": "yes.fast",
+   "ref": "Yes",
+   "got": "YES",
+   "wer": 0.0,
+   "confidence": 0.593,
+   "weakest": 0.535
+  },
+  {
+   "clip": "yes.pause",
+   "ref": "Yes",
+   "got": "LAST NIGHT",
+   "wer": 2.0,
+   "confidence": 0.099,
+   "weakest": 0.041
+  },
+  {
+   "clip": "no.clean",
+   "ref": "No",
+   "got": "NO",
+   "wer": 0.0,
+   "confidence": 0.673,
+   "weakest": 0.673
+  },
+  {
+   "clip": "no.snr20",
+   "ref": "No",
+   "got": "NO IT",
+   "wer": 1.0,
+   "confidence": 0.14,
+   "weakest": 0.03
+  },
+  {
+   "clip": "no.snr10",
+   "ref": "No",
+   "got": "NO HE",
+   "wer": 1.0,
+   "confidence": 0.149,
+   "weakest": 0.048
+  },
+  {
+   "clip": "no.snr5",
+   "ref": "No",
+   "got": "NO I",
+   "wer": 1.0,
+   "confidence": 0.127,
+   "weakest": 0.037
+  },
+  {
+   "clip": "no.babble10",
+   "ref": "No",
+   "got": "NO I",
+   "wer": 1.0,
+   "confidence": 0.137,
+   "weakest": 0.038
+  },
+  {
+   "clip": "no.telephone",
+   "ref": "No",
+   "got": "NO",
+   "wer": 0.0,
+   "confidence": 0.573,
+   "weakest": 0.573
+  },
+  {
+   "clip": "no.fast",
+   "ref": "No",
+   "got": "NO I",
+   "wer": 1.0,
+   "confidence": 0.19,
+   "weakest": 0.043
+  },
+  {
+   "clip": "no.pause",
+   "ref": "No",
+   "got": "NOW ILL",
+   "wer": 2.0,
+   "confidence": 0.115,
+   "weakest": 0.042
+  },
+  {
+   "clip": "yes_please.clean",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD",
+   "wer": 0.0,
+   "confidence": 0.716,
+   "weakest": 0.541
+  },
+  {
+   "clip": "yes_please.snr20",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD",
+   "wer": 0.0,
+   "confidence": 0.725,
+   "weakest": 0.484
+  },
+  {
+   "clip": "yes_please.snr10",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD I",
+   "wer": 0.25,
+   "confidence": 0.534,
+   "weakest": 0.036
+  },
+  {
+   "clip": "yes_please.snr5",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD AND",
+   "wer": 0.25,
+   "confidence": 0.513,
+   "weakest": 0.036
+  },
+  {
+   "clip": "yes_please.babble10",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD",
+   "wer": 0.0,
+   "confidence": 0.752,
+   "weakest": 0.564
+  },
+  {
+   "clip": "yes_please.telephone",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD",
+   "wer": 0.0,
+   "confidence": 0.616,
+   "weakest": 0.219
+  },
+  {
+   "clip": "yes_please.fast",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GO AHEAD",
+   "wer": 0.0,
+   "confidence": 0.802,
+   "weakest": 0.453
+  },
+  {
+   "clip": "yes_please.pause",
+   "ref": "Yes please go ahead",
+   "got": "YES PLEASE GOD GO AHEAD",
+   "wer": 0.25,
+   "confidence": 0.524,
+   "weakest": 0.143
+  },
+  {
+   "clip": "greeting.clean",
+   "ref": "Hello I would like to change my flight please",
+   "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+   "wer": 0.111,
+   "confidence": 0.73,
+   "weakest": 0.362
+  },
+  {
+   "clip": "greeting.snr20",
+   "ref": "Hello I would like to change my flight please",
+   "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+   "wer": 0.111,
+   "confidence": 0.707,
+   "weakest": 0.265
+  },
+  {
+   "clip": "greeting.snr10",
+   "ref": "Hello I would like to change my flight please",
+   "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+   "wer": 0.111,
+   "confidence": 0.64,
+   "weakest": 0.173
+  },
+  {
+   "clip": "greeting.snr5",
+   "ref": "Hello I would like to change my flight please",
+   "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+   "wer": 0.111,
+   "confidence": 0.602,
+   "weakest": 0.136
+  },
+  {
+   "clip": "greeting.babble10",
+   "ref": "Hello I would like to change my flight please",
+   "got": "THE LOW I WOULD LIKE TO CHANGE MY FLIGHT PLEASED",
+   "wer": 0.333,
+   "confidence": 0.593,
+   "weakest": 0.081
+  },
+  {
+   "clip": "greeting.telephone",
+   "ref": "Hello I would like to change my flight please",
+   "got": "HULLO I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+   "wer": 0.111,
+   "confidence": 0.672,
+   "weakest": 0.284
+  },
+  {
+   "clip": "greeting.fast",
+   "ref": "Hello I would like to change my flight please",
+   "got": "BELOW I WOULD LIKE TO CHANGE MY FLIGHT PLEASE",
+   "wer": 0.111,
+   "confidence": 0.688,
+   "weakest": 0.365
+  },
+  {
+   "clip": "greeting.pause",
+   "ref": "Hello I would like to change my flight please",
+   "got": "HULLO I WOULD LIKE TO CHANGE AND ARRANGE MY FLIGHT PLEASE",
+   "wer": 0.333,
+   "confidence": 0.589,
+   "weakest": 0.058
+  },
+  {
+   "clip": "ref.clean",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS K ONE ZERO ERO ONE",
+   "wer": 0.4,
+   "confidence": 0.654,
+   "weakest": 0.291
+  },
+  {
+   "clip": "ref.snr20",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS K ONE ZERO ZERO ONE",
+   "wer": 0.3,
+   "confidence": 0.684,
+   "weakest": 0.381
+  },
+  {
+   "clip": "ref.snr10",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS K ONE ZERO ERO ONE",
+   "wer": 0.4,
+   "confidence": 0.616,
+   "weakest": 0.13
+  },
+  {
+   "clip": "ref.snr5",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS K ONE'S ERRO ZERO ONE",
+   "wer": 0.5,
+   "confidence": 0.582,
+   "weakest": 0.161
+  },
+  {
+   "clip": "ref.babble10",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS S K ONE'S ERRO ZERO ONE",
+   "wer": 0.4,
+   "confidence": 0.578,
+   "weakest": 0.137
+  },
+  {
+   "clip": "ref.telephone",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS S K ONE'S VIRO'S HERO ONE",
+   "wer": 0.5,
+   "confidence": 0.543,
+   "weakest": 0.127
+  },
+  {
+   "clip": "ref.fast",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS K ONE ERO ZERO ONE",
+   "wer": 0.4,
+   "confidence": 0.697,
+   "weakest": 0.328
+  },
+  {
+   "clip": "ref.pause",
+   "ref": "My booking reference is S K one zero zero one",
+   "got": "MY BOOK IN REFERENCE IS S K A ONE ZERO ZERO ONE",
+   "wer": 0.3,
+   "confidence": 0.66,
+   "weakest": 0.251
+  },
+  {
+   "clip": "ref_and_name.clean",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BULKING REFERENCE IS K ONE'S EERO ZERO TWO AND MY LAST NAME IS AUKAFFER",
+   "wer": 0.312,
+   "confidence": 0.583,
+   "weakest": 0.193
+  },
+  {
+   "clip": "ref_and_name.snr20",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BULKING REFERENCE IS K ONE'S ERO ZERO TWO AND MY LAST NAME IS AUKAFFER",
+   "wer": 0.312,
+   "confidence": 0.601,
+   "weakest": 0.233
+  },
+  {
+   "clip": "ref_and_name.snr10",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BROKING REFERENCE IS K ONE'S ERO ZERO TWO AND MY LAST NAME IS AUKAFFER",
+   "wer": 0.312,
+   "confidence": 0.556,
+   "weakest": 0.169
+  },
+  {
+   "clip": "ref_and_name.snr5",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BULKING REFERENCE IS K ONE'S YIERO ZERO TWO AND MY LAST NAME IS AUGAPHER",
+   "wer": 0.312,
+   "confidence": 0.491,
+   "weakest": 0.183
+  },
+  {
+   "clip": "ref_and_name.babble10",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BOOK IN REFERENCE IS K ONE'S ERO ZERO TWO AND MY LAST NAME IS OKAFORT",
+   "wer": 0.375,
+   "confidence": 0.616,
+   "weakest": 0.244
+  },
+  {
+   "clip": "ref_and_name.telephone",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BULKING REFERENCE IS K ONE'S VIROZERO TWO AND MY LAST NAME IS AUKAFFER",
+   "wer": 0.375,
+   "confidence": 0.579,
+   "weakest": 0.193
+  },
+  {
+   "clip": "ref_and_name.fast",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BOOK IN REFERENCE IS S K ONE ZERO ZERO TWO AND MY LAST NAME IS ACAPHER",
+   "wer": 0.188,
+   "confidence": 0.652,
+   "weakest": 0.172
+  },
+  {
+   "clip": "ref_and_name.pause",
+   "ref": "My booking reference is S K one zero zero two and my last name is Okafor",
+   "got": "MY BULKING REFERENCE IS K ONE'S ERO'S GATES DEER O TWO AND MY LAST NAME IS AUKAFFER",
+   "wer": 0.5,
+   "confidence": 0.505,
+   "weakest": 0.074
+  },
+  {
+   "clip": "cancelled.clean",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND NINE HEED TO REBOCK IT FOR TO MORROW",
+   "wer": 0.357,
+   "confidence": 0.594,
+   "weakest": 0.224
+  },
+  {
+   "clip": "cancelled.snr20",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBBOCK IT FOR TO MORROW",
+   "wer": 0.214,
+   "confidence": 0.649,
+   "weakest": 0.197
+  },
+  {
+   "clip": "cancelled.snr10",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBOCK IT FOR TO MORROW",
+   "wer": 0.214,
+   "confidence": 0.683,
+   "weakest": 0.232
+  },
+  {
+   "clip": "cancelled.snr5",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBOCK IT FOR TO MORROW",
+   "wer": 0.214,
+   "confidence": 0.557,
+   "weakest": 0.163
+  },
+  {
+   "clip": "cancelled.babble10",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REB ACK IT FOR TO MORROW",
+   "wer": 0.286,
+   "confidence": 0.587,
+   "weakest": 0.122
+  },
+  {
+   "clip": "cancelled.telephone",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO REBOCK IT FOR TO MORROW",
+   "wer": 0.214,
+   "confidence": 0.616,
+   "weakest": 0.15
+  },
+  {
+   "clip": "cancelled.fast",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED AND I NEED TO RUB A CIT FOR TO MORROW",
+   "wer": 0.357,
+   "confidence": 0.641,
+   "weakest": 0.113
+  },
+  {
+   "clip": "cancelled.pause",
+   "ref": "My flight to London was cancelled and I need to rebook it for tomorrow",
+   "got": "MY FLIGHT TO LONDON WAS CANCELLED BY NINE HEAT TO REBOCK IT FOR TO MORROW",
+   "wer": 0.429,
+   "confidence": 0.6,
+   "weakest": 0.086
+  },
+  {
+   "clip": "pick.clean",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+   "wer": 0.0,
+   "confidence": 0.696,
+   "weakest": 0.47
+  },
+  {
+   "clip": "pick.snr20",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+   "wer": 0.0,
+   "confidence": 0.704,
+   "weakest": 0.457
+  },
+  {
+   "clip": "pick.snr10",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE BOOK ME ON THE FIRST OPTION WE LISTED I",
+   "wer": 0.222,
+   "confidence": 0.548,
+   "weakest": 0.036
+  },
+  {
+   "clip": "pick.snr5",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE LOOK ME ON THE FIRST OPTION YOU LISTED I",
+   "wer": 0.222,
+   "confidence": 0.497,
+   "weakest": 0.035
+  },
+  {
+   "clip": "pick.babble10",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+   "wer": 0.0,
+   "confidence": 0.691,
+   "weakest": 0.216
+  },
+  {
+   "clip": "pick.telephone",
+   "ref": "Please book me on the first option you listed",
+   "got": "CLEAVE BOOK ME ON THE FIRST OPTION YOU LISTED",
+   "wer": 0.111,
+   "confidence": 0.596,
+   "weakest": 0.144
+  },
+  {
+   "clip": "pick.fast",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+   "wer": 0.0,
+   "confidence": 0.748,
+   "weakest": 0.501
+  },
+  {
+   "clip": "pick.pause",
+   "ref": "Please book me on the first option you listed",
+   "got": "PLEASE BOOK ME ON THE FIRST OPTION YOU LISTED",
+   "wer": 0.0,
+   "confidence": 0.676,
+   "weakest": 0.472
+  },
+  {
+   "clip": "refund.clean",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.077,
+   "confidence": 0.688,
+   "weakest": 0.327
+  },
+  {
+   "clip": "refund.snr20",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.077,
+   "confidence": 0.718,
+   "weakest": 0.3
+  },
+  {
+   "clip": "refund.snr10",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.077,
+   "confidence": 0.661,
+   "weakest": 0.174
+  },
+  {
+   "clip": "refund.snr5",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REFUND IN HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.077,
+   "confidence": 0.689,
+   "weakest": 0.329
+  },
+  {
+   "clip": "refund.babble10",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "WHEN CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.154,
+   "confidence": 0.63,
+   "weakest": 0.152
+  },
+  {
+   "clip": "refund.telephone",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REEFUND AND HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.077,
+   "confidence": 0.711,
+   "weakest": 0.298
+  },
+  {
+   "clip": "refund.fast",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REEF AND IN HOW LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.154,
+   "confidence": 0.683,
+   "weakest": 0.335
+  },
+  {
+   "clip": "refund.pause",
+   "ref": "Can I get a refund and how long does it take to arrive",
+   "got": "CAN I GET A REEFUND AND HOW LONG IT IS A LONG DOES IT TAKE TO ARRIVE",
+   "wer": 0.385,
+   "confidence": 0.498,
+   "weakest": 0.062
+  },
+  {
+   "clip": "bags.clean",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.091,
+   "confidence": 0.755,
+   "weakest": 0.508
+  },
+  {
+   "clip": "bags.snr20",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.091,
+   "confidence": 0.774,
+   "weakest": 0.511
+  },
+  {
+   "clip": "bags.snr10",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.091,
+   "confidence": 0.74,
+   "weakest": 0.434
+  },
+  {
+   "clip": "bags.snr5",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.091,
+   "confidence": 0.687,
+   "weakest": 0.38
+  },
+  {
+   "clip": "bags.babble10",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "AND HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.182,
+   "confidence": 0.755,
+   "weakest": 0.416
+  },
+  {
+   "clip": "bags.telephone",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.091,
+   "confidence": 0.775,
+   "weakest": 0.541
+  },
+  {
+   "clip": "bags.fast",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I BRING ON AN ECONOMY FAIR",
+   "wer": 0.091,
+   "confidence": 0.757,
+   "weakest": 0.504
+  },
+  {
+   "clip": "bags.pause",
+   "ref": "How many checked bags can I bring on an economy fare",
+   "got": "HOW MANY CHECKED BAGS CAN I PUT OUT BRING ON AN ECONOMY FAIR",
+   "wer": 0.273,
+   "confidence": 0.618,
+   "weakest": 0.089
+  },
+  {
+   "clip": "human.clean",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.81,
+   "weakest": 0.595
+  },
+  {
+   "clip": "human.snr20",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.822,
+   "weakest": 0.522
+  },
+  {
+   "clip": "human.snr10",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.736,
+   "weakest": 0.55
+  },
+  {
+   "clip": "human.snr5",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.687,
+   "weakest": 0.427
+  },
+  {
+   "clip": "human.babble10",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.798,
+   "weakest": 0.59
+  },
+  {
+   "clip": "human.telephone",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.783,
+   "weakest": 0.567
+  },
+  {
+   "clip": "human.fast",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A REAL PERSON RIGHT NOW",
+   "wer": 0.0,
+   "confidence": 0.75,
+   "weakest": 0.491
+  },
+  {
+   "clip": "human.pause",
+   "ref": "I want to talk to a real person right now",
+   "got": "I WANT TO TALK TO A READER AND FEEL PERSON RIGHT NOW",
+   "wer": 0.3,
+   "confidence": 0.451,
+   "weakest": 0.027
+  },
+  {
+   "clip": "long.clean",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THIS SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.022,
+   "confidence": 0.737,
+   "weakest": 0.387
+  },
+  {
+   "clip": "long.snr20",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THIS SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.022,
+   "confidence": 0.746,
+   "weakest": 0.379
+  },
+  {
+   "clip": "long.snr10",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOK THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THIS SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.044,
+   "confidence": 0.693,
+   "weakest": 0.213
+  },
+  {
+   "clip": "long.snr5",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FORMED MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THIS SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.044,
+   "confidence": 0.676,
+   "weakest": 0.156
+  },
+  {
+   "clip": "long.babble10",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY AUCTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.022,
+   "confidence": 0.725,
+   "weakest": 0.386
+  },
+  {
+   "clip": "long.telephone",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.0,
+   "confidence": 0.728,
+   "weakest": 0.39
+  },
+  {
+   "clip": "long.fast",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIR LINE TELLS ME THAT OUR FLIGHT IS CANCELED SO I NEED TO KNOW WHAT MY AUCTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THE SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.089,
+   "confidence": 0.737,
+   "weakest": 0.365
+  },
+  {
+   "clip": "long.pause",
+   "ref": "I booked this trip months ago for my sister and me and now the airline tells me that our flight is cancelled so I need to know what my options are and whether we can both travel on the same day without paying anything extra",
+   "got": "I BOOKED THIS TRIP MONTHS AGO FOR MY SISTER AND ME AND NOW THE AIRLINE TELLS ME THAT OUR FLIGHT IS CANCELLED SO I NEED TO KNOW WHAT MY OPTIONS ARE AND WHETHER WE CAN BOTH TRAVEL ON THIS SAME DAY WITHOUT PAYING ANYTHING EXTRA",
+   "wer": 0.022,
+   "confidence": 0.724,
+   "weakest": 0.345
+  },
+  {
+   "clip": "ambiguous_time.clean",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.729,
+   "weakest": 0.477
+  },
+  {
+   "clip": "ambiguous_time.snr20",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.723,
+   "weakest": 0.481
+  },
+  {
+   "clip": "ambiguous_time.snr10",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.744,
+   "weakest": 0.491
+  },
+  {
+   "clip": "ambiguous_time.snr5",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.747,
+   "weakest": 0.486
+  },
+  {
+   "clip": "ambiguous_time.babble10",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.742,
+   "weakest": 0.447
+  },
+  {
+   "clip": "ambiguous_time.telephone",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.73,
+   "weakest": 0.524
+  },
+  {
+   "clip": "ambiguous_time.fast",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.0,
+   "confidence": 0.734,
+   "weakest": 0.401
+  },
+  {
+   "clip": "ambiguous_time.pause",
+   "ref": "I would take the flight at three fifty or maybe the one at five fifteen",
+   "got": "I WOULD TAKE THE FLIGHT AT THREE FIFTY OR SIX OR MAYBE THE ONE AT FIVE FIFTEEN",
+   "wer": 0.133,
+   "confidence": 0.619,
+   "weakest": 0.104
+  },
+  {
+   "clip": "interrupter.clean",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.741,
+   "weakest": 0.458
+  },
+  {
+   "clip": "interrupter.snr20",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.668,
+   "weakest": 0.449
+  },
+  {
+   "clip": "interrupter.snr10",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.675,
+   "weakest": 0.447
+  },
+  {
+   "clip": "interrupter.snr5",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.645,
+   "weakest": 0.428
+  },
+  {
+   "clip": "interrupter.babble10",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.71,
+   "weakest": 0.434
+  },
+  {
+   "clip": "interrupter.telephone",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.714,
+   "weakest": 0.56
+  },
+  {
+   "clip": "interrupter.fast",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EVENING FLIGHT INSTEAD",
+   "wer": 0.0,
+   "confidence": 0.682,
+   "weakest": 0.485
+  },
+  {
+   "clip": "interrupter.pause",
+   "ref": "Actually make that the evening flight instead",
+   "got": "ACTUALLY MAKE THAT THE EPIS EVENING FLIGHT INSTEAD",
+   "wer": 0.143,
+   "confidence": 0.571,
+   "weakest": 0.108
+  },
+  {
+   "clip": "librispeech.0.wav",
+   "ref": "AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP HERE AND THERE THE SQUALID QUARTER OF THE BROTHELS",
+   "got": "AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP HERE AND THERE THE SQUALID QUARTER OF THE BROTHELS",
+   "wer": 0.0,
+   "confidence": 0.723,
+   "weakest": 0.487
+  },
+  {
+   "clip": "librispeech.1.wav",
+   "ref": "GOD AS A DIRECT CONSEQUENCE OF THE SIN WHICH MAN THUS PUNISHED HAD GIVEN HER A LOVELY CHILD WHOSE PLACE WAS ON THAT SAME DISHONOURED BOSOM TO CONNECT HER PARENT FOR EVER WITH THE RACE AND DESCENT OF MORTALS AND TO BE FINALLY A BLESSED SOUL IN HEAVEN",
+   "got": "GOD AS A DIRECT CONSEQUENCE OF THE SIN WHICH MAN THUS PUNISHED HAD GIVEN HER A LOVELY CHILD WHOSE PLACE WAS ON THAT SAME DISHONOURED BOSOM TO CONNECT HER PARENT FOR EVER WITH THE RACE AND DESCENT OF MORTALS AND TO BE FINALLY A BLESSED SOUL IN HEAVEN",
+   "wer": 0.0,
+   "confidence": 0.756,
+   "weakest": 0.363
+  }
+ ]
+}

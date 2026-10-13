@@ -8,6 +8,7 @@ these are online transducer models.)
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
+from app.asr.base import Transcript
 from app.config import MODELS_DIR
 
 
@@ -84,13 +86,19 @@ class SherpaStream:
             self._last = self._owner._rec.get_result(self._stream).strip()
         return self._last
 
-    def finish(self) -> str:
+    def finish(self) -> Transcript:
         # Half a second of silence flushes the last frames out of the model's look-ahead.
         pad = np.zeros(int(0.5 * self._owner.sample_rate), dtype=np.float32)
         self._stream.accept_waveform(self._owner.sample_rate, pad)
         self._stream.input_finished()
         self._owner._decode_ready(self._stream)
-        return self.partial()
+        with self._owner._lock:
+            result = self._owner._rec.get_result_all(self._stream)
+        text = result.text.strip()
+        probs = [float(p) for p in result.ys_probs]  # natural-log probability of each chosen piece
+        if not text or not probs:
+            return Transcript(text, 0.0, 0.0)
+        return Transcript(text, math.exp(sum(probs) / len(probs)), math.exp(min(probs)))
 
 
 class SherpaRecognizer:

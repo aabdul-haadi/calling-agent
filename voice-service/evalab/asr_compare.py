@@ -56,7 +56,8 @@ def run_clip(rec: SherpaRecognizer, audio: np.ndarray) -> dict:
     final = s.finish()
     final_ms = (time.perf_counter() - t0) * 1000
     return {
-        "final": final,
+        "final": final.text,
+        "confidence": round(final.confidence, 3),
         "first_partial_audio_s": first_partial_at,
         "final_ms_after_last_chunk": round(final_ms, 1),
         "rtf": round(t_decode / (audio.size / rec.sample_rate), 3),
