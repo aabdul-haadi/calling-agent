@@ -695,7 +695,8 @@ class VoiceSession:
                     acks.start(tool, self._speech.progress_tools.get(tool) or self._speech.progress_line)
                 elif kind == "knowledge.searching":
                     self.emit(ev.KNOWLEDGE_SEARCHING, turn.id)
-                    acks.start("knowledge", self._speech.progress_knowledge or self._speech.progress_line)
+                    if self._speech.progress_knowledge:  # no fallback: a policy lookup is quick and never needs announcing
+                        acks.start("knowledge", self._speech.progress_knowledge)
                 elif kind == "turn.timing":
                     turn.agent_timings = event.get("timings") if isinstance(event.get("timings"), dict) else None
                 elif kind == "tool.completed":

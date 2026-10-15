@@ -24,7 +24,6 @@ export const skylinkAir: ClientConfig = {
       speech: { speaker: 'af_heart', speed: 0.97 },
       progressLine: 'One moment, I am still checking that.',
       progress: {
-        knowledge: 'Let me check the policy so I give you the right answer.',
         tools: {
           verify_customer: 'Let me look up your booking.',
           get_booking: 'I am pulling up your booking.',
