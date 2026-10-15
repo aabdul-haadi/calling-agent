@@ -13,7 +13,12 @@ import type {
   VoiceTranscriptMeta,
 } from '@adk/shared';
 import type { ClientModule } from '../clients/types';
-import { evaluatePostTurn, evaluatePreTurn, type HandoffReason } from '../handoff/triggers';
+import {
+  evaluatePostTurn,
+  evaluatePreTurn,
+  offersColleague,
+  type HandoffReason,
+} from '../handoff/triggers';
 import type { HandoffService } from '../handoff/types';
 import { asksForPerson, looksLikeQuestion, needsKnowledge } from '../knowledge/gate';
 import { NO_POLICY_REPLY, type Retriever } from '../knowledge/types';
@@ -27,7 +32,8 @@ import type { AnyToolDefinition, StatePatch } from '../tools/types';
 import { auditEvent, type AuditEvent, type AuditType } from './audit';
 import { resolveProposal } from './approval';
 import { transition, type PhaseEvent } from './phase';
-import { classifyPlainMessage, classifyTurn } from './classify';
+import { classifyPlainMessage, classifyTurn, isPresenceCheck, negatesHuman } from './classify';
+import type { TurnClassification } from '../handoff/triggers';
 import { buildSystemPrompt } from './prompt';
 import { stepIndex, type ConversationState } from './state';
 
@@ -154,6 +160,9 @@ export function describeTimings(t: TurnTimings): string {
     .map(([name, ms]) => `${name} ${fmt(ms)}`)
     .join(', ')} (turn ${fmt(t.totalMs)})`;
 }
+
+// Words that make a message a formal complaint, which some companies must always pass to a person.
+const SAYS_COMPLAINT = /\b(?:complain\w*|compensat\w*|sue|lawyer|legal action|ombudsman|regulator|report (?:you|this|him|her|them))\b/i;
 
 export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOutput> {
   const { module, conversationId } = input;
@@ -353,6 +362,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       const firstTokenMs = first();
       return firstTokenMs === undefined ? {} : { firstTokenMs };
     });
+  // One situational instruction for this turn (the caller checked the line, or sounds frustrated).
+  let turnNote: string | undefined = isPresenceCheck(input.userMessage)
+    ? 'The caller is only checking that you are still there. Answer that in a few words ("Yes, I’m here"), then carry on with exactly what you were doing, without restarting, re-asking or handing over.'
+    : undefined;
   function startModelCall(i: number, speculative: boolean): ModelRound {
     const system = buildSystemPrompt({
       config,
@@ -360,6 +373,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       channel: input.channel,
       knowledge: citations,
       voiceUncertain: uncertain,
+      ...(turnNote ? { turnNote } : {}),
     });
     const controller = new AbortController();
     const signal = input.signal
@@ -480,10 +494,37 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   const heard = await classifyP;
   // A transcript the speech recognizer was unsure about can never approve a change: a misheard
   // "yes" must not authorise anything. The agent is told to ask again (see the prompt).
-  const classification =
+  const checked =
     uncertain && heard.confirmation !== 'none'
       ? { ...heard, confirmation: 'none' as const }
       : heard;
+  // A line check is never a complaint or a request for a person, whatever the classifier guessed.
+  const presence = checked.presenceCheck === true || isPresenceCheck(input.userMessage);
+  const classification: TurnClassification = presence
+    ? {
+        ...checked,
+        intent: state.lastIntent,
+        sentiment: 'neutral',
+        wantsHuman: false,
+        confirmation: 'none',
+        presenceCheck: true,
+      }
+    : negatesHuman(input.userMessage)
+      ? { ...checked, wantsHuman: false }
+      : checked.intent === 'complaint' && !SAYS_COMPLAINT.test(input.userMessage)
+        ? // annoyance in the middle of a task is not a formal complaint
+          { ...checked, intent: state.lastIntent }
+        : checked;
+  const offer = offersColleague(config, classification) && !state.offeredColleague;
+  if (offer) {
+    state = { ...state, offeredColleague: true };
+    turnNote =
+      'The caller sounds frustrated. Acknowledge it in one short sentence, keep helping with what they asked, and offer once to bring in a colleague if they would prefer. Do not transfer unless they say yes.';
+    if (early) {
+      abandon(); // it was written without this instruction
+      early = undefined;
+    }
+  }
   state = { ...state, lastIntent: classification.intent, lastSentiment: classification.sentiment };
   if (uncertain) {
     addTrace(
@@ -754,7 +795,8 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   const toolFailureCounts =
     lastToolFailed === 'error' &&
     ['UNAVAILABLE', 'NOT_FOUND', 'UNAUTHORIZED', 'INVALID_ARGS'].includes(lastErrorCode);
-  const turnFailed = classification.intent === 'unknown' || toolFailureCounts;
+  const turnFailed =
+    (classification.intent === 'unknown' && !classification.presenceCheck) || toolFailureCounts;
   state = { ...state, failedTurns: turnFailed ? state.failedTurns + 1 : 0 };
 
   if (aiUnavailable)

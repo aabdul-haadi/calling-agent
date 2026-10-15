@@ -434,3 +434,27 @@ describe('voice UI state', () => {
     expect(at('idle').mode).toBe('idle');
   });
 });
+
+describe('a check of the line while the agent is working', () => {
+  const run = (...events: object[]) =>
+    events.reduce<VoiceState>((s, e) => reduce(s, e as Parameters<typeof reduce>[1]), INITIAL);
+  it('goes back to what the agent was really doing, never to "Listening"', () => {
+    const working = run(
+      { type: 'session.started' },
+      { type: 'speech.started', turn: 1 },
+      { type: 'transcript.final', turn: 1, text: 'Rahman SK1001', lowConfidence: false },
+      { type: 'tool.started', tool: 'verify_customer' },
+    );
+    expect(working.status).toBe('executing_tool');
+    const side = reduce(working, { type: 'speech.started', turn: 2 } as never);
+    expect(side.status).toBe('transcribing');
+    const answered = reduce(side, { type: 'turn.completed', turn: 2, status: 'answered_inline' } as never);
+    expect(answered.status).toBe('executing_tool');
+    expect(answered.activeTool).toBe('verify_customer');
+  });
+  it('also when nothing was recognised', () => {
+    const working = run({ type: 'session.started' }, { type: 'agent.thinking' }, { type: 'tool.started', tool: 'get_booking' });
+    const s = reduce(reduce(working, { type: 'speech.started', turn: 2 } as never), { type: 'turn.discarded', turn: 2 } as never);
+    expect(s.status).toBe('executing_tool');
+  });
+});

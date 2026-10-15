@@ -39,6 +39,7 @@ from app.tts.base import Synthesizer
 from app.asr.spoken import normalize_spoken_codes
 from app.tts.pacing import Pacer
 from app.tts.text import Chunker, speakable
+from app.asr.spoken import is_presence_check
 
 log = logging.getLogger("voice.session")
 
@@ -217,7 +218,7 @@ class _Acks:
 
     async def _run(self, key: str, line: str) -> None:
         cfg = self._s.s
-        await asyncio.sleep(cfg.ack_after_s)
+        await asyncio.sleep(cfg.ack_policy_after_s if key == "knowledge" else cfg.ack_after_s)
         if not self._quiet() or self._said >= 2:
             return
         self._said += 1
@@ -263,6 +264,12 @@ class VoiceSession:
         self._input_rate = input_rate
         self._speech = SpeechPrefs()
         self._awaiting_approval = False
+        # The caller started talking while the agent was still working and had not made a sound.
+        # Nothing is playing, so nothing is stopped yet: the finished transcript decides whether this
+        # is a new request (the old work is dropped) or only a check of the line (the work goes on).
+        self._deferred = False
+        self._phrases: "asyncio.Queue[str | None] | None" = None  # the running reply's speech queue
+        self._activity: str | None = None  # what the agent is doing now: a tool name, "knowledge" or None
         self._frame_tokens = float(settings.max_frames_per_second) * 5
         self._frame_tokens_at = clock()
         self._clock = clock
@@ -453,9 +460,18 @@ class VoiceSession:
         # hear speech AND it must be loud enough to be a person at the microphone, not a faint echo
         # of the agent's own voice. Checked on every frame, so someone who speaks up later still
         # gets through.
+        if self._deferred and self.state == State.USER_SPEAKING and self._first_audio_sent:
+            # the answer started to play after all: now it really is talking over the agent
+            await self._interrupt(ev.R_BARGE_IN, now)
+            self._deferred = False
+            self.state = State.USER_SPEAKING
         if self.state in (State.THINKING, State.SPEAKING):
             if self._barge.in_speech and self._recent_rms(self.s.barge_in_rms_window_ms) >= self.s.barge_in_min_rms:
-                await self._barge_in(now)
+                if self.state == State.THINKING and not self._first_audio_sent and self._agent_task is not None:
+                    self._deferred = True
+                    await self._begin_turn(now, self.s.barge_in_min_ms + self.s.pre_roll_ms)
+                else:
+                    await self._barge_in(now)
                 began = True
         # 2. A new customer turn begins.
         elif self.state == State.LISTENING:
@@ -573,12 +589,18 @@ class VoiceSession:
             log.exception("asr failed")
             await self._asr_failed(turn)
 
+    def _resume_after_side_turn(self) -> None:
+        """A turn that began while the agent was working ended without a request: back to what was happening."""
+        self._deferred = False
+        busy = self._agent_task is not None and not self._agent_task.done()
+        self.state = State.THINKING if busy else State.LISTENING
+
     async def _asr_failed(self, turn: _Turn) -> None:
         self.emit(ev.SESSION_ERROR, turn.id, code=ev.E_ASR_FAILED, fatal=False,
                   message="I could not process that audio, please try again")
         self._metrics.count("asr_failures")
         self._turn = None
-        self.state = State.LISTENING
+        self._resume_after_side_turn()
         self._vad.reset()
         self._barge.reset()
 
@@ -604,7 +626,7 @@ class VoiceSession:
         if not text or spoken_ms < MIN_TURN_SPEECH_MS:
             self.emit(ev.TURN_DISCARDED, turn.id, reason="no speech recognised")
             self._metrics.count("turns_discarded")
-            self.state = State.LISTENING
+            self._resume_after_side_turn()
             return
         low = self._is_doubtful(final)
         self._awaiting_approval = False  # this turn is the answer to any approval that was waiting
@@ -621,7 +643,27 @@ class VoiceSession:
             self._metrics.count("prefetch_used")
         if low:
             self._metrics.count("low_confidence_transcripts")
+        if self._deferred:
+            self._deferred = False
+            busy = self._agent_task is not None and not self._agent_task.done() and not self._first_audio_sent
+            if busy and not low and is_presence_check(text):
+                self._answer_presence_check(turn)
+                return
+            await self._interrupt(ev.R_BARGE_IN)
         self._start_reply(turn, text, low)
+
+    def _answer_presence_check(self, turn: _Turn) -> None:
+        """"Are you listening?" while the agent is working: say so at once and let the work carry on."""
+        line = "Yes, I'm here."
+        if self._activity:
+            line += " I'm still checking that for you."
+        else:
+            line += " Just a moment."
+        if self._phrases is not None:
+            self._phrases.put_nowait(speakable(line))
+        self._metrics.count("presence_checks_answered")
+        self.emit(ev.TURN_COMPLETED, turn.id, status="answered_inline")
+        self.state = State.THINKING
 
     def _is_doubtful(self, final: Any) -> bool:
         """Should the agent be told not to act on this transcript and to ask again?
@@ -659,6 +701,8 @@ class VoiceSession:
 
     async def _run_reply(self, turn: _Turn, text: str, low: bool, gen: int, cancel: threading.Event) -> None:
         phrases: asyncio.Queue[str | None] = asyncio.Queue()
+        self._phrases = phrases
+        self._activity = None
         tts_task = asyncio.create_task(self._speak(turn, gen, phrases, cancel))
         chunker = Chunker()
         marks = turn.marks
@@ -687,13 +731,16 @@ class VoiceSession:
                     self.emit(ev.AGENT_THINKING, turn.id)
                 elif kind == "knowledge.used":
                     acks.done("knowledge")
+                    self._activity = None
                     self.emit(ev.KNOWLEDGE_USED, turn.id, sources=_strings(event.get("sources")),
                               passages=_passages(event.get("passages")))
                 elif kind == "tool.started":
                     self.emit(ev.TOOL_STARTED, turn.id, tool=str(event.get("tool", ""))[:64])
                     tool = str(event.get("tool", ""))[:64]
+                    self._activity = tool
                     acks.start(tool, self._speech.progress_tools.get(tool) or self._speech.progress_line)
                 elif kind == "knowledge.searching":
+                    self._activity = "knowledge"
                     self.emit(ev.KNOWLEDGE_SEARCHING, turn.id)
                     if self._speech.progress_knowledge:  # no fallback: a policy lookup is quick and never needs announcing
                         acks.start("knowledge", self._speech.progress_knowledge)
@@ -701,6 +748,7 @@ class VoiceSession:
                     turn.agent_timings = event.get("timings") if isinstance(event.get("timings"), dict) else None
                 elif kind == "tool.completed":
                     acks.done(str(event.get("tool", ""))[:64])
+                    self._activity = None
                     self.emit(ev.TOOL_COMPLETED, turn.id, tool=str(event.get("tool", ""))[:64],
                               status=str(event.get("status", "ok"))[:16])
                 elif kind == "approval.required":

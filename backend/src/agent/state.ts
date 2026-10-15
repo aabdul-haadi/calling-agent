@@ -24,6 +24,8 @@ export const conversationStateSchema = z.object({
   lastSentiment: z.enum(SENTIMENTS),
   /** Set by transfer_to_human; the engine turns it into a real handoff at end of turn. */
   pendingHandoff: z.object({ reason: z.string() }).optional(),
+  /** A colleague was already offered once because the caller sounded frustrated. */
+  offeredColleague: z.boolean().optional(),
 });
 
 export type ConversationState = z.infer<typeof conversationStateSchema>;

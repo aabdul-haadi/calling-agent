@@ -43,6 +43,8 @@ export interface VoiceState {
   error?: { code: string; message: string };
   /** The reply is still being played in the browser. */
   playing: boolean;
+  /** What the agent was doing when the caller spoke over its silence (to go back to if it was only a check). */
+  working?: { status: VoiceStatus; activeTool?: string };
 }
 
 /** Things that happen in the browser rather than on the server. */
@@ -94,8 +96,17 @@ export function reduce(s: VoiceState, e: ServerEvent | LocalEvent): VoiceState {
       return { ...s, status: 'listening', conversationId: e.conversationId ?? s.conversationId };
     case 'session.conversation':
       return { ...s, conversationId: e.conversationId };
-    case 'speech.started':
-      return { ...s, status: 'transcribing', partial: '', notice: undefined };
+    case 'speech.started': {
+      const busy =
+        s.status === 'thinking' || s.status === 'searching_policy' || s.status === 'executing_tool';
+      return {
+        ...s,
+        status: 'transcribing',
+        partial: '',
+        notice: undefined,
+        working: busy ? { status: s.status, activeTool: s.activeTool } : undefined,
+      };
+    }
     case 'transcript.partial':
       return s.status === 'transcribing' ? { ...s, partial: e.text } : s;
     case 'transcript.final':
@@ -117,7 +128,9 @@ export function reduce(s: VoiceState, e: ServerEvent | LocalEvent): VoiceState {
         ],
       };
     case 'turn.discarded':
-      return { ...s, status: idle(s), partial: '' };
+      return s.working
+        ? { ...s, status: s.working.status, activeTool: s.working.activeTool, working: undefined, partial: '' }
+        : { ...s, status: idle(s), partial: '' };
     case 'agent.thinking':
       return s.status === 'thinking' || s.status === 'speaking' ? s : { ...s, status: 'thinking' };
     case 'knowledge.searching':
@@ -157,6 +170,9 @@ export function reduce(s: VoiceState, e: ServerEvent | LocalEvent): VoiceState {
       return { ...s, metrics };
     }
     case 'turn.completed':
+      // The caller only checked the line while the agent was still working: it is still working.
+      if (e.status === 'answered_inline' && s.working)
+        return { ...s, status: s.working.status, activeTool: s.working.activeTool, working: undefined };
       // Audio may still be playing: the status changes when playback really ends.
       return s.playing ? s : { ...s, status: s.status === 'interrupted' ? s.status : idle(s) };
     case 'session.error':

@@ -124,3 +124,20 @@ def normalize_spoken_codes(text: str) -> str:
         return letters.upper() + digits
 
     return _SPOKEN_CODE.sub(join, text)
+
+
+_PRESENCE_CHECK = re.compile(
+    r"^(?:(?:hello|hi|hey|ava)[\s,.?!]+)*"
+    r"(?:are you (?:still )?(?:there|listening|with me)(?: to me)?"
+    r"|can you (?:still )?hear me|do you (?:still )?hear me"
+    r"|is (?:anyone|anybody|someone) (?:there|listening)"
+    r"|hello|hi|you there|still there|are you listening)"
+    r"[\s,.?!]*(?:to me|at all|or not|right now)?[\s,.?!]*$",
+    re.IGNORECASE,
+)
+
+
+def is_presence_check(text: str) -> bool:
+    """"Hello, are you listening to me?": the caller is checking the line, not asking for anything."""
+    t = text.strip()
+    return 0 < len(t) <= 80 and bool(_PRESENCE_CHECK.match(t))

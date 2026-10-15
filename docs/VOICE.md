@@ -112,7 +112,7 @@ Other commands: `pnpm voice:models` (download or verify), `pnpm voice:test`, `pn
 | `VOICE_TTS_SPEED`                                                             | 1.0                     | Default speed; each company's profile can override it.                                                                                                                                |
 | `VOICE_PAUSE_SENTENCE_MS`, `VOICE_PAUSE_CLAUSE_MS`                            | 160, 60                 | Pause after a sentence, and after a comma-sized phrase.                                                                                                                               |
 | `VOICE_PREFETCH_SILENCE_MS`                                                   | 300                     | Start the accurate transcript this far into the closing pause (0 turns it off).                                                                                                       |
-| `VOICE_ACK_AFTER_S`, `VOICE_ACK_AGAIN_AFTER_S`                                | 2.5, 6                  | A real lookup must still be running after 2.5 s before a spoken "let me check" line is allowed; a second short line only if it is still running after 6 s more.                       |
+| `VOICE_ACK_AFTER_S`, `VOICE_ACK_POLICY_AFTER_S`, `VOICE_ACK_AGAIN_AFTER_S` | 0.8, 2.5, 6 | A real tool call must still be running after 0.8 s before a spoken "let me look that up" line is allowed; a policy search needs 2.5 s (it normally takes 0.1 s, so it is almost never announced); a second short line only if the same step is still running after 6 s more. |
 
 ## Models and hardware
 
@@ -287,3 +287,20 @@ A spoken turn is a chain: the customer stops talking, the turn is confirmed over
 ### Spoken "let me check"
 
 Lines come from the company's configuration (`persona.voice.progress`, by tool name and for an optional policy-search line, unset by default because a policy lookup is quick). They are considered only after a real `tool.started` or `knowledge.searching` event, are spoken only if the step is still running 2.5 s later and nothing has been said yet, are dropped the moment the step ends or any answer text appears, and at most two are spoken in a turn (the second only if the same step is still running 6 s later). They never say a step succeeded. What the search found is announced the moment it is known, so a finished search cancels its own line.
+
+
+## Conversation rules: checking the line, frustration, handoff
+
+Found by replaying a real call. The caller gave a surname and booking reference, then asked "Hello, are you listening to me?" while the lookup was running, and was handed to a human.
+
+**Root causes (three, stacked).**
+1. The one-line classifier read "are you listening to me?" as intent `complaint` with sentiment `frustrated`. SkyLink Air's rules send every `complaint` to a person and treat `frustrated` as a reason to transfer, so the call was handed over by a rule firing on a wrong label.
+2. Speaking while the agent had not made a sound yet cancelled the running request at the first syllable. The booking lookup was dropped, and the new utterance was answered without the lookup that was in progress. The caller heard silence, then a handoff.
+3. Handoff was triggered by mood alone. A caller who repeats themselves is not asking for a person.
+
+**What changed.**
+- A check of the line ("are you listening", "can you hear me", "hello?") is recognised by rule before any model call (`isPresenceCheck`, mirrored in the gateway as `is_presence_check`). It is neutral, never a complaint, never a request for a person, and does not count as a failed turn. The model is told: answer in a few words, then carry on with the task.
+- The gateway no longer cancels an agent that is working and has not spoken when the caller starts to talk. The decision waits for the finished transcript: a check of the line is answered at once ("Yes, I'm here. I'm still checking that for you.") while the lookup carries on; anything else cancels the old request and starts the new one. If the answer starts playing meanwhile, it is interrupted as usual (barge-in during playback is unchanged).
+- Frustration no longer transfers. The agent acknowledges it in one sentence, keeps helping and offers a colleague once. Anger, an explicit request ("get me a person"), a stated complaint ("I want to make a complaint", checked by words, not by the classifier alone) and the company's other business rules still hand over. A negated request ("I don't want to talk to a person") is not a request.
+- The UI goes back to what the agent was really doing after a side turn instead of showing "Listening" while a lookup runs.
+- Spoken waiting lines fire after 0.8 s for a running tool call and after 2.5 s for a policy search, so a quick lookup is silent and a slow one is acknowledged.

@@ -477,7 +477,7 @@ async def test_a_faint_voice_cannot_interrupt_but_the_same_person_speaking_up_ca
 
 FAST_PROGRESS = Settings(
     gateway_secret="s", end_silence_ms=600, barge_in_min_ms=160, pre_roll_ms=300, barge_in_min_rms=0.0,
-    ack_after_s=0.2,
+    ack_after_s=0.2, ack_policy_after_s=0.2,
     ack_again_after_s=30.0,
 )
 
@@ -778,4 +778,54 @@ async def test_nothing_is_started_early_when_it_is_switched_off():
     await turn(r)
     await r.until(lambda: r.of(ev.TRANSCRIPT_FINAL))
     assert rec.prefetch_calls == 0 and r.session._pre is None
+    await r.close()
+
+
+# ---------------------------------------------------------------------------------------------
+# the caller speaks while the agent is working and has not made a sound yet
+# ---------------------------------------------------------------------------------------------
+
+BUSY_SPEECH = TURN + [(seconds(4.0), "start"), (seconds(5.8), "end")]
+BUSY_STRICT = [(seconds(4.0), "start"), (seconds(5.8), "end")]
+
+
+async def test_are_you_listening_while_a_lookup_runs_is_answered_and_the_lookup_carries_on():
+    r = Rig(BUSY_SPEECH, BUSY_STRICT)
+    r.agent.script(
+        {"type": "tool.started", "tool": "verify_customer"},
+        2.5,
+        {"type": "tool.completed", "tool": "verify_customer", "status": "ok"},
+        *text("I found your booking."),
+    )
+    await r.start()
+    await r.frames(frames_for(2.8))
+    await r.until(lambda: r.session.state == State.THINKING)
+    r.rec.text = "Hello, are you listening to me?"
+    await r.frames(frames_for(3.2))
+    await r.until(lambda: len(r.synth.phrases) >= 2, timeout=8)
+    # the check of the line got its answer, the original request was never restarted or cancelled
+    assert r.synth.phrases[0].startswith("Yes, I'm here")
+    assert "checking" in r.synth.phrases[0]
+    assert r.synth.phrases[-1] == "I found your booking."
+    assert len(r.agent.calls) == 1 and r.agent.closed_early == [False]
+    assert not r.of(ev.AGENT_INTERRUPTED)
+    # the side turn is closed in its own right, and the call is still on the original reply
+    assert any(e["turn"] == 2 and e["status"] == "answered_inline" for e in r.of(ev.TURN_COMPLETED))
+    await r.close()
+
+
+async def test_a_new_request_while_the_agent_is_working_replaces_it_only_once_it_is_understood():
+    r = Rig(BUSY_SPEECH, BUSY_STRICT)
+    r.agent.script(10.0, *text("This answer would take far too long."))
+    await r.start()
+    await r.frames(frames_for(2.8))
+    await r.until(lambda: r.session.state == State.THINKING)
+    r.agent.script(*text("Sure."))
+    r.rec.text = "Actually, I want the evening flight"
+    await r.frames(frames_for(2.0))  # the caller is still speaking: nothing may be cancelled yet
+    assert r.agent.closed_early == [False] and not r.of(ev.AGENT_INTERRUPTED)
+    await r.frames(frames_for(1.4))
+    await r.until(lambda: len(r.agent.calls) == 2)
+    assert r.agent.closed_early[0] is True
+    assert r.agent.calls[1]["message"] == "Actually, I want the evening flight"
     await r.close()

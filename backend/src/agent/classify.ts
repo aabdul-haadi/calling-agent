@@ -26,6 +26,7 @@ function systemPrompt(config: ParsedClientConfig, pendingChange?: string): strin
     `Allowed intents: ${[...config.intents, 'unknown'].join(', ')}.`,
     'Sentiment describes the customer\'s TONE, not their situation. Someone calmly reporting a problem (a cancelled flight, a high bill) is "neutral".',
     'Use "frustrated" only for clear irritation in how they write (complaining about the service, repeated demands, "ridiculous", "still not fixed", all caps).',
+    'Checking the line or the agent ("hello, are you there?", "are you listening?", "can you hear me?"), repeating details already given, or asking you to repeat something is NEUTRAL and is never a "complaint" or a request for a person. "complaint" is only for a customer who says they want to make a complaint about the company or its staff; being annoyed in the middle of a task is not a complaint.',
     'Use "angry" only for hostility, insults, threats or shouting. When unsure, choose "neutral".',
     'Reply with ONE JSON object and nothing else:',
     '{"intent": <one allowed intent>, "sentiment": "positive"|"neutral"|"frustrated"|"angry",',
@@ -71,8 +72,10 @@ export async function classifyTurn(
     const parsed = classificationSchema.safeParse(JSON.parse(match[0]));
     if (!parsed.success) return NEUTRAL;
     const known = new Set([...config.intents, 'unknown']);
+    const guardedHuman = parsed.data.wantsHuman && !negatesHuman(userMessage);
     return {
       ...parsed.data,
+      wantsHuman: guardedHuman,
       intent: known.has(parsed.data.intent) ? parsed.data.intent : 'unknown',
       // Nothing can be approved when nothing is pending, whatever the model answered.
       confirmation: pendingChange ? parsed.data.confirmation : 'none',
@@ -101,19 +104,37 @@ const PLAIN_SMALL_TALK =
  * A "yes" only counts when a change is actually waiting; with nothing waiting it means nothing.
  * Returns undefined when the model should decide.
  */
+/**
+ * "Hello, are you listening to me?", "Can you hear me?", "Are you still there?": the caller is
+ * checking the line. It is not a complaint, not a request for a person and not a new request, and
+ * must never change what the conversation is doing.
+ */
+const PRESENCE_CHECK =
+  /^(?:(?:hello|hi|hey|ava|hello there)[\s,.?!]+)*(?:are you (?:still )?(?:there|listening|with me|hearing me)|can you (?:still )?hear me|do you (?:still )?hear me|is (?:anyone|anybody|someone) there|hello\s*\?+|are you (?:there|listening)(?: to me)?|(?:are )?you (?:still )?(?:there|listening)|did you (?:hear|get) (?:me|that)|hello,? (?:are you )?(?:still )?(?:there|listening)(?: to me)?)[\s,.?!]*(?:to me|at all|or not|right now|still)?[\s,.?!]*$/i;
+export const isPresenceCheck = (message: string): boolean => {
+  const text = message.trim();
+  return text.length > 0 && text.length <= 80 && PRESENCE_CHECK.test(text);
+};
+
+/** "I don't want to transfer to a human", "no, don't pass me to anyone": the opposite of asking for a person. */
+const NEGATED_HUMAN =
+  /(?:don'?t|do not|never|no need)\s+(?:want|need|wish|like|ask(?:ed)?|trying)?\s*(?:you |me |us )?(?:to |for )?(?:be\s+)?(?:(?:talk|speak)\s+to\s+)?(?:transfer\w*|hand\w*\s+(?:me\s+)?over|pass\w*\s+(?:me|on)|put\w*\s+me\s+through|connect\w*\s+me|(?:a\s+|an\s+|the\s+)?(?:human|person|agent|colleague|representative|operator)\b)/i;
+export const negatesHuman = (message: string): boolean => NEGATED_HUMAN.test(message);
+
 export function classifyPlainMessage(
   message: string,
   pendingChange: string | undefined,
   previousIntent: string,
 ): TurnClassification | undefined {
   const text = message.trim();
-  if (text.length === 0 || text.length > 40) return undefined;
   const base = {
     intent: previousIntent,
     sentiment: 'neutral' as const,
     wantsHuman: false,
     isPolicyQuestion: false,
   };
+  if (isPresenceCheck(text)) return { ...base, confirmation: 'none', presenceCheck: true };
+  if (text.length === 0 || text.length > 40) return undefined;
   if (pendingChange && PLAIN_YES.test(text)) return { ...base, confirmation: 'yes' };
   if (pendingChange && PLAIN_NO.test(text)) return { ...base, confirmation: 'no' };
   if (!pendingChange && PLAIN_SMALL_TALK.test(text)) return { ...base, confirmation: 'none' };

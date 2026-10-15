@@ -18,6 +18,8 @@ export interface TurnClassification {
   isPolicyQuestion: boolean;
   /** Does the message agree (yes) or refuse (no) the change awaiting approval? */
   confirmation: 'yes' | 'no' | 'none';
+  /** The caller is only checking that the agent is still there ("are you listening?"). */
+  presenceCheck?: boolean;
 }
 
 /** Plain-language reason shown to the human agent and in the UI. */
@@ -38,10 +40,23 @@ export function evaluatePreTurn(
   c: TurnClassification,
 ): HandoffReason | null {
   const esc = config.escalation;
+  if (c.presenceCheck) return null;
   if (esc.onUserRequest && c.wantsHuman) return 'user_request';
   if (esc.alwaysEscalateIntents.includes(c.intent)) return 'always_escalate_intent';
-  if (sentimentAtLeast(c.sentiment, esc.sentimentThreshold)) return 'frustration';
+  // Anger is a reason to bring in a person. Mere frustration is not: the agent acknowledges it once
+  // and offers a colleague, and the customer decides (see offersColleague).
+  if (c.sentiment === 'angry' && sentimentAtLeast(c.sentiment, esc.sentimentThreshold))
+    return 'frustration';
   return null;
+}
+
+/** Frustrated at or above the configured threshold, but not angry: offer a person, do not transfer. */
+export function offersColleague(config: ParsedClientConfig, c: TurnClassification): boolean {
+  return (
+    c.sentiment === 'frustrated' &&
+    !c.presenceCheck &&
+    sentimentAtLeast(c.sentiment, config.escalation.sentimentThreshold)
+  );
 }
 
 export interface PostTurnFacts {

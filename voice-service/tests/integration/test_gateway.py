@@ -20,6 +20,8 @@ from tests.integration.conftest import Client, onset_seconds
 pytestmark = pytest.mark.models
 
 GREETING = "Hello, I would like to change my flight please"
+DETAILS = "My last name is Rahman and my booking reference is S K one zero zero one"
+LISTENING = "Hello, are you listening to me?"
 
 
 # ----------------------------------------------------------------------------------------------
@@ -203,7 +205,7 @@ def _speech_of(words: str) -> np.ndarray:
 
 @pytest.fixture(autouse=True)
 def _fill_speech_cache(speech):
-    for w in (GREETING, "Actually, make that the evening flight instead"):
+    for w in (GREETING, "Actually, make that the evening flight instead", DETAILS, LISTENING):
         _speech_cache[w] = speech(w)
 
 
@@ -301,4 +303,35 @@ async def test_the_stop_button_works_without_any_speech(gateway):
     await c.send_json({"type": "control.interrupt"})
     ev = await c.wait_for("agent.interrupted", 3)
     assert ev["reason"] == "client_request"
+    await c.close()
+
+
+async def test_asking_whether_ava_is_listening_does_not_cancel_the_lookup_that_is_running(gateway):
+    c = await Client.connect(gateway)
+    await c.wait_for("session.started", 5)
+    before = len(gateway.agent.calls)  # the gateway is shared with the other tests of this module
+    gateway.agent.closed_early.clear()
+    # the lookup takes a while; nothing has been said yet when the caller checks the line
+    gateway.agent.script(
+        {"type": "tool.started", "tool": "verify_customer"},
+        6.0,
+        {"type": "tool.completed", "tool": "verify_customer", "status": "ok"},
+        *text("I found your booking. Which flight would you like?"),
+    )
+    await c.send_audio(_speech_of(DETAILS))
+    await c.silence(1.5)
+    await c.wait_for("transcript.final", 20)
+    await c.wait_for("tool.started", 10)
+    await c.send_audio(_speech_of(LISTENING))
+    await c.silence(1.5)
+    await c.wait_for("transcript.final", 20, nth=1)
+    await c.wait_for("agent.speech.completed", 60)
+    # one request to the agent: the second utterance was a check of the line, not a new request
+    mine = gateway.agent.calls[before:]
+    assert len(mine) == 1
+    assert "SK1001" in mine[0]["message"].replace(" ", "").upper()
+    assert not c.of("agent.interrupted")
+    assert gateway.agent.closed_early[-1:] == [False]
+    assert any(e["status"] == "answered_inline" for e in c.of("turn.completed"))
+    assert c.frames and c.frames[-1][1].last
     await c.close()

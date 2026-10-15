@@ -3,6 +3,7 @@ import request from 'supertest';
 import { clientConfigSchema } from '@adk/shared';
 import { signPayload } from '@backend/tools/security';
 import { evaluatePostTurn, evaluatePreTurn, deliverHandoff } from '@backend/handoff';
+import { offersColleague } from '@backend/handoff/triggers';
 import { newState } from '@backend/agent/state';
 import { skylinkAir } from '@clients/skylink-air/client.config';
 import { createMockApp, defaultOptions } from '../../mock-services/src/app';
@@ -28,7 +29,12 @@ describe('handoff triggers (pure)', () => {
     ).toBeNull();
   });
   it('frustration at or above the threshold', () => {
-    expect(evaluatePreTurn(config, { ...base, sentiment: 'frustrated' })).toBe('frustration');
+    // anger brings in a person; plain frustration is acknowledged and a colleague is offered instead
+    expect(evaluatePreTurn(config, { ...base, sentiment: 'frustrated' })).toBeNull();
+    expect(offersColleague(config, { ...base, sentiment: 'frustrated' })).toBe(true);
+    expect(offersColleague(config, { ...base, sentiment: 'frustrated', presenceCheck: true })).toBe(
+      false,
+    );
     expect(evaluatePreTurn(config, { ...base, sentiment: 'angry' })).toBe('frustration');
     expect(evaluatePreTurn(config, { ...base, sentiment: 'neutral' })).toBeNull();
   });
@@ -60,7 +66,11 @@ beforeAll(async () => {
   h = await createHarness({
     classify: (m) => {
       if (/talk to a (person|human)/i.test(m)) return { wantsHuman: true };
-      if (/furious|ridiculous/i.test(m)) return { sentiment: 'angry' };
+      if (/furious|ridiculous, i am/i.test(m)) return { sentiment: 'angry' };
+      if (/third time/i.test(m)) return { sentiment: 'frustrated', intent: 'complaint' };
+      if (/make a complaint/i.test(m)) return { intent: 'complaint' };
+      if (/listening|can you hear/i.test(m))
+        return { intent: 'complaint', sentiment: 'angry', wantsHuman: true }; // a bad guess
       if (/lost my bag|bag is lost/i.test(m)) return { intent: 'lost_baggage_claim' };
       return {};
     },
@@ -87,6 +97,52 @@ describe('handoff end-to-end', () => {
     });
     expect(res.handoff?.reason).toMatch(/frustrated/i);
     expect(res.handoff?.sentiment).toBe('angry');
+  });
+
+  it('"are you listening to me?" is a check of the line: no handoff, however the classifier guessed', async () => {
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'Hello, are you listening to me?',
+      channel: 'voice',
+    });
+    expect(res.handoff).toBeUndefined();
+    expect(res.state.handedOff).toBe(false);
+    // the model is told what this turn is, and the turn does not count as a failed one
+    expect(h.llm.calls.at(-1)?.system).toMatch(/only checking that you are still there/);
+  });
+
+  it('annoyance in the middle of a task is not a formal complaint: acknowledge, offer, keep going', async () => {
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'This is the third time I am asking',
+      channel: 'voice',
+    });
+    expect(res.handoff).toBeUndefined();
+    expect(h.llm.calls.at(-1)?.system).toMatch(/offer once to bring in a colleague/);
+    // offered once only
+    await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: res.conversationId,
+      message: 'This is the third time I am asking',
+      channel: 'voice',
+    });
+    expect(h.llm.calls.at(-1)?.system).not.toMatch(/offer once to bring in a colleague/);
+  });
+
+  it('saying they want to make a complaint still goes to a person', async () => {
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'I want to make a complaint about your staff',
+    });
+    expect(res.handoff?.reason).toMatch(/always goes to a human/i);
+  });
+
+  it("refusing a person (I don't want to talk to a person) is not a request for a person", async () => {
+    const res = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: "I don't want to talk to a person, just help me",
+    });
+    expect(res.handoff).toBeUndefined();
   });
 
   it('trigger: always-escalate intent', async () => {
