@@ -49,6 +49,21 @@ export const envSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((v) => v === 'on'),
+  /** Learning from real conversations (redacted capture, review queue, evaluated releases). */
+  LEARNING_ENABLED: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((v) => v === 'on'),
+  /** Unreviewed learning rows are deleted after this many days. Approved examples stay until removed. */
+  LEARNING_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
+  /** A fine-tuning dataset is only called ready with at least this many approved, checked examples. */
+  LEARNING_MIN_SFT_EXAMPLES: z.coerce.number().int().min(1).default(200),
+  /** Approved intent examples needed before the local intent model is retrained from live data. */
+  LEARNING_MIN_INTENT_EXAMPLES: z.coerce.number().int().min(1).default(30),
+  /** Run the learning cycle on this schedule (minutes). 0 means only when started by hand. */
+  LEARNING_SCHEDULE_MINUTES: z.coerce.number().int().min(0).default(0),
+  /** If set, the review and release endpoints require this bearer token. */
+  LEARNING_REVIEW_TOKEN: z.string().default(''),
   /** auto reads scanned pages with OCR; off never runs OCR. */
   KNOWLEDGE_OCR: z.enum(['auto', 'off']).default('auto'),
 

@@ -53,6 +53,8 @@ export interface TurnDeps {
   fastClassify?: boolean;
   /** Start the model's first answer while the message is still being classified (default on). */
   speculate?: boolean;
+  /** Reviewed, evaluated style lessons for this tenant and channel (learning system). Optional. */
+  learning?: { behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]> };
 }
 
 export interface TurnInput {
@@ -363,6 +365,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       return firstTokenMs === undefined ? {} : { firstTokenMs };
     });
   // One situational instruction for this turn (the caller checked the line, or sounds frustrated).
+  // A bad or missing release can never stop a turn: no lessons means the built-in behaviour.
+  const learnedLines = await (deps.learning?.behaviorLines(config.id, input.channel, conversationId) ?? Promise.resolve([])).catch(
+    () => [] as string[],
+  );
   let turnNote: string | undefined = isPresenceCheck(input.userMessage)
     ? 'The caller is only checking that you are still there. Answer that in a few words ("Yes, I’m here"), then carry on with exactly what you were doing, without restarting, re-asking or handing over.'
     : undefined;
@@ -374,6 +380,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       knowledge: citations,
       voiceUncertain: uncertain,
       ...(turnNote ? { turnNote } : {}),
+      ...(learnedLines.length > 0 ? { learned: learnedLines } : {}),
     });
     const controller = new AbortController();
     const signal = input.signal

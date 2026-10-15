@@ -17,6 +17,8 @@ import type { KnowledgeService } from './knowledge/documents';
 import type { Searcher } from './knowledge/retrieve';
 import { testsRouter, type EvalService } from './routes/tests';
 import { voiceRouter } from './routes/voice';
+import { learningRouter } from './routes/learning';
+import type { LearningService } from './learning';
 
 export interface AppDeps {
   env: Env;
@@ -27,6 +29,7 @@ export interface AppDeps {
   evals: EvalService;
   knowledge: KnowledgeService;
   searcher: Searcher;
+  learning?: LearningService;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -40,12 +43,13 @@ export function createApp(deps: AppDeps): Express {
   app.use(healthRouter(deps.db));
   app.use(clientsRouter(deps.registry));
   app.use(chatRouter(deps.chat));
-  app.use(handoffsRouter(deps.db));
+  app.use(handoffsRouter(deps.db, deps.learning));
   app.use(auditRouter(deps.db));
   app.use(knowledgeRouter(deps.env, deps.registry, deps.knowledge, deps.searcher));
   app.use(insightsRouter(deps.db, deps.registry));
   app.use(voiceRouter(deps.env, deps.registry));
   app.use(testsRouter(deps.evals));
+  if (deps.learning) app.use(learningRouter(deps.env, deps.registry, deps.learning));
 
   app.use(notFound);
   app.use(errorHandler(deps.logger));

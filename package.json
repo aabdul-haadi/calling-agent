@@ -28,6 +28,8 @@
     "docs:test": "node scripts/docs.mjs test",
     "docs:read": "node scripts/docs.mjs read",
     "rag:eval": "pnpm --filter @adk/backend rag-eval",
+    "learning:eval": "pnpm --filter @adk/backend learning-eval",
+    "learning:train-check": "python ml/train_sft.py check",
     "latency:bench": "pnpm --filter @adk/backend latency-bench",
     "rag:answers": "pnpm --filter @adk/backend rag-answers",
     "rag:scale": "pnpm --filter @adk/backend rag-scale",

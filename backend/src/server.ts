@@ -68,7 +68,9 @@ const app = createApp({
   evals: services.evals,
   knowledge: services.knowledge,
   searcher: services.searcher,
+  learning: services.learning,
 });
+services.learning.startSchedule(env.LEARNING_SCHEDULE_MINUTES);
 const server = app.listen(env.BACKEND_PORT, () =>
   logger.info(`backend listening on :${env.BACKEND_PORT}`),
 );
@@ -80,8 +82,10 @@ const shutdown = (signal: string) => {
   stopping = true;
   logger.info({ signal }, 'shutting down');
   server.close();
-  handle
-    .close()
+  services.learning.capture
+    .drain()
+    .catch(() => undefined)
+    .then(() => handle.close())
     .catch(() => undefined)
     .finally(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000).unref();

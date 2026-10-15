@@ -47,6 +47,107 @@ const json = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
+/** Who is reviewing, and the optional review token. Kept in this browser only. */
+export function learningCredentials(): { reviewer: string; token: string } {
+  try {
+    return {
+      reviewer: localStorage.getItem('adk.reviewer') ?? '',
+      token: localStorage.getItem('adk.reviewToken') ?? '',
+    };
+  } catch {
+    return { reviewer: '', token: '' };
+  }
+}
+
+function learningInit(init: RequestInit = {}): RequestInit {
+  const { reviewer, token } = learningCredentials();
+  return {
+    ...init,
+    headers: {
+      ...(reviewer ? { 'x-reviewer': reviewer } : {}),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+  };
+}
+
+/** Learning console types: what the server sends for review, gaps, datasets and releases. */
+export interface LearningTurn {
+  id: string;
+  channel: 'voice' | 'chat';
+  intent: string;
+  sentiment: string;
+  customerText: string;
+  aiReply: string;
+  humanReply: string | null;
+  sources: { source: string; page: number | null; weak: boolean }[];
+  asksPolicy: boolean;
+  abstained: boolean;
+  handoffReason: string | null;
+  resolution: string;
+  rating: number | null;
+  correction: string | null;
+  flags: string[];
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'excluded';
+  reviewer: string | null;
+  approvedReply: string | null;
+  split: 'train' | 'eval';
+  createdAt: string;
+}
+export interface LearningGap {
+  id: string;
+  label: string;
+  examples: string[];
+  occurrences: number;
+  channels: string[];
+  status: string;
+  suggestion: { recommendation?: string; unverifiedHumanAnswers?: string[]; nearest?: { source: string; heading: string; page?: number } | null };
+}
+export interface LearningDataset {
+  id: string;
+  version: number;
+  kind: string;
+  stats: { examples: number; byChannel: { voice: number; chat: number }; rejectedByChecks: number; minExamples: number };
+  sha256: string;
+  createdAt: string;
+}
+export interface LearningGate {
+  name: string;
+  pass: boolean;
+  detail: string;
+}
+export interface LearningRelease {
+  id: string;
+  kind: 'retrieval' | 'behavior' | 'intent_model';
+  channel: 'voice' | 'chat' | 'both';
+  version: number;
+  status: string;
+  note: string | null;
+  params: { rollout: number; config: unknown };
+  evaluation: { passed?: boolean; gates?: LearningGate[] };
+  createdBy: string | null;
+  deployedAt: string | null;
+  createdAt: string;
+}
+export interface LearningJob {
+  id: string;
+  kind: string;
+  trigger: string;
+  status: string;
+  result: Record<string, unknown>;
+  error: string | null;
+  startedAt: string;
+}
+export interface LearningOverview {
+  review: Record<string, number>;
+  capture: { queued: number; stored: number; duplicates: number; excluded: number; failed: number };
+  byChannel: Record<string, number>;
+  flags: Record<string, number>;
+  openGaps: number;
+  datasets: number;
+  shadow: Record<string, { n: number; agree: number; agreement: number }>;
+  thresholds: { minSftExamples: number; minIntentExamples: number; retentionDays: number };
+}
+
 export interface AuditEntry {
   id: string;
   type: string;
@@ -125,6 +226,33 @@ export const api = {
       `/clients/${encodeURIComponent(clientId)}/knowledge/documents/${id}`,
       json('DELETE'),
     ),
+  learning: {
+    overview: (c: string) => call<LearningOverview>(`/clients/${encodeURIComponent(c)}/learning/overview`, learningInit()),
+    turns: (c: string, status: string) =>
+      call<LearningTurn[]>(`/clients/${encodeURIComponent(c)}/learning/turns?status=${status}&limit=100`, learningInit()),
+    review: (c: string, id: string, body: object) =>
+      call<LearningTurn>(`/clients/${encodeURIComponent(c)}/learning/turns/${id}/review`, learningInit(json('POST', body))),
+    gaps: (c: string) => call<LearningGap[]>(`/clients/${encodeURIComponent(c)}/learning/gaps`, learningInit()),
+    gapStatus: (c: string, id: string, status: string) =>
+      call<LearningGap>(`/clients/${encodeURIComponent(c)}/learning/gaps/${id}/status`, learningInit(json('POST', { status }))),
+    datasets: (c: string) => call<LearningDataset[]>(`/clients/${encodeURIComponent(c)}/learning/datasets`, learningInit()),
+    buildDataset: (c: string) =>
+      call<{ dataset: LearningDataset; meetsThreshold: boolean; threshold: number }>(`/clients/${encodeURIComponent(c)}/learning/datasets`, learningInit(json('POST', {}))),
+    datasetUrl: (c: string, id: string) => `${BASE}/clients/${encodeURIComponent(c)}/learning/datasets/${id}/download`,
+    releases: (c: string) => call<LearningRelease[]>(`/clients/${encodeURIComponent(c)}/learning/releases`, learningInit()),
+    release: (c: string, id: string, action: 'evaluate' | 'shadow' | 'deploy' | 'reject') =>
+      call<LearningRelease>(`/clients/${encodeURIComponent(c)}/learning/releases/${id}/${action}`, learningInit(json('POST', {}))),
+    rollback: (c: string, kind: string, channel: string) =>
+      call<unknown>(`/clients/${encodeURIComponent(c)}/learning/releases/rollback`, learningInit(json('POST', { kind, channel }))),
+    tuneRetrieval: (c: string) =>
+      call<{ release?: LearningRelease; note: string }>(`/clients/${encodeURIComponent(c)}/learning/releases/retrieval/tune`, learningInit(json('POST', {}))),
+    trainIntent: (c: string) =>
+      call<LearningRelease>(`/clients/${encodeURIComponent(c)}/learning/models/intent/train`, learningInit(json('POST', {}))),
+    proposeBehavior: (c: string, body: object) =>
+      call<LearningRelease>(`/clients/${encodeURIComponent(c)}/learning/releases/behavior`, learningInit(json('POST', body))),
+    jobs: (c: string) => call<LearningJob[]>(`/clients/${encodeURIComponent(c)}/learning/jobs`, learningInit()),
+    runCycle: (c: string) => call<Record<string, unknown>>(`/clients/${encodeURIComponent(c)}/learning/cycle`, learningInit(json('POST', {}))),
+  },
   searchKnowledge: (clientId: string, question: string, history: string[] = []) =>
     call<KnowledgeSearchResult>(
       `/clients/${encodeURIComponent(clientId)}/knowledge/search`,

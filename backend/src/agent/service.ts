@@ -40,6 +40,29 @@ export interface ChatServiceDeps {
   fetchImpl?: typeof fetch;
   /** Override company-API retry timing (tests use tiny delays). */
   apiRetry?: RetryPolicy;
+  /** Called (never awaited, errors ignored) after each real turn. Not used for evaluation runs. */
+  onTurn?: (turn: TurnObservation) => void;
+  /** Reviewed style lessons for the reply instructions (learning system). */
+  learning?: { behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]> };
+}
+
+/** Everything about one finished turn that learning may want. Handed over after the reply is saved. */
+export interface TurnObservation {
+  clientId: string;
+  conversationId: string;
+  turnIndex: number;
+  channel: 'voice' | 'chat';
+  userMessage: string;
+  reply: string;
+  cancelled: boolean;
+  lowConfidence: boolean;
+  phase: string;
+  collected: Record<string, unknown>;
+  trace: TraceEvent[];
+  citations: ChatResponse['citations'];
+  toolCalls: { tool: string; status: string; latencyMs: number }[];
+  handoffReason?: string | undefined;
+  totalMs?: number | undefined;
 }
 
 /** Optional extras for one turn: used by the streaming endpoint and the voice gateway. */
@@ -190,6 +213,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
         retrieve: deps.retrieve,
         handoff: deps.handoff,
         speculate: env.AGENT_SPECULATIVE,
+        ...(deps.learning ? { learning: deps.learning } : {}),
         fastClassify: env.AGENT_FAST_CLASSIFY,
         makeApi: (sim) =>
           createApiClient({
@@ -224,6 +248,30 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     await repo.addTraceEvents(db, id, out.trace);
     await auditRepo.addAuditEvents(db, id, req.clientId, out.audit);
     await repo.saveConversation(db, id, out.state);
+
+    if (deps.onTurn) {
+      try {
+        deps.onTurn({
+          clientId: req.clientId,
+          conversationId: id,
+          turnIndex: history.filter((m) => m.role === 'user').length,
+          channel,
+          userMessage: req.message,
+          reply: out.reply,
+          cancelled: out.cancelled === true,
+          lowConfidence: req.voice?.lowConfidence === true,
+          phase: out.state.phase,
+          collected: out.state.collected,
+          trace: out.trace,
+          citations: out.citations,
+          toolCalls: out.toolCalls.map((t) => ({ tool: t.tool, status: t.status, latencyMs: t.latencyMs })),
+          handoffReason: out.handoff?.reason,
+          totalMs: out.timings?.totalMs,
+        });
+      } catch {
+        // learning must never affect the customer's turn
+      }
+    }
 
     return {
       conversationId: id,

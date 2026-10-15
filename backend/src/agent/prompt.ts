@@ -59,6 +59,8 @@ export interface PromptInput {
   voiceUncertain?: boolean;
   /** One situational instruction for this turn only (the caller checked the line, sounds frustrated...). */
   turnNote?: string;
+  /** Style lessons from the active, evaluated behaviour release (never rules: those live in code). */
+  learned?: string[];
 }
 
 export function buildSystemPrompt({
@@ -68,6 +70,7 @@ export function buildSystemPrompt({
   knowledge,
   voiceUncertain,
   turnNote,
+  learned,
 }: PromptInput): string {
   const p = config.persona;
   const parts: string[] = [
@@ -85,6 +88,8 @@ export function buildSystemPrompt({
   ];
 
   if (turnNote) parts.push('', `This turn: ${turnNote}`);
+  if (learned && learned.length > 0)
+    parts.push('', 'Style lessons from reviewed conversations (they never override the rules above):', ...learned.map((l) => `- ${l}`));
 
   if (Object.keys(state.collected).length > 0) {
     parts.push(

@@ -6,6 +6,7 @@ import { ArchitecturePage } from '@/pages/architecture';
 import { EvaluationsPage } from '@/pages/evaluations';
 import { HandoffsPage } from '@/pages/handoffs';
 import { KnowledgePage } from '@/pages/knowledge';
+import { LearningPage } from '@/pages/learning';
 import { OverviewPage } from '@/pages/overview';
 import { TenantsPage } from '@/pages/tenants';
 import { TracesPage } from '@/pages/traces';
@@ -30,6 +31,7 @@ export const AppRoutes = () => (
         <Route path="evaluations" element={<EvaluationsPage />} />
         <Route path="tests" element={<Navigate to="/evaluations" replace />} />
         <Route path="knowledge" element={<KnowledgePage />} />
+        <Route path="learning" element={<LearningPage />} />
         <Route path="tenants" element={<TenantsPage />} />
         <Route path="tenants/:clientId" element={<TenantsPage />} />
         <Route path="clients/:clientId" element={<LegacyClient />} />

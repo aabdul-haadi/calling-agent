@@ -10,6 +10,7 @@ import { loadClients } from '@backend/clients';
 import { createChatService, type ChatService } from '@backend/agent';
 import { createHandoffService } from '@backend/handoff';
 import { createApp } from '@backend/app';
+import { createLearningService, type LearningService } from '@backend/learning';
 import { createEvalService, evalHandoffService } from '@backend/evals';
 import { clientDir } from '@backend/clients';
 import {
@@ -145,12 +146,16 @@ export interface Harness {
   mockUrl: string;
   app: ReturnType<typeof createApp>;
   knowledge: ReturnType<typeof createKnowledgeService>;
+  /** Present when the harness was created with `learning: true`. */
+  learning?: LearningService;
   close(): Promise<void>;
 }
 
 export async function createHarness(
   opts: {
     ingestKnowledge?: boolean;
+    /** Wire the learning system into the chat service and the app. */
+    learning?: boolean;
     classify?: Parameters<typeof createScriptedLlm>[0];
     /** Extra environment variables, for example the voice gateway secret. */
     env?: Record<string, string>;
@@ -200,7 +205,23 @@ export async function createHarness(
     retrieve,
     apiRetry: { retries: 2, baseDelayMs: 1, maxDelayMs: 2 },
   };
-  const chat = createChatService({ ...base, handoff });
+  const searcherForLearning = createSearcher(db.db, localProvider);
+  const learning = opts.learning
+    ? createLearningService({
+        db: db.db,
+        logger,
+        registry,
+        searcher: searcherForLearning,
+        embeddings: localProvider,
+        llm: llm.client,
+        config: { enabled: true, retentionDays: 90, minSftExamples: 3, minIntentExamples: 3 },
+      })
+    : undefined;
+  const chat = createChatService({
+    ...base,
+    handoff,
+    ...(learning ? { onTurn: (t: Parameters<typeof learning.observe>[0]) => learning.observe(t), learning: learning.runtime } : {}),
+  });
   const evalChat = createChatService({ ...base, handoff: evalHandoffService });
   const evals = createEvalService({
     db: db.db,
@@ -218,7 +239,7 @@ export async function createHarness(
     retryDelayMs: 0,
   });
   const searcher = createSearcher(db.db, localProvider);
-  const app = createApp({ env, logger, db: db.db, registry, chat, evals, knowledge, searcher });
+  const app = createApp({ env, logger, db: db.db, registry, chat, evals, knowledge, searcher, ...(learning ? { learning } : {}) });
 
   return {
     chat,
@@ -228,6 +249,7 @@ export async function createHarness(
     mockUrl,
     app,
     knowledge,
+    ...(learning ? { learning } : {}),
     close: async () => {
       await new Promise((r) => server.close(r));
       await db.close();

@@ -271,7 +271,18 @@ export function toCitation(r: Ranked, weak = false): Citation {
   };
 }
 
+/** Everything the search learned about a question before the relevance bar is applied. */
+export interface RankedSet {
+  searched: string;
+  ranked: Ranked[];
+  timings: { embedMs: number; vectorMs: number; keywordMs: number; rerankMs: number; totalMs: number };
+}
+
 export interface Searcher {
+  /** The settings this searcher decides with. */
+  config: RetrievalConfig;
+  /** Ranks passages without deciding which count as evidence: lets the bar be tried at many values. */
+  rank(clientId: string, question: string, ctx?: RetrievalContext): Promise<RankedSet>;
   search(
     clientId: string,
     question: string,
@@ -285,8 +296,8 @@ export function createSearcher(
   cfg: RetrievalConfig = retrievalFor(embeddings),
   reranker?: Reranker,
 ): Searcher {
-  return {
-    async search(clientId, question, ctx) {
+  async function rank(clientId: string, question: string, ctx?: RetrievalContext): Promise<RankedSet> {
+    {
       const t0 = performance.now();
       const searched = searchText(question, ctx?.recentQuestions);
       const tsQuery = toTsQuery(searched);
@@ -321,6 +332,25 @@ export function createSearcher(
           .sort((a, b) => b.rerank! - a.rerank! || b.score - a.score);
         rerankMs = performance.now() - rrStart;
       }
+      return {
+        searched,
+        ranked,
+        timings: {
+          embedMs: Math.round(embedMs),
+          vectorMs: Math.round(vectorMs),
+          keywordMs: Math.round(keyword.ms),
+          rerankMs: Math.round(rerankMs),
+          totalMs: Math.round(performance.now() - t0),
+        },
+      };
+    }
+  }
+
+  return {
+    config: cfg,
+    rank,
+    async search(clientId, question, ctx) {
+      const { searched, ranked, timings } = await rank(clientId, question, ctx);
       const decision = decide(ranked, cfg);
       return {
         question,
@@ -330,13 +360,7 @@ export function createSearcher(
         embedding: embeddings.name,
         passages: decision.passages.map((p) => toCitation(p, decision.weak)),
         ...(decision.closest ? { closest: toCitation(decision.closest, decision.weak) } : {}),
-        timings: {
-          embedMs: Math.round(embedMs),
-          vectorMs: Math.round(vectorMs),
-          keywordMs: Math.round(keyword.ms),
-          rerankMs: Math.round(rerankMs),
-          totalMs: Math.round(performance.now() - t0),
-        },
+        timings,
         considered: decision.considered,
       };
     },
@@ -349,10 +373,24 @@ export function createRetriever(
   logger: Logger,
   cfg: RetrievalConfig = retrievalFor(embeddings),
   reranker?: Reranker,
+  /** Reviewed search settings for a company (learning system), or undefined for the built-in ones. */
+  overrideFor?: (clientId: string) => Promise<Partial<RetrievalConfig> | undefined>,
 ): Retriever {
-  const searcher = createSearcher(db, embeddings, cfg, reranker);
+  const base = createSearcher(db, embeddings, cfg, reranker);
+  const tuned = new Map<string, Searcher>();
   return async (clientId, query, ctx) => {
     try {
+      let searcher = base;
+      const override = overrideFor ? await overrideFor(clientId).catch(() => undefined) : undefined;
+      if (override && Object.keys(override).length > 0) {
+        const key = JSON.stringify(override);
+        let s = tuned.get(key);
+        if (!s) {
+          s = createSearcher(db, embeddings, { ...cfg, ...override }, reranker);
+          tuned.set(key, s);
+        }
+        searcher = s;
+      }
       const result = await searcher.search(clientId, query, ctx);
       return {
         citations: result.passages,

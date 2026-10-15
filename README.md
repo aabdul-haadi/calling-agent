@@ -35,7 +35,7 @@ flowchart LR
 | `clients/`       | One folder per company: config, tools, policy docs, test scenarios                                                                                 |
 | `shared/`        | Types and schemas used by both sides                                                                                                               |
 | `tests/`         | Unit and integration tests (LLM mocked, in-process Postgres)                                                                                       |
-| `docs/`          | Architecture, ADRs, how to add a client, demo script, LEARNING.md                                                                                  |
+| `docs/`          | Architecture, ADRs, how to add a client, demo script, LEARNING.md (project notes), MACHINE_LEARNING.md (learning from calls and chats)                                                                                  |
 
 ## Setup in 5 commands
 
@@ -122,4 +122,4 @@ Fake data only · secrets only in `.env` · tool inputs validated with zod · ex
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [Adding a client](docs/ADDING_A_CLIENT.md) · [Demo script](docs/DEMO_SCRIPT.md) · [Decisions (ADRs)](docs/decisions/) · [LEARNING.md](docs/LEARNING.md)
+[Architecture](docs/ARCHITECTURE.md) · [Adding a client](docs/ADDING_A_CLIENT.md) · [Demo script](docs/DEMO_SCRIPT.md) · [Decisions (ADRs)](docs/decisions/) · [LEARNING.md](docs/LEARNING.md) · [Learning from calls and chats](docs/MACHINE_LEARNING.md)

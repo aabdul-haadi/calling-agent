@@ -150,6 +150,10 @@ internet the search falls back to word matching. Details: `docs/KNOWLEDGE.md`.
 
 The backend also re-indexes the built-in files every time it starts.
 
+### 4b. Learning from calls and chats
+
+Nothing to set up: turns from both channels are captured (redacted) from the first run, and migration `0003` creates the tables. Open **Learning** in the console to review them, see knowledge gaps, freeze datasets and evaluate or roll back releases. `pnpm learning:eval` prints the held-out measurements; `pnpm learning:train-check` validates a dataset before fine-tuning (`python ml/train_sft.py`). Settings and safety rules: [docs/MACHINE_LEARNING.md](docs/MACHINE_LEARNING.md).
+
 ## 5. Tests and quality checks
 
 ```bash

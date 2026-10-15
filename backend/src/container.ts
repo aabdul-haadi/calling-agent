@@ -16,6 +16,7 @@ import {
   type KnowledgeService,
   type Searcher,
 } from './knowledge';
+import { createLearningService, type LearningService } from './learning';
 import { createClassifierLlm, createLlm, type LlmClient } from './llm';
 import type { Logger } from './logger';
 
@@ -28,6 +29,7 @@ export interface Services {
   searcher: Searcher;
   embeddings: EmbeddingProvider;
   reranker?: Reranker;
+  learning: LearningService;
 }
 
 /** Wires the real implementations together. Tests build their own with fakes instead. */
@@ -43,8 +45,25 @@ export function createServices(
   const registry = loadClients();
   const llm = createLlm(env);
   const classifier = createClassifierLlm(env);
-  const retrieve = createRetriever(db, embeddings, logger, retrievalFor(embeddings), reranker);
   const searcher = createSearcher(db, embeddings, retrievalFor(embeddings), reranker);
+  const learning = createLearningService({
+    db,
+    logger,
+    registry,
+    searcher,
+    embeddings,
+    llm,
+    config: {
+      enabled: env.LEARNING_ENABLED,
+      retentionDays: env.LEARNING_RETENTION_DAYS,
+      minSftExamples: env.LEARNING_MIN_SFT_EXAMPLES,
+      minIntentExamples: env.LEARNING_MIN_INTENT_EXAMPLES,
+    },
+  });
+  // Reviewed, evaluated search settings (if any) replace the built-in ones for that company.
+  const retrieve = createRetriever(db, embeddings, logger, retrievalFor(embeddings), reranker, (clientId) =>
+    learning.runtime.retrievalOverride(clientId),
+  );
   const knowledge = createKnowledgeService({
     db,
     embeddings,
@@ -62,7 +81,12 @@ export function createServices(
     },
   });
   const base = { db, registry, llm, classifier, logger, env, retrieve };
-  const chat = createChatService({ ...base, handoff });
+  const chat = createChatService({
+    ...base,
+    handoff,
+    onTurn: (t) => learning.observe(t),
+    learning: learning.runtime,
+  });
   const evalChat = createChatService({ ...base, handoff: evalHandoffService });
   const evals = createEvalService({
     db,
@@ -72,5 +96,5 @@ export function createServices(
     chat: evalChat,
     mockServicesUrl: env.MOCK_SERVICES_URL,
   });
-  return { registry, llm, chat, evals, knowledge, searcher, embeddings, reranker };
+  return { registry, llm, chat, evals, knowledge, searcher, embeddings, reranker, learning };
 }

@@ -1,0 +1,194 @@
+{
+ "environment": {
+  "machine": "Intel64 Family 6 Model 94 Stepping 3, GenuineIntel",
+  "os": "Windows-10-10.0.19045-SP0",
+  "python": "3.13.5",
+  "logical_cpus": 8,
+  "ram_gb": 17.1,
+  "asr": "sherpa-onnx/zipformer-large + sherpa-onnx/parakeet-tdt-0.6b-v2",
+  "tts": "sherpa-onnx/piper-amy-medium",
+  "vad": "silero_vad (sherpa-onnx)",
+  "input_sample_rate": 16000,
+  "frame_ms": 20,
+  "output_sample_rate": 22050,
+  "agent": "scripted stand-in (answers immediately)",
+  "settings": {
+   "vad_threshold": 0.5,
+   "min_speech_ms": 64,
+   "end_silence_ms": 600,
+   "barge_in_threshold": 0.7,
+   "barge_in_min_ms": 96,
+   "hold_for_hanging_word_ms": 600
+  }
+ },
+ "cold_start_seconds": {
+  "asr_load": 5.49,
+  "asr_refine_load": 9.27,
+  "asr_warmup": 0.5,
+  "tts_load": 3.0,
+  "tts_warmup": 0.1,
+  "ready_after_start": 19.06
+ },
+ "first_turn_after_start": {
+  "vad_onset_ms": 125,
+  "first_partial_ms": 1106,
+  "speech_end_to_final_ms": 1156,
+  "speech_end_to_first_text_ms": 1156,
+  "speech_end_to_first_audio_ms": 1349
+ },
+ "turns": {
+  "vad_onset_ms": {
+   "n": 8,
+   "mean": 115.8,
+   "p50": 127.6,
+   "p95": 135.7,
+   "max": 135.7
+  },
+  "first_partial_ms": {
+   "n": 8,
+   "mean": 762.1,
+   "p50": 654.6,
+   "p95": 913.2,
+   "max": 913.2
+  },
+  "speech_end_to_final_ms": {
+   "n": 8,
+   "mean": 964.6,
+   "p50": 912.7,
+   "p95": 1117.2,
+   "max": 1117.2
+  },
+  "speech_end_to_first_text_ms": {
+   "n": 8,
+   "mean": 965.7,
+   "p50": 915.3,
+   "p95": 1117.3,
+   "max": 1117.3
+  },
+  "speech_end_to_first_audio_ms": {
+   "n": 8,
+   "mean": 1176.2,
+   "p50": 1109.6,
+   "p95": 1325.0,
+   "max": 1325.0
+  },
+  "transcripts_flagged_low_confidence": 0,
+  "n": 8
+ },
+ "barge_in": {
+  "trials": 6,
+  "missed": 0,
+  "onset_to_stop_signal_ms": {
+   "n": 6,
+   "mean": 263.4,
+   "p50": 263.9,
+   "p95": 271.2,
+   "max": 271.2
+  },
+  "stale_frames_after_interrupt_total": 0,
+  "new_turn_understood": 6,
+  "server_decision_ms": {
+   "n": 6,
+   "mean": 1.9,
+   "p50": 1.6,
+   "p95": 4.1,
+   "max": 4.1
+  }
+ },
+ "false_interruptions": {
+  "white_0.02": {
+   "trials": 4,
+   "interrupted": 0,
+   "rate": 0.0
+  },
+  "white_0.06": {
+   "trials": 4,
+   "interrupted": 2,
+   "rate": 0.5
+  },
+  "knocks": {
+   "trials": 4,
+   "interrupted": 0,
+   "rate": 0.0
+  },
+  "babble_0.01": {
+   "trials": 4,
+   "interrupted": 0,
+   "rate": 0.0
+  },
+  "babble_0.03": {
+   "trials": 4,
+   "interrupted": 4,
+   "rate": 1.0
+  },
+  "echo_-20": {
+   "trials": 4,
+   "interrupted": 1,
+   "rate": 0.25
+  },
+  "echo_-10": {
+   "trials": 4,
+   "interrupted": 4,
+   "rate": 1.0
+  }
+ },
+ "resources": {
+  "rss_mb_peak": 1656.0,
+  "cpu_percent_mean_when_busy": 143.0,
+  "cpu_percent_peak": 670.0,
+  "logical_cpus": 8
+ },
+ "server_metrics": {
+  "timings_ms": {
+   "barge_in_decision_ms": {
+    "n": 17,
+    "mean": 2.0,
+    "p50": 1.4,
+    "p95": 4.6,
+    "max": 4.6
+   },
+   "barge_in_handling_ms": {
+    "n": 17,
+    "mean": 4.3,
+    "p50": 2.6,
+    "p95": 11.6,
+    "max": 11.6
+   },
+   "final_asr_ms": {
+    "n": 49,
+    "mean": 239.4,
+    "p50": 218.9,
+    "p95": 431.0,
+    "max": 594.3
+   },
+   "speech_end_to_final_ms": {
+    "n": 49,
+    "mean": 841.3,
+    "p50": 821.0,
+    "p95": 1032.9,
+    "max": 1196.4
+   },
+   "speech_end_to_first_audio_ms": {
+    "n": 9,
+    "mean": 1116.8,
+    "p50": 1155.1,
+    "p95": 1250.3,
+    "max": 1250.3
+   },
+   "speech_end_to_first_text_ms": {
+    "n": 9,
+    "mean": 899.5,
+    "p50": 914.9,
+    "p95": 1033.4,
+    "max": 1033.4
+   }
+  },
+  "counts": {
+   "interruptions": 17,
+   "prefetch_started": 60,
+   "prefetch_used": 49,
+   "sessions_started": 35,
+   "turns_discarded": 2
+  }
+ }
+}

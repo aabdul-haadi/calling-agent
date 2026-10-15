@@ -207,3 +207,5 @@ export const evalResults = pgTable(
   },
   (t) => [index('eval_results_run_idx').on(t.runId)],
 );
+
+export * from './learning-schema';

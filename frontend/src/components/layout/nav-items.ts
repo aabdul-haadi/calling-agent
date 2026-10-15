@@ -3,6 +3,7 @@ import {
   BookOpen,
   Bot,
   FlaskConical,
+  GraduationCap,
   Headset,
   LayoutDashboard,
   Mic,
@@ -70,6 +71,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     match: (p) => p.startsWith('/knowledge'),
     hint: 'Policy documents the agent cites',
+  },
+  {
+    id: 'learning',
+    label: 'Learning',
+    to: () => '/learning',
+    icon: GraduationCap,
+    match: (p) => p.startsWith('/learning'),
+    hint: 'Review what calls and chats taught us',
   },
   {
     id: 'tenants',

@@ -4,6 +4,7 @@ import type { HandoffView } from '@adk/shared';
 import { auditEvent, type AuditType } from '../agent/audit';
 import { auditRepo, conversationsRepo, handoffsRepo, type Db } from '../database';
 import { HttpError, rateLimit } from '../middleware';
+import type { LearningService } from '../learning';
 
 const replyBody = z.object({ message: z.string().trim().min(1).max(2000) });
 
@@ -11,7 +12,10 @@ const replyBody = z.object({ message: z.string().trim().min(1).max(2000) });
  * The human side of a handoff: accept it, reply to the customer, resolve it. There is no login in
  * this build, so anyone who can reach the API can act as the human agent.
  */
-export function handoffsRouter(db: Db): Router {
+export function handoffsRouter(
+  db: Db,
+  learning?: Pick<LearningService, 'capture'>,
+): Router {
   const router = Router();
 
   const idOf = (raw: unknown): string => {
@@ -55,6 +59,8 @@ export function handoffsRouter(db: Db): Router {
       throw new HttpError(409, 'HANDOFF_CLOSED', 'This handoff is already resolved');
     await conversationsRepo.addMessage(db, current.conversationId, 'human', parsed.data.message);
     await audit(current, 'human_reply', { characters: parsed.data.message.length });
+    // The human's answer is a lead for review, never a label: it is stored redacted and unapproved.
+    await learning?.capture.recordHumanReply(current.clientId, current.conversationId, parsed.data.message).catch(() => undefined);
     res.status(201).json({ data: { ok: true } });
   });
 
@@ -75,6 +81,7 @@ export function handoffsRouter(db: Db): Router {
       'A human colleague marked this conversation as resolved. Start a new chat if you need anything else.',
     );
     await audit(resolved, 'handoff_resolved');
+    await learning?.capture.recordResolution(resolved.clientId, resolved.conversationId, 'HANDOFF', 'resolved').catch(() => undefined);
     res.json({ data: resolved });
   });
 
