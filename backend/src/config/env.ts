@@ -62,6 +62,16 @@ export const envSchema = z.object({
   LEARNING_MIN_INTENT_EXAMPLES: z.coerce.number().int().min(1).default(30),
   /** Run the learning cycle on this schedule (minutes). 0 means only when started by hand. */
   LEARNING_SCHEDULE_MINUTES: z.coerce.number().int().min(0).default(0),
+  /** Where `ml/serve_local.py` serves a fine-tuned candidate (this machine only). */
+  LOCAL_MODEL_URL: z.string().url().default('http://127.0.0.1:8790'),
+  /** Let a released local model phrase tool-free policy answers. Off by default; the hosted model answers otherwise. */
+  LOCAL_MODEL_ROUTE: z.enum(['on', 'off']).default('off').transform((v) => v === 'on'),
+  /** Held-out reviewed examples needed before a model comparison can decide anything. */
+  LEARNING_MIN_EVAL_EXAMPLES: z.coerce.number().int().min(1).default(30),
+  /** A candidate's slowest typical answer (95th percentile, ms) must stay under this unless a person accepts it. */
+  LEARNING_MODEL_P95_MS: z.coerce.number().int().min(100).default(8000),
+  /** Shadow answers needed before a candidate may be promoted. */
+  LEARNING_MIN_SHADOW: z.coerce.number().int().min(1).default(20),
   /** If set, the review and release endpoints require this bearer token. */
   LEARNING_REVIEW_TOKEN: z.string().default(''),
   /** auto reads scanned pages with OCR; off never runs OCR. */

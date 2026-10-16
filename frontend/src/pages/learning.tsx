@@ -11,6 +11,7 @@ import { Tabs } from '@/components/ui/tabs';
 import { useTenant } from '@/context/tenant';
 import { useAsync } from '@/hooks/use-async';
 import { relativeTime } from '@/lib/utils';
+import { Gates, KnowledgeChangesTab, ModelCard, TrainingTab } from '@/pages/learning-ml';
 import {
   ApiError,
   api,
@@ -43,6 +44,8 @@ const RELEASE_TONE: Record<string, 'ok' | 'warn' | 'danger' | 'neutral' | 'accen
 };
 
 const KIND_TEXT: Record<string, string> = {
+  llm_adapter: 'Fine-tuned local model',
+  knowledge: 'Knowledge change',
   retrieval: 'Search settings',
   behavior: 'Style lessons',
   intent_model: 'Local intent model',
@@ -377,7 +380,11 @@ function ReleaseCard({ r, clientId, onDone }: { r: LearningRelease; clientId: st
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
         {r.note && <p className="text-muted-foreground">{r.note}</p>}
-        {r.evaluation.gates?.length ? (
+        {r.kind === 'llm_adapter' ? (
+          <ModelCard r={r} clientId={clientId} onDone={onDone} />
+        ) : r.kind === 'knowledge' ? (
+          <Gates gates={r.evaluation.gates} />
+        ) : r.evaluation.gates?.length ? (
           <ul className="grid gap-1">
             {r.evaluation.gates.map((g) => (
               <li key={g.name} className="flex gap-2">
@@ -391,7 +398,7 @@ function ReleaseCard({ r, clientId, onDone }: { r: LearningRelease; clientId: st
         ) : (
           <p className="text-muted-foreground">Not evaluated yet.</p>
         )}
-        {['candidate', 'shadow'].includes(r.status) && (
+        {['candidate', 'shadow'].includes(r.status) && r.kind !== 'llm_adapter' && r.kind !== 'knowledge' && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => void act('evaluate')}>
               <Play className="size-4" /> Evaluate again
@@ -406,7 +413,7 @@ function ReleaseCard({ r, clientId, onDone }: { r: LearningRelease; clientId: st
             </Button>
           </div>
         )}
-        {r.status === 'active' && (
+        {r.status === 'active' && r.kind !== 'llm_adapter' && r.kind !== 'knowledge' && (
           <Button
             size="sm"
             variant="outline"
@@ -549,6 +556,8 @@ export function LearningPage() {
           { id: 'review', label: 'Review queue', content: <ReviewQueue clientId={clientId} /> },
           { id: 'gaps', label: 'Knowledge gaps', content: <Gaps clientId={clientId} /> },
           { id: 'datasets', label: 'Datasets', content: <Datasets clientId={clientId} /> },
+          { id: 'training', label: 'Training', content: <TrainingTab clientId={clientId} /> },
+          { id: 'changes', label: 'Knowledge changes', content: <KnowledgeChangesTab clientId={clientId} /> },
           { id: 'releases', label: 'Evaluation and releases', content: <Releases clientId={clientId} /> },
           { id: 'jobs', label: 'Jobs', content: <Jobs clientId={clientId} /> },
         ]}

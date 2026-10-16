@@ -32,6 +32,7 @@ import type { AnyToolDefinition, StatePatch } from '../tools/types';
 import { auditEvent, type AuditEvent, type AuditType } from './audit';
 import { resolveProposal } from './approval';
 import { transition, type PhaseEvent } from './phase';
+import { acceptLocalAnswer } from './local-answer';
 import { classifyPlainMessage, classifyTurn, isPresenceCheck, negatesHuman } from './classify';
 import type { TurnClassification } from '../handoff/triggers';
 import { buildSystemPrompt } from './prompt';
@@ -54,7 +55,18 @@ export interface TurnDeps {
   /** Start the model's first answer while the message is still being classified (default on). */
   speculate?: boolean;
   /** Reviewed, evaluated style lessons for this tenant and channel (learning system). Optional. */
-  learning?: { behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]> };
+  learning?: {
+    behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]>;
+    routesLocally?(clientId: string, channel: 'voice' | 'chat'): Promise<boolean>;
+    /** The approved local model's answer for a tool-free policy question, or undefined to use the hosted model. */
+    localAnswer?(args: {
+      clientId: string;
+      channel: 'voice' | 'chat';
+      conversationId: string;
+      system: string;
+      messages: { role: 'user' | 'assistant'; content: string }[];
+    }): Promise<string | undefined>;
+  };
 }
 
 export interface TurnInput {
@@ -484,7 +496,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   // what the model is told, so that case is not started early.)
   let early: ModelRound | undefined;
   let foundEarly: Awaited<NonNullable<typeof retrievalP>> | undefined;
-  if (!pendingChange && deps.speculate !== false && !asksForPerson(input.userMessage)) {
+  const routesLocally =
+    needsKnowledge(input.userMessage) &&
+    (await deps.learning?.routesLocally?.(config.id, input.channel).catch(() => false)) === true;
+  if (!pendingChange && deps.speculate !== false && !routesLocally && !asksForPerson(input.userMessage)) {
     foundEarly = retrievalP ? await retrievalP : undefined;
     citations = foundEarly?.citations ?? [];
     // A question the documents do not answer ends with the fixed "not sure" reply, never a model
@@ -626,7 +641,52 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   let loopGuardHit = false;
   let aiUnavailable = false;
 
-  for (let i = 0; ; i++) {
+  // A tool-free policy answer from a reviewed local model (only if one is released and the engine
+  // accepts its words); otherwise the hosted model answers exactly as before.
+  let answeredLocally = false;
+  if (
+    deps.learning?.localAnswer &&
+    classification.isPolicyQuestion &&
+    !classification.presenceCheck &&
+    !pendingChange &&
+    !state.proposal &&
+    !uncertain &&
+    citations.length > 0 &&
+    !citations.every((c) => c.weak)
+  ) {
+    abandon();
+    const localStart = Date.now();
+    const text = await deps.learning
+      .localAnswer({
+        clientId: config.id,
+        channel: input.channel,
+        conversationId,
+        system: buildSystemPrompt({
+          config,
+          state,
+          channel: input.channel,
+          knowledge: citations,
+          voiceUncertain: uncertain,
+          ...(turnNote ? { turnNote } : {}),
+          ...(learnedLines.length > 0 ? { learned: learnedLines } : {}),
+        }),
+        messages: messages.flatMap((m) => (m.role === 'user' || m.role === 'assistant' ? [{ role: m.role, content: m.content }] : [])),
+      })
+      .catch(() => undefined);
+    const accepted = text ? acceptLocalAnswer(text, input.channel, citations) : undefined;
+    if (isCancelled()) return cancelTurn();
+    if (accepted) {
+      answeredLocally = true;
+      spoken += accepted;
+      emit?.({ type: 'agent.text.delta', text: accepted });
+      reply = accepted;
+      addTrace('llm', 'Answered by the approved local model', 'ok', Date.now() - localStart);
+    } else if (text) {
+      addTrace('llm', 'The local model’s answer was not used (it failed a check); the hosted model answered', 'warn', Date.now() - localStart);
+    }
+  }
+
+  for (let i = 0; !answeredLocally; i++) {
     if (i >= MAX_LOOP_ITERATIONS) {
       loopGuardHit = true;
       break;

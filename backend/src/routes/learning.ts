@@ -1,10 +1,13 @@
 import { timingSafeEqual } from 'node:crypto';
-import { Router, type Request } from 'express';
+import express, { Router, type Request } from 'express';
 import { z } from 'zod';
 import type { ClientRegistry } from '../clients';
 import type { Env } from '../config';
 import { HttpError, rateLimit } from '../middleware';
 import { ReleaseError, ReviewError, type LearningService } from '../learning';
+import { KnowledgeChangeError } from '../learning/knowledge-change';
+import { ModelReleaseError } from '../learning/ml-service';
+import { TrainingError } from '../learning/training';
 
 const uuid = z.string().regex(/^[0-9a-f-]{36}$/i, 'bad id');
 const reviewBody = z.object({
@@ -23,7 +26,7 @@ const behaviorBody = z.object({
   evaluateLive: z.boolean().optional(),
 });
 const rollbackBody = z.object({
-  kind: z.enum(['retrieval', 'behavior', 'intent_model']),
+  kind: z.enum(['retrieval', 'behavior', 'intent_model', 'llm_adapter']),
   channel: z.enum(['voice', 'chat', 'both']).default('both'),
 });
 const feedbackBody = z.object({
@@ -68,6 +71,12 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
     } catch (err) {
       if (err instanceof ReviewError)
         throw new HttpError(err.code === 'NOT_FOUND' ? 404 : 400, err.code, err.message);
+      if (err instanceof TrainingError)
+        throw new HttpError(err.code === 'NOT_FOUND' ? 404 : err.code === 'BUSY' ? 409 : 400, err.code, err.message);
+      if (err instanceof ModelReleaseError)
+        throw new HttpError(err.code === 'NOT_FOUND' ? 404 : err.code === 'LOCAL_MODEL_DOWN' ? 503 : 409, err.code, err.message);
+      if (err instanceof KnowledgeChangeError)
+        throw new HttpError(err.code === 'NOT_FOUND' ? 404 : err.code === 'INVALID' ? 400 : 409, err.code, err.message);
       if (err instanceof ReleaseError)
         throw new HttpError(err.code === 'NOT_FOUND' ? 404 : 409, err.code, err.message);
       throw err;
@@ -180,6 +189,137 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
     authorize(req);
     const removed = await learning.purgeConversation(known(req.params.id), parse(uuid, req.params.cid));
     res.json({ data: { removed } });
+  });
+
+  // ---- local model training ------------------------------------------------------------------
+  const wf = learning.workflows;
+  const trainingBody = z.object({
+    datasetId: uuid.optional(),
+    smoke: z.boolean().optional(),
+    config: z
+      .object({
+        base: z.string().max(120).regex(/^[\w./-]+$/).optional(),
+        epochs: z.number().min(0.1).max(10).optional(),
+        seed: z.number().int().optional(),
+        lr: z.number().min(1e-6).max(1e-2).optional(),
+        rank: z.number().int().min(1).max(64).optional(),
+        maxLen: z.number().int().min(64).max(4096).optional(),
+        batch: z.number().int().min(1).max(16).optional(),
+        accum: z.number().int().min(1).max(64).optional(),
+        valFraction: z.number().min(0).max(0.5).optional(),
+        maxSteps: z.number().int().min(0).max(100000).optional(),
+        threads: z.number().int().min(1).max(64).optional(),
+      })
+      .strict()
+      .optional(),
+  });
+  router.get(`${base}/training/hardware`, async (req, res) => {
+    authorize(req);
+    known(req.params.id);
+    const b = typeof req.query.base === 'string' && /^[\w./-]{1,120}$/.test(req.query.base) ? req.query.base : undefined;
+    res.json({ data: await wf.hardware(b) });
+  });
+  router.get(`${base}/training/runs`, async (req, res) => {
+    authorize(req);
+    res.json({ data: await wf.ml.listRuns(known(req.params.id)) });
+  });
+  router.post(`${base}/training/runs`, async (req, res) => {
+    const by = authorize(req);
+    const body = parse(trainingBody, req.body ?? {});
+    const run = await guard(() =>
+      wf.training.start(known(req.params.id), { datasetId: body.datasetId, smoke: body.smoke === true, config: body.config ?? {}, by }),
+    );
+    res.status(202).json({ data: run });
+  });
+  router.post(`${base}/training/runs/:runId/cancel`, async (req, res) => {
+    authorize(req);
+    res.json({ data: await guard(() => wf.training.cancel(known(req.params.id), parse(uuid, req.params.runId))) });
+  });
+  router.post(`${base}/training/runs/:runId/resume`, async (req, res) => {
+    const by = authorize(req);
+    res.status(202).json({ data: await guard(() => wf.training.resume(known(req.params.id), parse(uuid, req.params.runId), by)) });
+  });
+
+  // ---- candidate models: compare, shadow, promote --------------------------------------------
+  router.post(`${base}/models/:rid/evaluate`, async (req, res) => {
+    authorize(req);
+    const body = parse(z.object({ latencyApproved: z.boolean().optional() }), req.body ?? {});
+    res.json({ data: await guard(() => wf.evaluateModel(known(req.params.id), parse(uuid, req.params.rid), body)) });
+  });
+  router.post(`${base}/models/:rid/shadow`, async (req, res) => {
+    authorize(req);
+    res.json({ data: await guard(() => wf.startShadow(known(req.params.id), parse(uuid, req.params.rid))) });
+  });
+  router.get(`${base}/models/:rid/shadow`, async (req, res) => {
+    authorize(req);
+    res.json({ data: await wf.shadowReport(known(req.params.id), parse(uuid, req.params.rid)) });
+  });
+  router.post(`${base}/models/:rid/promote`, async (req, res) => {
+    const by = authorize(req);
+    res.json({ data: await guard(() => wf.promoteModel(known(req.params.id), parse(uuid, req.params.rid), by)) });
+  });
+
+  // ---- knowledge changes: diagnose, propose, build a candidate index, approve, publish, roll back
+  const kc = () => {
+    if (!wf.knowledgeChange) throw new HttpError(503, 'UNAVAILABLE', 'The knowledge service is not available');
+    return wf.knowledgeChange;
+  };
+  router.get(`${base}/knowledge/gaps/:gapId/diagnosis`, async (req, res) => {
+    authorize(req);
+    const clientId = known(req.params.id);
+    const gap = (await learning.store.listGaps(clientId)).find((g) => g.id === parse(uuid, req.params.gapId));
+    if (!gap) throw new HttpError(404, 'NOT_FOUND', 'No such gap');
+    res.json({ data: await guard(() => kc().diagnose(clientId, gap)) });
+  });
+  router.get(`${base}/knowledge/proposals`, async (req, res) => {
+    authorize(req);
+    res.json({ data: await wf.ml.listProposals(known(req.params.id)) });
+  });
+  router.post(
+    `${base}/knowledge/proposals`,
+    express.raw({ type: ['application/pdf', 'application/octet-stream'], limit: 100 * 1024 * 1024 }),
+    async (req, res) => {
+      const by = authorize(req);
+      const clientId = known(req.params.id);
+      const q = parse(
+        z.object({
+          title: z.string().min(3).max(160),
+          docName: z.string().min(5).max(120),
+          gapId: uuid.optional(),
+          sourceType: z.string().max(40),
+          owner: z.string().max(120),
+          reference: z.string().max(200),
+        }),
+        req.query,
+      );
+      if (!Buffer.isBuffer(req.body)) throw new HttpError(415, 'UNSUPPORTED_TYPE', 'Send the PDF as the request body (Content-Type: application/pdf).');
+      const bytes = req.body;
+      const row = await guard(() =>
+        kc().propose(clientId, { gapId: q.gapId, title: q.title, docName: q.docName, bytes, attestation: { sourceType: q.sourceType, owner: q.owner, reference: q.reference }, by }),
+      );
+      res.status(201).json({ data: row });
+    },
+  );
+  router.post(`${base}/knowledge/proposals/:pid/evaluate`, async (req, res) => {
+    const by = authorize(req);
+    res.status(202).json({ data: await guard(() => kc().evaluate(known(req.params.id), parse(uuid, req.params.pid), by)) });
+  });
+  router.post(`${base}/knowledge/proposals/:pid/approve`, async (req, res) => {
+    const by = authorize(req);
+    res.json({ data: await guard(() => kc().approve(known(req.params.id), parse(uuid, req.params.pid), by)) });
+  });
+  router.post(`${base}/knowledge/proposals/:pid/reject`, async (req, res) => {
+    const by = authorize(req);
+    const body = parse(z.object({ note: z.string().max(500).optional() }), req.body ?? {});
+    res.json({ data: await guard(() => kc().reject(known(req.params.id), parse(uuid, req.params.pid), by, body.note)) });
+  });
+  router.post(`${base}/knowledge/proposals/:pid/deploy`, async (req, res) => {
+    const by = authorize(req);
+    res.json({ data: await guard(() => kc().deploy(known(req.params.id), parse(uuid, req.params.pid), by)) });
+  });
+  router.post(`${base}/knowledge/proposals/:pid/rollback`, async (req, res) => {
+    const by = authorize(req);
+    res.json({ data: await guard(() => kc().rollback(known(req.params.id), parse(uuid, req.params.pid), by)) });
   });
 
   // Customers can say how it went. The text is redacted, stored unapproved, and changes nothing by itself.

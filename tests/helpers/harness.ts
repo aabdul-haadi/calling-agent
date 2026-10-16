@@ -146,6 +146,7 @@ export interface Harness {
   mockUrl: string;
   app: ReturnType<typeof createApp>;
   knowledge: ReturnType<typeof createKnowledgeService>;
+  searcher: ReturnType<typeof createSearcher>;
   /** Present when the harness was created with `learning: true`. */
   learning?: LearningService;
   close(): Promise<void>;
@@ -155,7 +156,7 @@ export async function createHarness(
   opts: {
     ingestKnowledge?: boolean;
     /** Wire the learning system into the chat service and the app. */
-    learning?: boolean;
+    learning?: boolean | { ml?: Partial<import('@backend/learning/ml-service').MlOptions>; training?: Record<string, unknown>; local?: unknown };
     classify?: Parameters<typeof createScriptedLlm>[0];
     /** Extra environment variables, for example the voice gateway secret. */
     env?: Record<string, string>;
@@ -205,6 +206,14 @@ export async function createHarness(
     retrieve,
     apiRetry: { retries: 2, baseDelayMs: 1, maxDelayMs: 2 },
   };
+  const knowledge = createKnowledgeService({
+    db: db.db,
+    embeddings: localProvider,
+    logger,
+    dataDir: await mkdtemp(resolve(tmpdir(), 'adk-knowledge-')),
+    retryDelayMs: 0,
+  });
+  const learningDataDir = await mkdtemp(resolve(tmpdir(), 'adk-learning-'));
   const searcherForLearning = createSearcher(db.db, localProvider);
   const learning = opts.learning
     ? createLearningService({
@@ -214,6 +223,11 @@ export async function createHarness(
         searcher: searcherForLearning,
         embeddings: localProvider,
         llm: llm.client,
+        knowledge,
+        dataDir: learningDataDir,
+        ml: { minEval: 3, minShadow: 2, route: false, p95Ms: 8000, ...(typeof opts.learning === 'object' ? opts.learning.ml : {}) },
+        ...(typeof opts.learning === 'object' && opts.learning.training ? { trainingOverride: opts.learning.training } : {}),
+        ...(typeof opts.learning === 'object' && opts.learning.local ? { localOverride: opts.learning.local } : {}),
         config: { enabled: true, retentionDays: 90, minSftExamples: 3, minIntentExamples: 3 },
       })
     : undefined;
@@ -231,13 +245,6 @@ export async function createHarness(
     chat: evalChat,
     mockServicesUrl: mockUrl,
   });
-  const knowledge = createKnowledgeService({
-    db: db.db,
-    embeddings: localProvider,
-    logger,
-    dataDir: await mkdtemp(resolve(tmpdir(), 'adk-knowledge-')),
-    retryDelayMs: 0,
-  });
   const searcher = createSearcher(db.db, localProvider);
   const app = createApp({ env, logger, db: db.db, registry, chat, evals, knowledge, searcher, ...(learning ? { learning } : {}) });
 
@@ -249,6 +256,7 @@ export async function createHarness(
     mockUrl,
     app,
     knowledge,
+    searcher,
     ...(learning ? { learning } : {}),
     close: async () => {
       await new Promise((r) => server.close(r));

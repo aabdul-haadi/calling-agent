@@ -16,7 +16,7 @@ export type ReleaseRow = typeof modelReleases.$inferSelect;
 export type JobRow = typeof learningJobs.$inferSelect;
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'excluded';
-export type ReleaseKind = 'retrieval' | 'behavior' | 'intent_model';
+export type ReleaseKind = 'retrieval' | 'behavior' | 'intent_model' | 'llm_adapter' | 'knowledge';
 
 export function createLearningStore(db: Db) {
   const now = () => new Date();

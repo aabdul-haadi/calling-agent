@@ -7,6 +7,10 @@ import type { LlmClient } from '../llm';
 import type { Logger } from '../logger';
 import { REASON_TEXT } from '../handoff/triggers';
 import { similarity } from './analyze';
+import { createMlWorkflows, type MlOptions } from './ml-service';
+import type { KnowledgeService } from '../knowledge';
+import { REPO_ROOT } from '../config/repo-root';
+import { resolve as resolvePath } from 'node:path';
 import { createLearningCapture, normalize, type LearningCapture, type TurnInput } from './capture';
 import { checkExample, createSftDataset, renderDataset, type DatasetReport } from './dataset';
 import {
@@ -54,6 +58,13 @@ export interface LearningDeps {
   searcher?: Searcher | undefined;
   embeddings?: EmbeddingProvider | undefined;
   llm?: LlmClient | undefined;
+  knowledge?: KnowledgeService | undefined;
+  /** Where learning artifacts (runs, proposals) are kept. */
+  dataDir?: string | undefined;
+  ml?: Partial<MlOptions> | undefined;
+  /** Test hooks: replace the trainer command or the local model client. */
+  trainingOverride?: Record<string, unknown> | undefined;
+  localOverride?: unknown;
 }
 
 export class ReviewError extends Error {
@@ -97,6 +108,22 @@ export function createLearningService(deps: LearningDeps) {
   const capture: LearningCapture = createLearningCapture({ store, logger, enabled: config.enabled });
   const releases: Registry = createRegistry(store, logger);
   const runtime: LearningRuntime = createRuntime(releases, store);
+  const workflows = createMlWorkflows({
+    db: deps.db,
+    logger,
+    registry: clients,
+    store,
+    releases,
+    runtime,
+    llm: deps.llm,
+    searcher: deps.searcher,
+    knowledge: deps.knowledge,
+    root: REPO_ROOT,
+    dataDir: deps.dataDir ?? resolvePath(REPO_ROOT, 'data'),
+    options: { localModelUrl: 'http://127.0.0.1:8790', route: false, minEval: 30, p95Ms: 8000, minShadow: 20, ...deps.ml },
+    ...(deps.trainingOverride ? { training: deps.trainingOverride } : {}),
+    ...(deps.localOverride ? { local: deps.localOverride as never } : {}),
+  });
   const shadow = new Map<string, { n: number; agree: number; confidentN: number; confidentAgree: number }>();
   let cycleRunning = false;
 
@@ -140,6 +167,7 @@ export function createLearningService(deps: LearningDeps) {
     if (!input) return;
     capture.record(input);
     void shadowCompare(input);
+    workflows.observeShadow(input);
   }
 
   async function shadowCompare(input: TurnInput): Promise<void> {
@@ -434,6 +462,7 @@ export function createLearningService(deps: LearningDeps) {
     capture,
     releases,
     runtime,
+    workflows,
     observe,
     review,
     buildDataset,

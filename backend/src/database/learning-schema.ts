@@ -153,3 +153,78 @@ export const learningJobs = pgTable(
   },
   (t) => [index('learning_jobs_started_idx').on(t.startedAt)],
 );
+
+/** One run of the trainer. Lives in the database so it survives a browser refresh and a server restart. */
+export const trainingRuns = pgTable(
+  'training_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clientId: text('client_id').notNull(),
+    datasetId: uuid('dataset_id'),
+    /** train | smoke (a smoke run proves the toolchain and can never become a candidate) */
+    kind: text('kind').notNull().default('train'),
+    base: text('base').notNull(),
+    config: jsonb('config').notNull().default(empty('object')),
+    /** queued | running | cancelling | cancelled | interrupted | done | failed | refused */
+    status: text('status').notNull().default('queued'),
+    progress: jsonb('progress').notNull().default(empty('object')),
+    logTail: text('log_tail').notNull().default(''),
+    pid: integer('pid'),
+    outDir: text('out_dir'),
+    metrics: jsonb('metrics').notNull().default(empty('object')),
+    error: text('error'),
+    releaseId: uuid('release_id'),
+    createdBy: text('created_by'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [index('training_runs_client_idx').on(t.clientId, t.startedAt)],
+);
+
+/** What a candidate model said in shadow mode. Redacted; never shown to a customer. */
+export const shadowOutputs = pgTable(
+  'shadow_outputs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clientId: text('client_id').notNull(),
+    releaseId: uuid('release_id').notNull(),
+    conversationId: uuid('conversation_id').notNull(),
+    turnIndex: integer('turn_index').notNull(),
+    channel: text('channel').notNull(),
+    customerText: text('customer_text').notNull(),
+    productionReply: text('production_reply').notNull(),
+    candidateReply: text('candidate_reply'),
+    similarity: integer('similarity_pct'),
+    candidateMs: integer('candidate_ms'),
+    error: text('error'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('shadow_outputs_release_idx').on(t.releaseId)],
+);
+
+/** A reviewed proposal to change what the agents know: a new or revised policy document. */
+export const knowledgeProposals = pgTable(
+  'knowledge_proposals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clientId: text('client_id').notNull(),
+    gapId: uuid('gap_id'),
+    /** document (a new or revised PDF) | retrieval (search settings: a normal release) */
+    kind: text('kind').notNull().default('document'),
+    title: text('title').notNull(),
+    docName: text('doc_name'),
+    /** Where the document comes from and who owns it. A conversation is never a source. */
+    attestation: jsonb('attestation').notNull().default(empty('object')),
+    fileSha256: text('file_sha256'),
+    filePath: text('file_path'),
+    /** draft | building | evaluated | approved | deployed | rejected | rolled_back | failed */
+    status: text('status').notNull().default('draft'),
+    evaluation: jsonb('evaluation').notNull().default(empty('object')),
+    releaseId: uuid('release_id'),
+    reviewer: text('reviewer'),
+    note: text('note'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('knowledge_proposals_client_idx').on(t.clientId, t.status)],
+);

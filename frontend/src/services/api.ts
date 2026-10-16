@@ -114,10 +114,11 @@ export interface LearningGate {
   name: string;
   pass: boolean;
   detail: string;
+  verdict?: 'pass' | 'fail' | 'inconclusive';
 }
 export interface LearningRelease {
   id: string;
-  kind: 'retrieval' | 'behavior' | 'intent_model';
+  kind: 'retrieval' | 'behavior' | 'intent_model' | 'llm_adapter' | 'knowledge';
   channel: 'voice' | 'chat' | 'both';
   version: number;
   status: string;
@@ -137,6 +138,53 @@ export interface LearningJob {
   error: string | null;
   startedAt: string;
 }
+export interface LearningRun {
+  id: string;
+  kind: 'train' | 'smoke';
+  base: string;
+  status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'interrupted' | 'done' | 'failed' | 'refused';
+  progress: { step?: number; of?: number; loss?: number; t?: number };
+  logTail: string;
+  metrics: { trainLoss?: number; validationLoss?: number; seconds?: number; peakMemoryMb?: number | null; device?: string; adapterSha256?: string; examples?: number };
+  error: string | null;
+  releaseId: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+export interface LearningHardware {
+  verdict: 'gpu' | 'cpu_slow' | 'not_ready';
+  reason: string;
+  cpuThreads: number;
+  ramGb: number | null;
+  ramAvailableGb: number | null;
+  gpu: { name: string; memoryGb: number } | null;
+  libraries: Record<string, string | null>;
+  base: string;
+  estimatedTrainingMemoryGb: number | null;
+}
+export interface KnowledgeProposal {
+  id: string;
+  gapId: string | null;
+  title: string;
+  docName: string | null;
+  attestation: { sourceType?: string; owner?: string; reference?: string };
+  status: 'draft' | 'building' | 'evaluated' | 'approved' | 'deployed' | 'rejected' | 'rolled_back' | 'failed';
+  evaluation: { passed?: boolean; inconclusive?: boolean; gates?: LearningGate[] };
+  reviewer: string | null;
+  note: string | null;
+  createdAt: string;
+}
+export interface GapDiagnosis {
+  cause: string;
+  evidence: string[];
+  recommendation: string;
+  change: string;
+}
+export interface ShadowReport {
+  stats: { n: number; failed: number; meanSimilarity: number; p50: number; p95: number };
+  recent: { id: string; customerText: string; productionReply: string; candidateReply: string | null; candidateMs: number | null; error: string | null }[];
+}
+
 export interface LearningOverview {
   review: Record<string, number>;
   capture: { queued: number; stored: number; duplicates: number; excluded: number; failed: number };
@@ -250,6 +298,26 @@ export const api = {
       call<LearningRelease>(`/clients/${encodeURIComponent(c)}/learning/models/intent/train`, learningInit(json('POST', {}))),
     proposeBehavior: (c: string, body: object) =>
       call<LearningRelease>(`/clients/${encodeURIComponent(c)}/learning/releases/behavior`, learningInit(json('POST', body))),
+    hardware: (c: string) => call<LearningHardware>(`/clients/${encodeURIComponent(c)}/learning/training/hardware`, learningInit()),
+    runs: (c: string) => call<LearningRun[]>(`/clients/${encodeURIComponent(c)}/learning/training/runs`, learningInit()),
+    startRun: (c: string, body: object) =>
+      call<LearningRun>(`/clients/${encodeURIComponent(c)}/learning/training/runs`, learningInit(json('POST', body))),
+    runAction: (c: string, id: string, action: 'cancel' | 'resume') =>
+      call<LearningRun>(`/clients/${encodeURIComponent(c)}/learning/training/runs/${id}/${action}`, learningInit(json('POST', {}))),
+    modelAction: (c: string, id: string, action: 'evaluate' | 'shadow' | 'promote', body: object = {}) =>
+      call<LearningRelease>(`/clients/${encodeURIComponent(c)}/learning/models/${id}/${action}`, learningInit(json('POST', body))),
+    shadowReport: (c: string, id: string) =>
+      call<ShadowReport>(`/clients/${encodeURIComponent(c)}/learning/models/${id}/shadow`, learningInit()),
+    proposals: (c: string) => call<KnowledgeProposal[]>(`/clients/${encodeURIComponent(c)}/learning/knowledge/proposals`, learningInit()),
+    diagnosis: (c: string, gapId: string) =>
+      call<GapDiagnosis>(`/clients/${encodeURIComponent(c)}/learning/knowledge/gaps/${gapId}/diagnosis`, learningInit()),
+    uploadProposal: (c: string, file: File, q: Record<string, string>) =>
+      call<KnowledgeProposal>(
+        `/clients/${encodeURIComponent(c)}/learning/knowledge/proposals?${new URLSearchParams({ ...q, docName: file.name }).toString()}`,
+        { method: 'POST', body: file, headers: { 'content-type': 'application/pdf', ...(learningInit().headers as Record<string, string>) } },
+      ),
+    proposalAction: (c: string, id: string, action: 'evaluate' | 'approve' | 'reject' | 'deploy' | 'rollback') =>
+      call<KnowledgeProposal>(`/clients/${encodeURIComponent(c)}/learning/knowledge/proposals/${id}/${action}`, learningInit(json('POST', {}))),
     jobs: (c: string) => call<LearningJob[]>(`/clients/${encodeURIComponent(c)}/learning/jobs`, learningInit()),
     runCycle: (c: string) => call<Record<string, unknown>>(`/clients/${encodeURIComponent(c)}/learning/cycle`, learningInit(json('POST', {}))),
   },

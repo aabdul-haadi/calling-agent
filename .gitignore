@@ -23,3 +23,6 @@ voice-service/diagnostics/
 docproc/.venv/
 docproc/tests/corpus/
 backend/eval-results/
+ml/.venv/
+ml/artifacts/
+ml/install*.log

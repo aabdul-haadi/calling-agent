@@ -43,7 +43,17 @@ export interface ChatServiceDeps {
   /** Called (never awaited, errors ignored) after each real turn. Not used for evaluation runs. */
   onTurn?: (turn: TurnObservation) => void;
   /** Reviewed style lessons for the reply instructions (learning system). */
-  learning?: { behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]> };
+  learning?: {
+    behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]>;
+    routesLocally?(clientId: string, channel: 'voice' | 'chat'): Promise<boolean>;
+    localAnswer?(args: {
+      clientId: string;
+      channel: 'voice' | 'chat';
+      conversationId: string;
+      system: string;
+      messages: { role: 'user' | 'assistant'; content: string }[];
+    }): Promise<string | undefined>;
+  };
 }
 
 /** Everything about one finished turn that learning may want. Handed over after the reply is saved. */

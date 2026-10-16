@@ -316,3 +316,60 @@ export async function documentOutline(
   }
   return { headings: [...seen].slice(0, 12), characters };
 }
+
+/**
+ * Copies a company's live documents and their chunks into another namespace, so a candidate change
+ * can be built and measured beside the live index without touching it. Returns the copied chunks.
+ */
+export async function cloneLiveInto(db: Db, from: string, to: string): Promise<number> {
+  return db.transaction(async (tx) => {
+    const docs = await tx
+      .select()
+      .from(knowledgeDocuments)
+      .where(
+        and(
+          eq(knowledgeDocuments.clientId, from),
+          eq(knowledgeDocuments.status, 'ready'),
+          eq(knowledgeDocuments.active, true),
+        ),
+      );
+    let copied = 0;
+    for (const d of docs) {
+      const { id: oldId, clientId: _client, createdAt: _c, updatedAt: _u, ...rest } = d;
+      void _client;
+      void _c;
+      void _u;
+      const [copy] = await tx
+        .insert(knowledgeDocuments)
+        .values({ ...rest, clientId: to })
+        .returning({ id: knowledgeDocuments.id });
+      const chunks = await tx.select().from(knowledgeChunks).where(eq(knowledgeChunks.documentId, oldId));
+      for (let i = 0; i < chunks.length; i += 200) {
+        await tx.insert(knowledgeChunks).values(
+          chunks.slice(i, i + 200).map((c) => ({
+            clientId: to,
+            documentId: copy!.id,
+            source: c.source,
+            heading: c.heading,
+            content: c.content,
+            page: c.page,
+            pageEnd: c.pageEnd,
+            docVersion: c.docVersion,
+            embedding: c.embedding,
+            updatedAt: new Date(),
+          })),
+        );
+      }
+      copied += chunks.length;
+    }
+    return copied;
+  });
+}
+
+/** Deletes everything stored under one namespace (used for throwaway candidate indexes). */
+export async function deleteNamespace(db: Db, clientId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.clientId, clientId));
+    await tx.delete(knowledgeDocuments).where(eq(knowledgeDocuments.clientId, clientId));
+  });
+}

@@ -39,10 +39,11 @@ const originOf = (t: TurnRow): SftExample['meta']['origin'] => {
 };
 
 /** Automatic checks on top of the human approval. A reviewer's yes does not waive them. */
-export function checkExample(t: TurnRow): string | undefined {
+export function checkExample(t: TurnRow, opts: { evalSide?: boolean } = {}): string | undefined {
   const reply = (t.approvedReply ?? '').trim();
   if (!reply) return 'no approved reply';
-  if (t.split !== 'train') return 'held out for evaluation';
+  if (!opts.evalSide && t.split !== 'train') return 'held out for evaluation';
+  if (opts.evalSide && t.split !== 'eval') return 'not on the evaluation side';
   const dirty = [...leftovers(t.customerText), ...leftovers(reply)];
   if (dirty.length > 0) return `contains ${[...new Set(dirty)].join(', ')}`;
   if (t.channel === 'voice') {
@@ -156,3 +157,37 @@ export async function renderDataset(store: LearningStore, clientId: string, data
   const built = await buildSft(store, clientId, dataset.kind === 'sft_voice' ? 'voice' : dataset.kind === 'sft_chat' ? 'chat' : undefined);
   return toJsonl(built.examples.filter((e) => ids.has(e.id)));
 }
+
+export interface EvalExample {
+  id: string;
+  channel: 'voice' | 'chat';
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+  reference: string;
+}
+
+/** Held-out, reviewed examples: the questions a candidate model is judged on and never trained on. */
+export async function buildEvalSet(store: LearningStore, clientId: string): Promise<EvalExample[]> {
+  const rows = (await store.listTurns(clientId, { status: 'approved', limit: 5000 })).filter(
+    (t) => (t.uses as string[]).includes('sft') && !checkExample(t, { evalSide: true }),
+  );
+  const out: EvalExample[] = [];
+  for (const t of [...rows].sort((a, b) => a.id.localeCompare(b.id))) {
+    const history = (await store.turnsOfConversation(clientId, t.conversationId))
+      .filter((h) => h.turnIndex < t.turnIndex)
+      .slice(-3)
+      .flatMap((h) => [
+        { role: 'user' as const, content: h.customerText },
+        { role: 'assistant' as const, content: h.approvedReply?.trim() || h.aiReply },
+      ]);
+    out.push({
+      id: t.id,
+      channel: t.channel as 'voice' | 'chat',
+      messages: [{ role: 'system', content: SYSTEM[t.channel as 'voice' | 'chat'] }, ...history, { role: 'user', content: t.customerText }],
+      reference: t.approvedReply!.trim(),
+    });
+  }
+  return out;
+}
+
+export const evalSetJsonl = (examples: EvalExample[]): string =>
+  examples.map((e) => JSON.stringify({ messages: [...e.messages, { role: 'assistant', content: e.reference }], metadata: { id: e.id, channel: e.channel } })).join(String.fromCharCode(10));

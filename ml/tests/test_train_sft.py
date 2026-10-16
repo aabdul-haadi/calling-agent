@@ -78,5 +78,37 @@ class CheckTests(unittest.TestCase):
         self.assertTrue(any("duplicate" in p for p in out["problems"]))
 
 
+class HardwareAndSplitTests(unittest.TestCase):
+    def setUp(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("trainer", SCRIPT)
+        self.mod = importlib.util.module_from_spec(spec)
+        sys.modules["trainer"] = self.mod
+        spec.loader.exec_module(self.mod)
+
+    def test_hardware_report_names_the_verdict_and_the_reason(self):
+        info = self.mod.hardware("Qwen/Qwen2.5-0.5B-Instruct")
+        self.assertIn(info["verdict"], ("gpu", "cpu_slow", "not_ready"))
+        self.assertTrue(info["reason"])
+        self.assertIn("libraries", info)
+        self.assertGreater(info["cpuThreads"], 0)
+
+    def test_not_ready_when_the_memory_is_not_there(self):
+        self.mod.available_ram_gb = lambda: 0.5
+        self.mod.total_ram_gb = lambda: 0.5
+        info = self.mod.hardware("Qwen/Qwen2.5-0.5B-Instruct")
+        self.assertEqual(info["verdict"], "not_ready")
+
+    def test_validation_split_is_stable_and_disjoint(self):
+        rows = [example(f"question number {i}", f"answer {i}") for i in range(200)]
+        train, val = self.mod.split_validation(rows, 0.1)
+        again_train, again_val = self.mod.split_validation(list(reversed(rows)), 0.1)
+        self.assertEqual({r["metadata"]["id"] for r in val}, {r["metadata"]["id"] for r in again_val})
+        self.assertFalse({r["metadata"]["id"] for r in train} & {r["metadata"]["id"] for r in val})
+        self.assertGreater(len(val), 5)
+        self.assertLess(len(val), 40)
+
+
 if __name__ == "__main__":
     unittest.main()

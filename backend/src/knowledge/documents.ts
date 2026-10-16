@@ -63,6 +63,10 @@ export interface KnowledgeService {
   resume(): Promise<void>;
   /** Resolves when no document is waiting or being processed (for tests and the CLI). */
   idle(): Promise<void>;
+  /** The stored PDF of one version (used to restore an earlier version). */
+  bytesOf(clientId: string, id: string): Promise<Buffer | undefined>;
+  /** Waits until a document is ready or has failed, or the time runs out. */
+  waitUntilSettled(clientId: string, id: string, timeoutMs: number): Promise<KnowledgeDoc | undefined>;
 }
 
 const safeName = (raw: string): string => {
@@ -417,6 +421,23 @@ export function createKnowledgeService(deps: KnowledgeServiceDeps): KnowledgeSer
         await rm(fileOf(clientId, r.id, 'pages.json'), { force: true });
       }
       return removed.length > 0;
+    },
+
+    async bytesOf(clientId, id) {
+      const row = await knowledgeRepo.getDocument(db, id);
+      if (!row || row.clientId !== clientId || row.origin !== 'upload') return undefined;
+      return readFile(fileOf(clientId, id, 'pdf')).catch(() => undefined);
+    },
+
+    async waitUntilSettled(clientId, id, timeoutMs) {
+      const end = Date.now() + timeoutMs;
+      for (;;) {
+        const row = await knowledgeRepo.getDocument(db, id);
+        if (!row || row.clientId !== clientId) return undefined;
+        if (row.status === 'ready' || row.status === 'failed' || row.status === 'superseded') return toView(row);
+        if (Date.now() > end) return toView(row);
+        await new Promise((r) => setTimeout(r, 150));
+      }
     },
 
     async resume() {

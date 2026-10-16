@@ -33,9 +33,12 @@ export interface Gate {
   name: string;
   pass: boolean;
   detail: string;
+  /** 'inconclusive' means the evidence is too thin to decide either way; it still blocks a release. */
+  verdict?: 'pass' | 'fail' | 'inconclusive';
 }
 export interface Evaluation {
   passed: boolean;
+  inconclusive?: boolean;
   gates: Gate[];
   metrics: Record<string, unknown>;
   baseline?: Record<string, unknown>;
@@ -256,6 +259,16 @@ export interface LearningRuntime {
   retrievalOverride(clientId: string): Promise<RetrievalOverride | undefined>;
   /** The intent model in shadow mode, if any. */
   shadowIntent(clientId: string, channel: 'voice' | 'chat'): Promise<IntentModel | undefined>;
+  /** Does a released local model phrase tool-free policy answers for this company and channel? */
+  routesLocally?(clientId: string, channel: 'voice' | 'chat'): Promise<boolean>;
+  /** Set by the learning service when a released local model may phrase tool-free policy answers. */
+  localAnswer?(args: {
+    clientId: string;
+    channel: 'voice' | 'chat';
+    conversationId: string;
+    system: string;
+    messages: { role: 'user' | 'assistant'; content: string }[];
+  }): Promise<string | undefined>;
 }
 
 export function createRuntime(registry: Registry, store: LearningStore): LearningRuntime {

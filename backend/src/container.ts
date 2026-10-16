@@ -46,6 +46,13 @@ export function createServices(
   const llm = createLlm(env);
   const classifier = createClassifierLlm(env);
   const searcher = createSearcher(db, embeddings, retrievalFor(embeddings), reranker);
+  const knowledge = createKnowledgeService({
+    db,
+    embeddings,
+    logger,
+    ocr: env.KNOWLEDGE_OCR,
+    maxUploadBytes: env.KNOWLEDGE_MAX_UPLOAD_MB * 1024 * 1024,
+  });
   const learning = createLearningService({
     db,
     logger,
@@ -53,6 +60,14 @@ export function createServices(
     searcher,
     embeddings,
     llm,
+    knowledge,
+    ml: {
+      localModelUrl: env.LOCAL_MODEL_URL,
+      route: env.LOCAL_MODEL_ROUTE,
+      minEval: env.LEARNING_MIN_EVAL_EXAMPLES,
+      p95Ms: env.LEARNING_MODEL_P95_MS,
+      minShadow: env.LEARNING_MIN_SHADOW,
+    },
     config: {
       enabled: env.LEARNING_ENABLED,
       retentionDays: env.LEARNING_RETENTION_DAYS,
@@ -64,13 +79,6 @@ export function createServices(
   const retrieve = createRetriever(db, embeddings, logger, retrievalFor(embeddings), reranker, (clientId) =>
     learning.runtime.retrievalOverride(clientId),
   );
-  const knowledge = createKnowledgeService({
-    db,
-    embeddings,
-    logger,
-    ocr: env.KNOWLEDGE_OCR,
-    maxUploadBytes: env.KNOWLEDGE_MAX_UPLOAD_MB * 1024 * 1024,
-  });
   const handoff = createHandoffService({
     db,
     logger,
