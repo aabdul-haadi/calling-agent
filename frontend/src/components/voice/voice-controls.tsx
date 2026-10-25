@@ -78,7 +78,7 @@ export const VOICE_STATUS_TEXT: Record<VoiceStatus, string> = {
   blocked: 'Microphone blocked',
   listening: 'Listening',
   muted: 'Muted',
-  speaking: 'Agent speaking · talk to interrupt',
+  speaking: 'Agent speaking. Talk to interrupt.',
   interrupted: 'Interrupted',
 };
 
@@ -119,33 +119,44 @@ export function VoiceControls(p: VoiceControlsProps) {
   return (
     <section
       aria-label="Voice mode"
-      className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+      className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-soft"
     >
       <Button
         size="icon"
-        variant={p.active ? 'danger' : 'primary'}
+        variant={p.active ? 'danger' : 'outline'}
         onClick={p.onToggle}
         aria-pressed={p.active}
         aria-label={p.active ? 'Stop voice mode' : 'Start voice mode'}
-        className="h-11 w-11 shrink-0 rounded-full"
+        className="h-10 w-10 shrink-0 rounded-full"
       >
         {p.active ? (
-          <MicOff className="h-5 w-5" aria-hidden="true" />
+          <MicOff className="h-[1.1rem] w-[1.1rem]" strokeWidth={1.75} aria-hidden="true" />
         ) : (
-          <Mic className="h-5 w-5" aria-hidden="true" />
+          <Mic
+            className="h-[1.1rem] w-[1.1rem] text-accent"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
         )}
       </Button>
       <div className="min-w-0 flex-1">
-        <Waveform level={p.level} active={p.active} speaking={p.speaking} />
+        <p className="text-sm font-medium leading-tight">
+          {p.active ? 'Voice mode on' : 'Voice mode'}
+        </p>
         <p className="truncate text-xs text-muted-foreground" aria-live="polite">
           {p.caption ? (
             <span className="italic text-foreground">“{p.caption}”</span>
           ) : p.speaking && p.agentCaption ? (
             p.agentCaption
-          ) : (
+          ) : p.active ? (
             VOICE_STATUS_TEXT[status]
+          ) : (
+            'Talk to the agent instead of typing'
           )}
         </p>
+      </div>
+      <div className="hidden w-36 shrink-0 sm:block">
+        <Waveform level={p.level} active={p.active} speaking={p.speaking} />
       </div>
       {p.error && (
         <p role="alert" className="max-w-[12rem] text-xs text-danger">

@@ -92,7 +92,7 @@ function EventRow({ event, maxMs }: { event: TraceEvent; maxMs: number }) {
             {event.label}
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.7rem] text-muted-foreground">
-            <span className="font-mono uppercase tracking-wider">{KIND_LABEL[kind]}</span>
+            <span className="font-medium">{KIND_LABEL[kind]}</span>
             {tool && <span className="font-mono text-foreground/80">{tool}</span>}
             {outcome && (
               <Badge tone={event.status === 'error' ? 'danger' : 'warn'}>{outcome}</Badge>

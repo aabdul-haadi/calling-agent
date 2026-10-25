@@ -73,11 +73,11 @@ const ICE: [number, number, number] = [0.43, 0.88, 1];
 const VIOLET: [number, number, number] = [0.7, 0.58, 1];
 
 export const MODE_META: Record<AgentMode, ModeMeta> = {
-  idle: { label: 'Idle', color: ICE, hsl: '196 100% 67%', spin: 1, drift: 0.6, glow: 0.7 },
+  idle: { label: 'Idle', color: ICE, hsl: '214 72% 50%', spin: 1, drift: 0.6, glow: 0.7 },
   listening: {
     label: 'Listening',
     color: [0.36, 1, 0.9],
-    hsl: '172 100% 68%',
+    hsl: '172 62% 38%',
     spin: 1.4,
     drift: 1,
     glow: 1,
@@ -85,7 +85,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   thinking: {
     label: 'Thinking',
     color: [0.55, 0.62, 1],
-    hsl: '230 100% 73%',
+    hsl: '226 62% 56%',
     spin: 3.4,
     drift: 2.6,
     glow: 1.1,
@@ -93,7 +93,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   searching: {
     label: 'Searching policy documents',
     color: [0.5, 0.82, 1],
-    hsl: '203 100% 74%',
+    hsl: '205 70% 46%',
     spin: 2.1,
     drift: 2,
     glow: 1.15,
@@ -101,7 +101,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   executing: {
     label: 'Running a tool',
     color: [0.75, 0.95, 1],
-    hsl: '195 100% 82%',
+    hsl: '214 72% 50%',
     spin: 2.4,
     drift: 1.6,
     glow: 1.3,
@@ -109,7 +109,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   awaiting: {
     label: 'Waiting for your approval',
     color: [1, 0.72, 0.28],
-    hsl: '38 100% 62%',
+    hsl: '34 90% 48%',
     spin: 0.45,
     drift: 0.3,
     glow: 0.9,
@@ -117,7 +117,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   speaking: {
     label: 'Speaking',
     color: [0.43, 0.9, 1],
-    hsl: '194 100% 68%',
+    hsl: '214 72% 50%',
     spin: 1.6,
     drift: 1.2,
     glow: 1.1,
@@ -125,7 +125,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   success: {
     label: 'Done',
     color: [0.4, 0.92, 0.6],
-    hsl: '148 70% 58%',
+    hsl: '152 55% 40%',
     spin: 1.2,
     drift: 0.8,
     glow: 1.2,
@@ -133,7 +133,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   error: {
     label: 'Something went wrong',
     color: [1, 0.4, 0.4],
-    hsl: '0 100% 70%',
+    hsl: '0 70% 54%',
     spin: 0.5,
     drift: 0.4,
     glow: 0.8,
@@ -141,7 +141,7 @@ export const MODE_META: Record<AgentMode, ModeMeta> = {
   handoff: {
     label: 'With a human',
     color: VIOLET,
-    hsl: '262 100% 79%',
+    hsl: '268 50% 56%',
     spin: 0.8,
     drift: 0.5,
     glow: 0.9,

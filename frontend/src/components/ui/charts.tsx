@@ -106,7 +106,7 @@ export function Gauge({
           r={R}
           fill="none"
           stroke="hsl(var(--border))"
-          strokeWidth="7"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={`${arc} ${C}`}
         />
@@ -117,7 +117,7 @@ export function Gauge({
             r={R}
             fill="none"
             stroke={stroke[tone]}
-            strokeWidth="7"
+            strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={`${arc * ratio} ${C}`}
             style={{ transition: 'stroke-dasharray 600ms var(--ease-out)' }}
@@ -125,7 +125,7 @@ export function Gauge({
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-semibold tabular-nums">{display}</span>
+        <span className="text-2xl font-semibold num">{display}</span>
       </div>
     </div>
   );
@@ -147,14 +147,14 @@ export function BarList({ items, ariaLabel }: { items: BarItem[]; ariaLabel: str
       {items.map((i) => (
         <li key={i.label}>
           <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
-            <span className="truncate font-mono">{i.label}</span>
+            <span className="truncate font-medium text-foreground/90">{i.label}</span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
               {i.detail ?? i.value}
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="h-2 overflow-hidden rounded-sm bg-muted">
             <div
-              className={cn('h-full rounded-full', fillClass[i.tone ?? 'accent'])}
+              className={cn('h-full rounded-sm', fillClass[i.tone ?? 'accent'])}
               style={{
                 width: `${(i.value / max) * 100}%`,
                 transition: 'width 600ms var(--ease-out)',
@@ -181,7 +181,7 @@ export function StackedBar({ segments, ariaLabel }: { segments: Segment[]; ariaL
       <div
         role="img"
         aria-label={ariaLabel}
-        className="flex h-2.5 overflow-hidden rounded-full bg-muted"
+        className="flex h-2.5 gap-0.5 overflow-hidden rounded-sm bg-muted"
       >
         {total > 0 &&
           segments

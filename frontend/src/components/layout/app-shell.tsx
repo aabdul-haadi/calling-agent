@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Dialog } from '@/components/ui/dialog';
 import { useTenant } from '@/context/tenant';
@@ -74,9 +75,11 @@ export function AppShell() {
           theme={theme}
           onToggleTheme={toggle}
         />
-        <main id="main" className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-6 sm:px-6">
+        <main id="main" className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-8 sm:py-8">
           <div key={pathname} className="page-enter">
-            <Outlet />
+            <Suspense fallback={<div role="status" aria-label="Loading page" className="h-40 animate-pulse rounded-lg bg-elevated" />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

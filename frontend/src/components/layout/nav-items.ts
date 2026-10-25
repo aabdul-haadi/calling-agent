@@ -7,7 +7,7 @@ import {
   Headset,
   LayoutDashboard,
   Mic,
-  Network,
+  PackageCheck,
   Settings2,
   type LucideIcon,
 } from 'lucide-react';
@@ -21,11 +21,22 @@ export interface NavItem {
   /** Matches the current path (also handles old URLs that now redirect). */
   match: (path: string) => boolean;
   hint: string;
+  /** Sidebar section. */
+  group: NavGroup;
 }
+
+export type NavGroup =
+  | 'Start here'
+  | 'Operate'
+  | 'Improve'
+  | 'Manage'
+  | 'Settings';
+export const NAV_GROUPS: NavGroup[] = ['Start here', 'Operate', 'Improve', 'Manage', 'Settings'];
 
 export const NAV_ITEMS: NavItem[] = [
   {
     id: 'overview',
+    group: 'Start here',
     label: 'Overview',
     to: () => '/',
     icon: LayoutDashboard,
@@ -34,74 +45,84 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'console',
-    label: 'Agent Console',
+    group: 'Operate',
+    label: 'Agent workspace',
     to: (t) => `/agent/${t}`,
     icon: Bot,
     match: (p) => p.startsWith('/agent'),
-    hint: 'Talk to the agent and watch it work',
+    hint: 'Test Ava with chat and monitor each turn',
   },
   {
-    id: 'traces',
-    label: 'Traces',
-    to: () => '/traces',
+    id: 'conversations',
+    group: 'Operate',
+    label: 'Conversations',
+    to: () => '/conversations',
     icon: Activity,
-    match: (p) => p.startsWith('/traces'),
-    hint: 'Step-by-step record of every turn',
+    match: (p) => p.startsWith('/conversations') || p.startsWith('/traces'),
+    hint: 'Find and understand previous customer interactions',
   },
   {
     id: 'handoffs',
-    label: 'Human Handoffs',
+    group: 'Operate',
+    label: 'Human handoffs',
     to: () => '/handoffs',
     icon: Headset,
     match: (p) => p.startsWith('/handoffs') || p.startsWith('/inbox'),
-    hint: 'Customers passed to a person',
-  },
-  {
-    id: 'evaluations',
-    label: 'Evaluations',
-    to: () => '/evaluations',
-    icon: FlaskConical,
-    match: (p) => p.startsWith('/evaluations') || p.startsWith('/tests'),
-    hint: 'Scenario tests and quality',
+    hint: 'Help customers who need a human',
   },
   {
     id: 'knowledge',
-    label: 'Knowledge',
+    group: 'Improve',
+    label: 'Knowledge base',
     to: () => '/knowledge',
     icon: BookOpen,
     match: (p) => p.startsWith('/knowledge'),
-    hint: 'Policy documents the agent cites',
+    hint: 'Manage the policies Ava uses to answer customers',
   },
   {
     id: 'learning',
-    label: 'Learning',
+    group: 'Improve',
+    label: 'Learning & evaluation',
     to: () => '/learning',
     icon: GraduationCap,
-    match: (p) => p.startsWith('/learning'),
-    hint: 'Review what calls and chats taught us',
+    match: (p) =>
+      p.startsWith('/learning') || p.startsWith('/evaluations') || p.startsWith('/tests'),
+    hint: 'Review improvements and test them before publishing',
   },
   {
-    id: 'tenants',
-    label: 'Tenants & Config',
-    to: (t) => `/tenants/${t}`,
+    id: 'evaluations',
+    group: 'Improve',
+    label: 'Test before publishing',
+    to: () => '/evaluations',
+    icon: FlaskConical,
+    match: (p) => p.startsWith('/evaluations') || p.startsWith('/tests'),
+    hint: 'Run customer scenarios and find failures',
+  },
+  {
+    id: 'models',
+    group: 'Manage',
+    label: 'Models & releases',
+    to: () => '/models',
+    icon: PackageCheck,
+    match: (p) => p.startsWith('/models'),
+    hint: 'See what is active and safely roll back changes',
+  },
+  {
+    id: 'settings',
+    group: 'Settings',
+    label: 'Settings',
+    to: (t) => `/settings/${t}`,
     icon: Settings2,
-    match: (p) => p.startsWith('/tenants') || p.startsWith('/clients'),
-    hint: 'Persona, tools, rules, escalation',
+    match: (p) => p.startsWith('/settings') || p.startsWith('/tenants') || p.startsWith('/clients'),
+    hint: 'Manage companies, tools, rules and integrations',
   },
   {
     id: 'voice',
-    label: 'Voice Lab',
+    group: 'Operate',
+    label: 'Voice test',
     to: () => '/voice',
     icon: Mic,
     match: (p) => p.startsWith('/voice'),
-    hint: 'Browser voice with a live waveform',
-  },
-  {
-    id: 'architecture',
-    label: 'Architecture',
-    to: () => '/architecture',
-    icon: Network,
-    match: (p) => p.startsWith('/architecture') || p.startsWith('/about'),
-    hint: 'How the platform works',
+    hint: 'Try Ava by voice in a safe test workspace',
   },
 ];

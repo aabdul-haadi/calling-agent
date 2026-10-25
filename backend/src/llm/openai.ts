@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { fail, ok, type ToolResult } from '@adk/shared';
 import type { LlmCallOptions, LlmClient, LlmMessage, LlmRequest, LlmResponse } from './types';
-import { CANCELLED_MESSAGE, postJson, postStream, readSse } from './http';
+import { CANCELLED_MESSAGE, RATE_LIMITED_MESSAGE, postJson, postStream, readSse } from './http';
 
 const responseSchema = z.object({
   choices: z
@@ -145,16 +145,21 @@ export function createOpenAiClient(opts: {
   baseUrl?: string;
   /** Sent as `reasoning_effort` (supported by reasoning models such as gpt-oss). */
   reasoningEffort?: 'low' | 'medium' | 'high';
+  /** Used at once, instead of waiting, when this model is rate limited for longer than `fallbackAfterMs`. */
+  fallback?: LlmClient;
+  fallbackAfterMs?: number;
+  /** Cap on the reply length (reasoning included). Providers count it against the per-minute token limit. */
+  maxOutputTokens?: number;
   fetchImpl?: typeof fetch;
 }): LlmClient {
   const baseUrl = (opts.baseUrl ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
   // OpenAI's newer models want max_completion_tokens; other servers only understand max_tokens.
   const tokenField = opts.baseUrl ? 'max_tokens' : 'max_completion_tokens';
-  return {
-    async complete(req: LlmRequest, call?: LlmCallOptions) {
+  const giveUpAboveMs = opts.fallback ? (opts.fallbackAfterMs ?? 1500) : undefined;
+  const primary: LlmClient['complete'] = async (req: LlmRequest, call?: LlmCallOptions) => {
       const payload = {
         model: opts.model,
-        [tokenField]: req.maxTokens ?? 1024,
+        [tokenField]: req.maxTokens ?? opts.maxOutputTokens ?? 1024,
         ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
         messages: toOpenAiMessages(req.system, req.messages),
         ...(req.tools?.length
@@ -174,7 +179,7 @@ export function createOpenAiClient(opts: {
           url,
           headers,
           { ...payload, stream: true },
-          { fetchImpl: opts.fetchImpl, signal: call.signal },
+          { fetchImpl: opts.fetchImpl, signal: call.signal, giveUpAboveMs },
         );
         if (!streamed.ok) return streamed;
         return readOpenAiStream(streamed.data, call);
@@ -183,6 +188,7 @@ export function createOpenAiClient(opts: {
       const res = await postJson(url, headers, payload, {
         fetchImpl: opts.fetchImpl,
         signal: call?.signal,
+        giveUpAboveMs,
       });
       if (!res.ok) return res;
       const parsed = responseSchema.safeParse(res.data);
@@ -194,6 +200,13 @@ export function createOpenAiClient(opts: {
         input: parseToolArguments(c.function.arguments),
       }));
       return ok({ text: (msg.content ?? '').trim(), toolCalls });
+  };
+  return {
+    async complete(req: LlmRequest, call?: LlmCallOptions) {
+      const res = await primary(req, call);
+      if (!res.ok && res.message === RATE_LIMITED_MESSAGE && opts.fallback && !call?.signal?.aborted)
+        return opts.fallback.complete(req, call);
+      return res;
     },
   };
 }

@@ -73,7 +73,7 @@ export function Dialog({
       )}
     >
       <div
-        className="absolute inset-0 bg-background/70 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[hsl(216_50%_8%/0.45)]"
         onClick={onClose}
         aria-hidden="true"
       />

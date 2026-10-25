@@ -1,3 +1,4 @@
+import { seconds, useResponseTimer } from '@/hooks/use-response-timer';
 import { Send } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Citation, PendingApprovalView } from '@adk/shared';
@@ -23,16 +24,14 @@ function Bubble({
     <li className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[88%] whitespace-pre-wrap rounded-lg px-3.5 py-2.5 text-sm leading-relaxed',
-          mine && 'rounded-br-sm bg-accent text-accent-foreground',
-          human && 'rounded-bl-sm border border-accent-2/50 bg-accent-2/10',
-          !mine && !human && 'rounded-bl-sm border border-border bg-elevated',
+          'max-w-[80%] whitespace-pre-wrap rounded-xl px-4 py-2.5 text-[0.9375rem] leading-relaxed',
+          mine && 'rounded-br-md bg-accent text-accent-foreground',
+          human && 'rounded-bl-md border border-accent-2/30 bg-accent-2/[0.07]',
+          !mine && !human && 'rounded-bl-md bg-muted',
         )}
       >
         {human && (
-          <span className="mb-0.5 block font-mono text-[0.65rem] uppercase tracking-wider text-accent-2">
-            Human colleague
-          </span>
+          <span className="mb-0.5 block text-xs font-semibold text-accent-2">Human colleague</span>
         )}
         <span className="sr-only">
           {mine ? 'You: ' : human ? 'Human colleague: ' : `${agentName}: `}
@@ -50,11 +49,11 @@ function Bubble({
 export function TypingIndicator({ name }: { name: string }) {
   return (
     <li className="flex justify-start" aria-label={`${name} is thinking`}>
-      <div className="flex items-center gap-1.5 rounded-lg rounded-bl-sm border border-border bg-elevated px-4 py-3">
+      <div className="flex items-center gap-1.5 rounded-xl rounded-bl-md bg-muted px-4 py-3.5">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="h-1.5 w-1.5 rounded-full bg-accent motion-safe:animate-bounce"
+            className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70 motion-safe:animate-bounce"
             style={{ animationDelay: `${i * 120}ms` }}
           />
         ))}
@@ -94,6 +93,7 @@ export function ChatPanel({
   className,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState('');
+  const timer = useResponseTimer(sending ? 'thinking' : 'done', 'done');
   const bottom = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
@@ -108,17 +108,19 @@ export function ChatPanel({
   };
 
   return (
-    <Card className={cn('flex min-h-[26rem] flex-col', className)}>
+    <Card className={cn('flex min-h-[26rem] flex-col overflow-hidden', className)}>
       <ol
         aria-label="Conversation"
         aria-live="polite"
-        className="flex-1 space-y-3 overflow-y-auto p-4"
+        className="flex-1 space-y-3 overflow-y-auto px-5 py-5"
       >
         {messages.length === 0 && (
-          <li className="py-6 text-center">
-            <p className="font-medium">Hi, I'm {agentName}. How can I help?</p>
-            <p className="mt-1 text-sm text-muted-foreground">Try one of these to get started:</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <li className="mx-auto max-w-lg py-8 text-center">
+            <p className="text-lg font-semibold">Hi, I'm {agentName}. How can I help?</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Start with a common request, or type your own below.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
               {starterPrompts.map((p) => (
                 <Button
                   key={p}
@@ -139,6 +141,16 @@ export function ChatPanel({
         {sending && <TypingIndicator name={agentName} />}
         <li ref={bottom} aria-hidden="true" />
       </ol>
+      {(sending || timer.liveMs !== undefined) && (
+        <p
+          role="timer"
+          aria-label="Agent response time"
+          className="px-4 pb-1 text-xs tabular-nums text-muted-foreground"
+        >
+          {sending ? 'Thinking' : 'Answered in'}{' '}
+          <span className="font-mono font-medium">{seconds(timer.liveMs ?? 0)}</span>
+        </p>
+      )}
       {handedOff && (
         <p
           role="status"
@@ -160,7 +172,7 @@ export function ChatPanel({
           {error}
         </p>
       )}
-      <form onSubmit={submit} className="flex gap-2 border-t border-border p-3">
+      <form onSubmit={submit} className="flex gap-2 border-t border-border bg-elevated p-3 sm:px-4">
         <label htmlFor="chat-input" className="sr-only">
           Message to {agentName}
         </label>
@@ -172,7 +184,7 @@ export function ChatPanel({
           maxLength={2000}
           autoComplete="off"
           disabled={disabled}
-          className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/70"
+          className="h-10 min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-[0.9375rem] shadow-soft placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
         {inputAddon}
         <Button

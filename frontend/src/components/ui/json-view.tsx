@@ -44,7 +44,7 @@ export function JsonView({
     <pre
       tabIndex={0}
       aria-label={label}
-      className={`${maxHeight} overflow-auto rounded-md border border-border bg-background/60 p-3 font-mono text-xs leading-relaxed`}
+      className={`${maxHeight} overflow-auto rounded-md border border-border bg-elevated p-3 font-mono text-xs leading-relaxed`}
     >
       <code>{highlightJson(text)}</code>
     </pre>

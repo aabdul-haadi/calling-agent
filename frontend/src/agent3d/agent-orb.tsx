@@ -1,61 +1,141 @@
-import { Component, lazy, Suspense, useRef, type CSSProperties, type ReactNode } from 'react';
-import { canUseWebGL, useIsActive, useParticleBudget, useReducedMotion } from '@/hooks/use-env';
+import {
+  AlertTriangle,
+  Check,
+  Hand,
+  Headset,
+  LoaderCircle,
+  Mic,
+  Search,
+  UserRound,
+  Volume2,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react';
+import type { CSSProperties } from 'react';
+import { useReducedMotion } from '@/hooks/use-env';
 import { cn } from '@/lib/utils';
 import { describeAgent, MODE_META, type AgentMode } from './agent-state';
 
-// The 3D scene (three.js) is a separate chunk: pages that never show it never download it.
-const AgentScene = lazy(() => import('./agent-scene'));
+/**
+ * The agent's presence: a persona avatar with a status ring, the way a contact-centre
+ * agent appears in professional support tools. Everything is driven by real signals
+ * (mode, mic level); nothing is decorative animation.
+ */
 
-/** Static look-alike: concentric rings and a core, themed by the same mode colour. */
-export function AgentFallback({ mode, accent }: { mode: AgentMode; accent: 'sky' | 'violet' }) {
-  const hsl =
-    accent === 'violet' && ['idle', 'listening', 'speaking'].includes(mode)
-      ? '262 92% 79%'
-      : MODE_META[mode].hsl;
-  const style = { '--orb': hsl } as CSSProperties;
-  return (
-    <div
-      aria-hidden="true"
-      style={style}
-      className="relative flex h-full w-full items-center justify-center"
-    >
-      {[0.92, 0.7, 0.5].map((s, i) => (
-        <span
-          key={s}
-          className="absolute rounded-full border"
-          style={{
-            width: `${s * 100}%`,
-            height: `${s * 100}%`,
-            borderColor: 'hsl(var(--orb) / 0.35)',
-            animation: `adk-spin ${18 + i * 9}s linear infinite ${i % 2 ? 'reverse' : ''}`,
-            transform: `rotateX(${60 - i * 12}deg)`,
-          }}
-        />
-      ))}
-      <span
-        className="absolute h-[34%] w-[34%] rounded-full"
-        style={{
-          background:
-            'radial-gradient(circle at 35% 30%, hsl(var(--orb) / 0.95), hsl(var(--orb) / 0.35) 60%, transparent 72%)',
-          boxShadow: '0 0 60px hsl(var(--orb) / 0.4)',
-          animation: 'adk-breathe 4s ease-in-out infinite',
-        }}
-      />
-    </div>
-  );
+type Tone = 'accent' | 'ok' | 'warn' | 'danger' | 'accent-2';
+
+const MODE_VIEW: Record<
+  AgentMode,
+  { tone: Tone; icon: LucideIcon; busy?: boolean; live?: boolean }
+> = {
+  idle: { tone: 'accent', icon: Headset },
+  listening: { tone: 'accent', icon: Mic, live: true },
+  thinking: { tone: 'accent', icon: LoaderCircle, busy: true },
+  searching: { tone: 'accent', icon: Search, busy: true },
+  executing: { tone: 'accent', icon: Wrench, busy: true },
+  awaiting: { tone: 'warn', icon: Hand },
+  speaking: { tone: 'accent', icon: Volume2, live: true },
+  success: { tone: 'ok', icon: Check },
+  error: { tone: 'danger', icon: AlertTriangle },
+  handoff: { tone: 'accent-2', icon: UserRound },
+};
+
+const toneVar = (t: Tone) => `hsl(var(--${t}))`;
+
+/** Static rendering (also used when motion is reduced). Kept as a named export for callers. */
+export function AgentFallback({ mode }: { mode: AgentMode; accent?: 'sky' | 'violet' }) {
+  return <Avatar mode={mode} name="" level={0} still />;
 }
 
-class SceneBoundary extends Component<
-  { fallback: ReactNode; children: ReactNode },
-  { failed: boolean }
-> {
-  override state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  override render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
+function Avatar({
+  mode,
+  name,
+  level,
+  still,
+  compact,
+}: {
+  mode: AgentMode;
+  name: string;
+  level: number;
+  still?: boolean;
+  compact?: boolean;
+}) {
+  const view = MODE_VIEW[mode];
+  const Icon = view.icon;
+  const color = toneVar(view.tone);
+  const R = 46;
+  const C = 2 * Math.PI * R;
+  const initial = name.trim().charAt(0).toUpperCase() || 'A';
+  const ripple = view.live && !still;
+  const style = { '--tone': color } as CSSProperties;
+
+  return (
+    <div aria-hidden="true" style={style} className="relative h-full w-full">
+      {/* Voice ripple: grows with the real mic level. */}
+      {ripple && (
+        <span
+          className="absolute inset-[9%] rounded-full border-2"
+          style={{
+            borderColor: 'var(--tone)',
+            transform: `scale(${1 + Math.min(1, level) * 0.12})`,
+            transition: 'transform 90ms linear',
+            animation: 'adk-ripple 1.8s var(--ease-out) infinite',
+          }}
+        />
+      )}
+
+      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
+        <circle cx="50" cy="50" r={R} fill="none" stroke="hsl(var(--border))" strokeWidth="1.5" />
+        <circle
+          cx="50"
+          cy="50"
+          r={R}
+          fill="none"
+          stroke="var(--tone)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeDasharray={view.busy ? `${C * 0.22} ${C}` : `${C} ${C}`}
+          style={{
+            transformOrigin: '50% 50%',
+            transform: 'rotate(-90deg)',
+            animation: view.busy && !still ? 'adk-spin 1.4s linear infinite' : undefined,
+            transition: 'stroke 220ms var(--ease-out)',
+          }}
+        />
+      </svg>
+
+      {/* The persona: a monogram on the tenant's soft tint, with a fine inner rule. */}
+      <div className="absolute inset-[11%] flex items-center justify-center overflow-hidden rounded-full bg-accent-soft ring-1 ring-inset ring-accent/15">
+        <span
+          className="relative font-semibold leading-none text-accent"
+          style={{ fontSize: 'clamp(1rem, 34cqw, 4.5rem)' }}
+        >
+          {initial}
+        </span>
+      </div>
+
+      {/* Status badge on the ring, at the 4:30 position. */}
+      {!compact && (
+        <span
+          className="absolute flex aspect-square w-[22%] items-center justify-center rounded-full border-2 border-card text-white shadow-soft"
+          style={{
+            right: '6%',
+            bottom: '6%',
+            background: 'var(--tone)',
+            transition: 'background 220ms var(--ease-out)',
+          }}
+        >
+          <Icon
+            className={cn(
+              'h-1/2 w-1/2',
+              mode === 'thinking' && !still && 'motion-safe:animate-spin',
+            )}
+            strokeWidth={2.4}
+          />
+        </span>
+      )}
+    </div>
+  );
 }
 
 export interface AgentOrbProps {
@@ -69,54 +149,36 @@ export interface AgentOrbProps {
   className?: string;
   /** Hide the status caption (the page already shows one). */
   hideCaption?: boolean;
+  /** Small inline use: no status badge. */
+  compact?: boolean;
 }
 
 /**
- * The agent visual. Uses WebGL when available and the user has not asked for less motion;
- * otherwise shows the static fallback. The status caption is real text, so the state is
- * available to screen readers and in browsers without WebGL.
+ * The agent visual. The status caption is real text, so the state is available to screen
+ * readers; the avatar itself is decorative.
  */
 export function AgentOrb({
   mode,
   level = 0,
-  accent = 'sky',
   agentName,
   toolLabel,
   className,
   hideCaption,
+  compact,
 }: AgentOrbProps) {
-  const wrap = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
-  const active = useIsActive(wrap);
-  const particles = useParticleBudget();
-  const webgl = canUseWebGL();
-  const fallback = <AgentFallback mode={mode} accent={accent} />;
   const caption = describeAgent(mode, agentName, toolLabel);
 
   return (
-    <div ref={wrap} className={cn('relative isolate aspect-square w-full', className)}>
-      <div className="absolute inset-0">
-        {webgl ? (
-          <SceneBoundary fallback={fallback}>
-            <Suspense fallback={fallback}>
-              <AgentScene
-                mode={mode}
-                level={level}
-                accent={accent}
-                particles={particles}
-                still={reduced}
-                active={active}
-              />
-            </Suspense>
-          </SceneBoundary>
-        ) : (
-          fallback
-        )}
-      </div>
+    <div
+      className={cn('relative isolate aspect-square w-full', className)}
+      style={{ containerType: 'inline-size' }}
+    >
+      <Avatar mode={mode} name={agentName} level={level} still={reduced} compact={compact} />
       <p
         role="status"
         className={cn(
-          'absolute inset-x-0 bottom-1 mx-auto w-fit max-w-[92%] truncate rounded-full border border-border bg-card/80 px-3 py-1 text-xs font-medium backdrop-blur-sm',
+          'absolute inset-x-0 -bottom-1 mx-auto w-fit max-w-[92%] truncate rounded-full border border-border bg-card px-3 py-1 text-xs font-medium shadow-soft',
           hideCaption && 'sr-only',
         )}
       >

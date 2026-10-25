@@ -22,7 +22,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex max-w-full overflow-x-auto rounded-md border border-border bg-card p-0.5"
+      className="inline-flex max-w-full overflow-x-auto rounded-md bg-muted p-0.5"
     >
       {options.map((o, i) => {
         const on = o.value === value;
@@ -45,9 +45,9 @@ export function Segmented<T extends string>({
               )?.focus();
             }}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-[0.4rem] px-3 py-1.5 text-xs font-medium transition-colors',
+              'flex shrink-0 items-center gap-1.5 rounded-[0.3rem] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors',
               on
-                ? 'bg-accent text-accent-foreground'
+                ? 'bg-card text-foreground shadow-soft'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >

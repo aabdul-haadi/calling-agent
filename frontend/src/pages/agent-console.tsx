@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import type { ClientDetail } from '@adk/shared';
@@ -44,7 +44,7 @@ function AuditTab({ conversationId, refreshKey }: { conversationId?: string; ref
   return (
     <ol aria-label="Audit log" className="space-y-2">
       {audit.data.map((a) => (
-        <li key={a.id} className="rounded-md border border-border bg-background/50 p-2.5">
+        <li key={a.id} className="rounded-md border border-border bg-elevated p-2.5">
           <div className="mb-1 flex items-center justify-between gap-2 text-xs">
             <Badge
               tone={
@@ -97,7 +97,8 @@ function Console({ client }: { client: ClientDetail }) {
     <div data-accent={client.accent} className="space-y-4">
       <PageHeader
         eyebrow={`Agent Console · ${client.displayName}`}
-        title="Talk to the agent, watch it work"
+        title="Agent workspace"
+        description="Try Ava with chat, see what she knows, and understand each action before you use it with customers."
         actions={
           <>
             {chat.handoff && <Badge tone="warn">Handed to a human</Badge>}
@@ -108,28 +109,27 @@ function Console({ client }: { client: ClientDetail }) {
             />
             <Link
               to={`/tenants/${client.id}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-elevated"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[0.8125rem] font-medium shadow-soft hover:border-foreground/25"
             >
-              Configuration <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+              Configuration
             </Link>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[17.5rem_minmax(0,1fr)_26rem]">
-        <AgentStage
-          name={client.persona.name}
-          tone={client.persona.tone}
-          accent={client.accent}
-          mode={signals.mode}
-          level={voice.level}
-          toolLabel={signals.activeTool}
-          replaying={signals.replaying}
-          state={chat.state}
-          className="lg:sticky lg:top-20"
-        />
-
-        <div className="min-w-0 space-y-3 lg:col-start-2">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
+        <div className="min-w-0 space-y-3">
+          <AgentStage
+            name={client.persona.name}
+            tone={client.persona.tone}
+            accent={client.accent}
+            mode={signals.mode}
+            level={voice.level}
+            toolLabel={signals.activeTool}
+            replaying={signals.replaying}
+            state={chat.state}
+          />
           {hasVoice && (
             <VoiceControls
               supported={voice.supported}
@@ -154,11 +154,11 @@ function Console({ client }: { client: ClientDetail }) {
             pendingApproval={chat.state?.pendingApproval}
             handedOff={Boolean(chat.handoff) || Boolean(chat.state?.handedOff)}
             onSend={(t) => void chat.send(t)}
-            className="lg:h-[calc(100vh-17rem)] lg:min-h-[28rem]"
+            className="lg:h-[calc(100vh-22rem)] lg:min-h-[28rem]"
           />
         </div>
 
-        <Card className="min-w-0 p-3 lg:col-span-2 lg:col-start-1 xl:col-span-1 xl:col-start-3 xl:row-start-1 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto">
+        <Card className="min-w-0 px-4 pb-4 pt-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7.5rem)] lg:overflow-y-auto">
           <Tabs
             value={tab}
             onChange={setTab}

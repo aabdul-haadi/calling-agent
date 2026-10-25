@@ -206,7 +206,7 @@ export function TracesPage() {
     <div className="space-y-5">
       <PageHeader
         eyebrow="Traces"
-        title="What happened, step by step"
+        title="Traces"
         description="Pick a conversation to see every turn: what the agent understood, the policies it read, each tool call and the rules that allowed or blocked it."
       />
       {list.error ? (

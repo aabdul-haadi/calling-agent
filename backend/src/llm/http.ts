@@ -9,6 +9,9 @@ import { DEFAULT_RETRY, backoffDelay, isRetryableStatus } from '../tools/http';
  */
 export const waitContext = new AsyncLocalStorage<{ waitedMs: number; hits: number }>();
 
+/** The message of a call that gave up because the provider asked for a long rate-limit wait. */
+export const RATE_LIMITED_MESSAGE = 'The AI model is rate limited';
+
 /** The message of a call that was cancelled on purpose (the customer interrupted). */
 export const CANCELLED_MESSAGE = 'The request was cancelled';
 
@@ -45,6 +48,8 @@ async function send(
     timeoutMs?: number;
     sleep?: (ms: number) => Promise<void>;
     signal?: AbortSignal;
+    /** Do not wait out a rate limit longer than this: fail fast so the caller can use another model. */
+    giveUpAboveMs?: number;
   } = {},
 ): Promise<ToolResult<Response>> {
   const doFetch = opts.fetchImpl ?? fetch;
@@ -88,6 +93,8 @@ async function send(
       const asked = parseRetryAfterMs(res.headers, text);
       // +250ms of slack so we do not land a hair before the window reopens.
       const wait = Math.min(MAX_RATE_LIMIT_WAIT_MS, (asked ?? 2000 * rateLimited) + 250);
+      if (opts.giveUpAboveMs !== undefined && wait > opts.giveUpAboveMs)
+        return fail('UNAVAILABLE', RATE_LIMITED_MESSAGE);
       const ctx = waitContext.getStore();
       if (ctx) {
         ctx.waitedMs += wait;
@@ -126,6 +133,7 @@ async function send(
 }
 
 type PostOptions = {
+  giveUpAboveMs?: number;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;

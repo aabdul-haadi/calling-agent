@@ -265,7 +265,7 @@ describe('behaviour', () => {
     renderAt('/');
     await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     const dialog = await screen.findByRole('dialog', { name: 'Navigation' });
-    expect(within(dialog).getByRole('link', { name: /Traces/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: /Conversations/ })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });

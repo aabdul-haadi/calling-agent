@@ -143,8 +143,8 @@ export function EvaluationsPage() {
     <div className="space-y-5" data-accent={tenant?.accent}>
       <PageHeader
         eyebrow="Evaluations"
-        title="Is the agent still behaving?"
-        description="Scenario suites run against the real agent. Hard checks (tools, rules, phrases, handoff) decide pass or fail; an LLM judge adds a qualitative opinion and is shown separately."
+        title="Test before publishing"
+        description="Run realistic customer scenarios before a change reaches customers. Clear pass and fail results show what is safe to publish."
         actions={
           clients.length > 1 && (
             <Segmented

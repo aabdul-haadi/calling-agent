@@ -11,15 +11,18 @@ export const Card = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) =>
 
 export const CardHeader = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('flex items-center justify-between gap-2 px-4 pt-3.5', className)}
+    className={cn(
+      'flex min-h-[3.25rem] items-center justify-between gap-2 border-b border-border px-5 py-3',
+      className,
+    )}
     {...props}
   />
 );
 
 export const CardTitle = ({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) => (
-  <h2 className={cn('eyebrow', className)} {...props} />
+  <h2 className={cn('panel-title', className)} {...props} />
 );
 
 export const CardContent = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('px-4 pb-4 pt-3', className)} {...props} />
+  <div className={cn('px-5 pb-5 pt-4', className)} {...props} />
 );

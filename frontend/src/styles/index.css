@@ -4,31 +4,31 @@
 
 /*
  * Design tokens. Colours are HSL triplets so Tailwind can add opacity (`bg-accent/20`).
- * Dark is the primary theme (class "dark" on <html>, set in index.html); light is the fallback.
+ * Light is the primary theme: a calm operations desk. Dark is a deep navy, never neon on black.
  * Elevation, from the page up: background -> card -> elevated -> overlay.
  */
 :root {
-  --background: 220 20% 97%;
-  --foreground: 224 30% 11%;
+  --background: 216 22% 96.5%;
+  --foreground: 216 52% 12%;
   --card: 0 0% 100%;
-  --elevated: 220 16% 95%;
-  --muted: 220 14% 94%;
-  --muted-foreground: 220 9% 34%;
-  --border: 220 13% 86%;
-  --ok: 142 72% 24%;
-  --warn: 28 95% 29%;
-  --danger: 0 72% 40%;
-  /* default accent = sky; pages override with data-accent */
-  --accent: 201 96% 31%;
+  --elevated: 216 28% 97.6%;
+  --muted: 216 22% 93%;
+  --muted-foreground: 216 14% 37%;
+  --border: 216 18% 88.5%;
+  --ok: 152 66% 25%;
+  --warn: 30 92% 29%;
+  --danger: 356 70% 41%;
+  /* default accent = SkyLink blue; tenants override with data-accent */
+  --accent: 214 86% 34%;
   --accent-foreground: 0 0% 100%;
-  --accent-soft: 201 90% 93%;
-  --accent-2: 262 62% 44%;
-  --glow: 201 96% 40%;
+  --accent-soft: 214 85% 95.5%;
+  --accent-2: 268 45% 42%;
+  --glow: 214 86% 34%;
 
   /* spacing / radius / motion tokens */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 120ms;
   --dur-med: 220ms;
@@ -36,38 +36,38 @@
 }
 
 [data-accent='violet'] {
-  --accent: 263 70% 44%;
+  --accent: 272 50% 40%;
   --accent-foreground: 0 0% 100%;
-  --accent-soft: 262 80% 94%;
-  --accent-2: 196 90% 32%;
-  --glow: 263 70% 50%;
+  --accent-soft: 272 60% 96%;
+  --accent-2: 214 86% 34%;
+  --glow: 272 50% 40%;
 }
 
 .dark {
-  --background: 226 28% 6%;
-  --foreground: 210 30% 96%;
-  --card: 226 22% 9%;
-  --elevated: 226 20% 12%;
-  --muted: 226 18% 14%;
-  --muted-foreground: 215 16% 71%;
-  --border: 226 15% 20%;
-  --ok: 152 52% 56%;
-  --warn: 38 95% 62%;
-  --danger: 0 88% 71%;
-  --accent: 196 100% 67%;
-  --accent-foreground: 226 40% 7%;
-  --accent-soft: 200 50% 15%;
-  --accent-2: 262 90% 79%;
-  --glow: 196 100% 60%;
+  --background: 218 36% 7.5%;
+  --foreground: 214 30% 95%;
+  --card: 218 32% 10.5%;
+  --elevated: 218 28% 13.5%;
+  --muted: 218 25% 16.5%;
+  --muted-foreground: 216 16% 70%;
+  --border: 218 22% 20%;
+  --ok: 152 50% 58%;
+  --warn: 36 90% 62%;
+  --danger: 0 80% 71%;
+  --accent: 213 92% 72%;
+  --accent-foreground: 218 45% 9%;
+  --accent-soft: 214 45% 19%;
+  --accent-2: 268 72% 80%;
+  --glow: 213 92% 72%;
 }
 
 .dark[data-accent='violet'],
 .dark [data-accent='violet'] {
-  --accent: 262 92% 79%;
-  --accent-foreground: 226 40% 7%;
-  --accent-soft: 262 35% 20%;
-  --accent-2: 196 100% 67%;
-  --glow: 262 90% 68%;
+  --accent: 270 78% 80%;
+  --accent-foreground: 218 45% 9%;
+  --accent-soft: 270 32% 21%;
+  --accent-2: 213 92% 72%;
+  --glow: 270 78% 80%;
 }
 
 html {
@@ -80,58 +80,51 @@ html.dark {
 body {
   @apply bg-background text-foreground antialiased;
   font-family:
-    'Inter Variable',
-    Inter,
+    'IBM Plex Sans',
     ui-sans-serif,
     system-ui,
     -apple-system,
     'Segoe UI',
     Roboto,
     sans-serif;
-  font-feature-settings: 'cv11', 'ss01';
-  letter-spacing: -0.003em;
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
 
 code,
 pre,
 .font-mono {
-  font-family:
-    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-feature-settings: 'zero' 0;
 }
 
-/* A faint instrument-panel backdrop: one soft glow and a fine grid. Static, so it costs nothing. */
+/* Kept as a hook for the shell; intentionally plain. */
 .backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(60rem 36rem at 78% -10%, hsl(var(--glow) / 0.1), transparent 60%),
-    radial-gradient(44rem 30rem at -5% 105%, hsl(var(--accent-2) / 0.06), transparent 60%);
-}
-.backdrop::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at 70% 0%, #000 0%, transparent 62%);
-  -webkit-mask-image: radial-gradient(ellipse at 70% 0%, #000 0%, transparent 62%);
-  opacity: 0.5;
+  display: none;
 }
 
-/* Fluid display type for page titles. */
+/* Page titles. */
 .text-display {
-  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.375rem, 1.1rem + 0.9vw, 1.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
   font-weight: 600;
 }
 
+/* Small secondary label: sentence case, never shouted. */
 .eyebrow {
-  @apply font-mono text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  @apply text-[0.8125rem] font-medium leading-5 text-muted-foreground;
+}
+
+/* Section title inside a panel. */
+.panel-title {
+  @apply text-sm font-semibold leading-5 text-foreground;
+}
+
+/* Tabular figures for any number that changes. */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 :focus-visible {
@@ -140,7 +133,7 @@ pre,
 }
 
 ::selection {
-  background: hsl(var(--accent) / 0.3);
+  background: hsl(var(--accent) / 0.2);
 }
 
 /* Slim scrollbars that match the surfaces. */
@@ -152,7 +145,7 @@ pre,
 @keyframes adk-rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -183,9 +176,29 @@ pre,
     transform: rotate(360deg);
   }
 }
+/* A soft ring that expands from the avatar while the agent is listening or speaking. */
+@keyframes adk-ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+/* Route lines on the overview illustration draw once on load. */
+@keyframes adk-draw {
+  from {
+    stroke-dashoffset: var(--len, 600);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 
 .page-enter {
-  animation: adk-rise var(--dur-slow) var(--ease-out) both;
+  animation: adk-rise 260ms var(--ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

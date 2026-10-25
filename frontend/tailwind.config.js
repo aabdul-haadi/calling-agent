@@ -27,11 +27,12 @@ export default {
         md: 'var(--radius-md)',
         sm: 'var(--radius-sm)',
         '2xl': '1rem',
+        xl: '0.875rem',
       },
       boxShadow: {
-        soft: '0 1px 0 hsl(0 0% 100% / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 24px rgb(0 0 0 / 0.18)',
-        raised: '0 1px 0 hsl(0 0% 100% / 0.05) inset, 0 12px 40px rgb(0 0 0 / 0.35)',
-        glow: '0 0 0 1px hsl(var(--accent) / 0.35), 0 0 32px hsl(var(--glow) / 0.18)',
+        soft: '0 1px 2px hsl(216 40% 20% / 0.05)',
+        raised: '0 1px 2px hsl(216 40% 15% / 0.08), 0 16px 40px -12px hsl(216 40% 15% / 0.28)',
+        glow: '0 1px 2px hsl(216 40% 20% / 0.12)',
       },
       transitionTimingFunction: { out: 'var(--ease-out)' },
       keyframes: {

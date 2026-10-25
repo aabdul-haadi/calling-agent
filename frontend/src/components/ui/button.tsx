@@ -3,22 +3,22 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex select-none items-center justify-center gap-2 rounded-md text-sm font-medium transition-[background-color,box-shadow,transform,opacity] duration-150 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 motion-reduce:active:scale-100',
+  'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,border-color,color,box-shadow,opacity] duration-150 ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        primary:
-          'bg-accent text-accent-foreground shadow-[0_0_0_1px_hsl(var(--accent)/0.5),0_6px_20px_-6px_hsl(var(--glow)/0.55)] hover:brightness-110',
-        outline: 'border border-border bg-card hover:border-accent/50 hover:bg-elevated',
-        subtle: 'bg-elevated text-foreground hover:bg-muted',
-        ghost: 'hover:bg-elevated',
-        danger: 'bg-danger text-background hover:brightness-110',
+        primary: 'bg-accent text-accent-foreground shadow-soft hover:bg-accent/90',
+        outline:
+          'border border-border bg-card shadow-soft hover:border-foreground/25 hover:bg-elevated',
+        subtle: 'bg-muted text-foreground hover:bg-muted/70',
+        ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        danger: 'bg-danger text-card shadow-soft hover:bg-danger/90',
       },
       size: {
-        sm: 'h-8 px-3 text-xs',
+        sm: 'h-8 px-3 text-[0.8125rem]',
         md: 'h-10 px-4',
         lg: 'h-12 px-6 text-base',
-        icon: 'h-10 w-10',
+        icon: 'h-9 w-9',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

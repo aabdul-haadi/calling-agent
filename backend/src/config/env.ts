@@ -30,6 +30,11 @@ export const envSchema = z.object({
   EMBEDDING_PROVIDER: z.enum(['local', 'semantic', 'hash', 'openai']).default('semantic'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
 
+  /** If the main model is rate limited for longer than LLM_FALLBACK_AFTER_MS, answer with this one instead of waiting. */
+  LLM_FALLBACK_MODEL: z.string().min(1).optional().or(z.literal('').transform(() => undefined)),
+  LLM_FALLBACK_AFTER_MS: z.coerce.number().int().min(0).default(1500),
+  /** Longest model reply, reasoning included. Providers count this against the per-minute token limit. */
+  LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(100).max(4096).default(700),
   /** Optional smaller, faster model just for classifying each message (intent, mood, yes/no). Same provider and key. */
   LLM_CLASSIFIER_MODEL: z.string().min(1).optional(),
   /** Handle a bare yes / no / greeting / thanks by rules instead of a model call. */

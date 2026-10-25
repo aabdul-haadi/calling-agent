@@ -203,7 +203,7 @@ export function ArchitecturePage() {
     <div className="mx-auto max-w-5xl space-y-9 pb-8">
       <PageHeader
         eyebrow="Architecture"
-        title="One engine, many agents, every action controlled"
+        title="Architecture"
         description="A config-driven platform that turns a company's policies, tools and rules into a support agent that can act, stays inside its limits, hands over to a person when it should, and can be tested before it meets a customer."
       />
 

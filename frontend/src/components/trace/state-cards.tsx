@@ -95,7 +95,7 @@ export function StateCard({
         </div>
 
         <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
             Collected info
           </p>
           {facts.length === 0 ? (

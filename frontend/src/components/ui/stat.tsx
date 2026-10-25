@@ -24,7 +24,7 @@ export function Stat({
       <dd>
         <span
           className={cn(
-            'mt-1 block text-2xl font-semibold tabular-nums leading-none',
+            'mt-1.5 block text-[1.75rem] font-semibold leading-none num',
             tone === 'ok' && 'text-ok',
             tone === 'warn' && 'text-warn',
             tone === 'danger' && 'text-danger',
@@ -33,7 +33,7 @@ export function Stat({
         >
           {value ?? 'Not recorded'}
         </span>
-        {hint && <span className="mt-1.5 block text-xs text-muted-foreground">{hint}</span>}
+        {hint && <span className="mt-2 block text-xs text-muted-foreground">{hint}</span>}
       </dd>
     </div>
   );

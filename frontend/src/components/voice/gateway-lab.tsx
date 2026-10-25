@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Waveform } from '@/components/voice/voice-controls';
+import { seconds, useResponseTimer } from '@/hooks/use-response-timer';
 import { useVoiceGateway } from '@/hooks/use-voice-gateway';
 import { cn } from '@/lib/utils';
 import { gatewayAgentMode } from '@/voice/agent-mode';
@@ -28,6 +29,7 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
   const v = useVoiceGateway(client.id);
   const { state } = v;
   const { mode, tool } = gatewayAgentMode(state);
+  const timer = useResponseTimer(state.status);
   const speaking = state.status === 'speaking';
   // The orb and the bars follow what is really being heard: the microphone while listening, the
   // audio actually playing while the agent speaks.
@@ -65,6 +67,30 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
                 ? toolPhrase(state.activeTool)
                 : STATUS_TEXT[state.status]}
           </p>
+
+          <div
+            role="timer"
+            aria-label="Agent response time"
+            className="flex w-full max-w-md items-center justify-between rounded-lg border border-border bg-elevated px-4 py-2"
+          >
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              {timer.running ? 'Agent is thinking' : 'Response time'}
+            </span>
+            <span
+              className={cn(
+                'font-mono text-2xl font-semibold tabular-nums',
+                timer.running && 'text-accent',
+                !timer.running && timer.liveMs !== undefined && timer.liveMs > 2500 && 'text-warn',
+              )}
+            >
+              {timer.liveMs === undefined ? '0.0 s' : seconds(timer.liveMs)}
+            </span>
+          </div>
+          {timer.history.length > 0 && (
+            <p className="text-xs text-muted-foreground" aria-label="Recent response times">
+              Recent: {timer.history.map(seconds).join(' · ')}
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {ended ? (

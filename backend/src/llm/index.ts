@@ -12,13 +12,24 @@ export { createAnthropicClient, createOpenAiClient };
  * `openai` also covers any OpenAI-compatible server via OPENAI_BASE_URL (Ollama, Groq,
  * OpenRouter...). Local servers like Ollama need no real key.
  */
-export function createLlm(env: Env, model: string = env.LLM_MODEL): LlmClient {
+export function createLlm(env: Env, model: string = env.LLM_MODEL, allowFallback = true): LlmClient {
   if (env.LLM_PROVIDER === 'openai' && env.OPENAI_BASE_URL) {
-    return createOpenAiClient({
+    const base = {
       apiKey: isConfigured(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : 'not-needed',
-      model,
       baseUrl: env.OPENAI_BASE_URL,
       reasoningEffort: env.LLM_REASONING_EFFORT,
+      maxOutputTokens: env.LLM_MAX_OUTPUT_TOKENS,
+    };
+    // A free tier limits tokens per minute per model. Rather than let a customer wait 5 to 15
+    // seconds for the window to reopen, a throttled call goes to a second model (its own limit).
+    const fallback =
+      allowFallback && env.LLM_FALLBACK_MODEL && env.LLM_FALLBACK_MODEL !== model
+        ? createOpenAiClient({ ...base, model: env.LLM_FALLBACK_MODEL })
+        : undefined;
+    return createOpenAiClient({
+      ...base,
+      model,
+      ...(fallback ? { fallback, fallbackAfterMs: env.LLM_FALLBACK_AFTER_MS } : {}),
     });
   }
   const key = env.LLM_PROVIDER === 'anthropic' ? env.ANTHROPIC_API_KEY : env.OPENAI_API_KEY;

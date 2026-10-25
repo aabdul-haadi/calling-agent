@@ -83,9 +83,23 @@ export function buildSystemPrompt({
     '',
     'General rules:',
     ...SAFETY_RULES.map((r) => `- ${r}`),
+  ];
+
+  // This block and everything above it is identical on every turn, so the model provider can cache
+  // it; what changes from turn to turn follows.
+  if (channel === 'voice') {
+    parts.push('', ...voiceStyleLines(p.voiceStyle, p.voice));
+    parts.push(
+      "The customer's words come from speech recognition, which can mishear names, booking references, numbers and flight times. Never guess a value you are not sure of: ask the customer to repeat it or spell it letter by letter. When you are about to use a booking reference or account number, read it back to them first if they only said it once. When you ask for approval of a change, read out the exact flight number and time so they can correct you.",
+    );
+  } else {
+    parts.push('', 'Keep replies concise and friendly. Plain text, short paragraphs.');
+  }
+
+  parts.push(
     '',
     `Customer verified: ${state.verified ? 'yes' : 'NO - ask for their details before using account tools'}.`,
-  ];
+  );
 
   if (turnNote) parts.push('', `This turn: ${turnNote}`);
   if (learned && learned.length > 0)
@@ -114,17 +128,11 @@ export function buildSystemPrompt({
   }
 
   if (channel === 'voice') {
-    parts.push('', ...voiceStyleLines(p.voiceStyle, p.voice));
-    parts.push(
-      "The customer's words come from speech recognition, which can mishear names, booking references, numbers and flight times. Never guess a value you are not sure of: ask the customer to repeat it or spell it letter by letter. When you are about to use a booking reference or account number, read it back to them first if they only said it once. When you ask for approval of a change, read out the exact flight number and time so they can correct you.",
-    );
     if (voiceUncertain) {
       parts.push(
         "The speech recognizer was NOT confident about the customer's last message. Do not act on any booking reference, name, number or yes/no in it. Ask the customer to say it again, and if a change is waiting for approval, ask them to confirm it again.",
       );
     }
-  } else {
-    parts.push('', 'Keep replies concise and friendly. Plain text, short paragraphs.');
   }
   return parts.join('\n');
 }

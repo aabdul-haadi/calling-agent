@@ -535,8 +535,8 @@ export function KnowledgePage() {
     <div className="space-y-5">
       <PageHeader
         eyebrow={`Knowledge · ${tenant?.displayName ?? ''}`}
-        title="What the agent is allowed to cite"
-        description="The agent states company policy only from these documents, with the document and page behind every answer. If they do not say, it says it is not sure and offers a person. Each company only ever sees its own documents."
+        title="Knowledge base"
+        description="Upload the policies Ava should use. Every policy answer can point back to a document and page, and uncertain answers are handed to a person."
         actions={
           docs.data && (
             <Badge tone="accent">

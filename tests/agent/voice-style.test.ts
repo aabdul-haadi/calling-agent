@@ -66,12 +66,21 @@ describe('spoken style lives in configuration, safety lives in the engine', () =
     for (const id of ['skylink-air', 'novatel']) {
       const p = prompt(id, 'voice');
       const c = prompt(id, 'chat');
-      const rules = c.slice(c.indexOf('General rules:'), c.indexOf('Customer verified:'));
+      const rules = c.slice(c.indexOf('General rules:'), c.indexOf('Keep replies concise')).trimEnd();
       expect(rules.length).toBeGreaterThan(500);
       expect(p).toContain(rules);
       expect(p).toContain('can mishear names, booking references, numbers and flight times');
       expect(p).toContain('Never guess a value you are not sure of');
     }
+  });
+
+  it('keeps everything that changes from turn to turn after the fixed text, so the provider can cache the front', () => {
+    const base = prompt('skylink-air', 'voice', false);
+    const noted = prompt('skylink-air', 'voice', true);
+    const fixed = base.slice(0, base.indexOf('Customer verified:'));
+    expect(fixed.length).toBeGreaterThan(2500);
+    expect(noted.startsWith(fixed)).toBe(true);
+    expect(fixed).toContain('can mishear names');
   });
 
   it('still tells the agent not to act on a doubtful transcript', () => {

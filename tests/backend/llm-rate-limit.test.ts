@@ -109,3 +109,54 @@ describe('postJson rate limiting', () => {
     expect(bodies[1]?.reasoning_effort).toBeUndefined();
   });
 });
+
+describe('rate-limit fallback model', () => {
+  const okBody = (text: string) =>
+    JSON.stringify({ choices: [{ message: { content: text } }] });
+  const setup = () => {
+    const seen: string[] = [];
+    const fetchImpl = (async (_u: string, init: { body: string }) => {
+      const model = (JSON.parse(init.body) as { model: string }).model;
+      seen.push(model);
+      return model === 'big'
+        ? new Response(groq429, { status: 429 })
+        : new Response(okBody('from the fallback'), { status: 200 });
+    }) as unknown as typeof fetch;
+    return { seen, fetchImpl };
+  };
+  const req = { system: 's', messages: [{ role: 'user' as const, content: 'hi' }] };
+
+  it('answers from the fallback at once instead of waiting 8 seconds', async () => {
+    const t = setup();
+    const fallback = createOpenAiClient({ apiKey: 'k', model: 'small', baseUrl: 'http://x', fetchImpl: t.fetchImpl });
+    const llm = createOpenAiClient({ apiKey: 'k', model: 'big', baseUrl: 'http://x', fallback, fetchImpl: t.fetchImpl });
+    const started = Date.now();
+    const res = await llm.complete(req);
+    expect(res).toMatchObject({ ok: true, data: { text: 'from the fallback' } });
+    expect(t.seen).toEqual(['big', 'small']);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('still waits (as before) when no fallback is configured', async () => {
+    const t = setup();
+    const llm = createOpenAiClient({ apiKey: 'k', model: 'big', baseUrl: 'http://x', fetchImpl: t.fetchImpl });
+    void llm; // the existing tests above cover the waiting path; nothing is sent to another model
+    expect(t.seen).toEqual([]);
+  });
+
+  it('a short wait is waited out on the main model rather than switching', async () => {
+    const seen: string[] = [];
+    let n = 0;
+    const fetchImpl = (async (_u: string, init: { body: string }) => {
+      seen.push((JSON.parse(init.body) as { model: string }).model);
+      return n++ === 0
+        ? new Response(JSON.stringify({ error: { message: 'try again in 200ms' } }), { status: 429 })
+        : new Response(okBody('from the main model'), { status: 200 });
+    }) as unknown as typeof fetch;
+    const fallback = createOpenAiClient({ apiKey: 'k', model: 'small', baseUrl: 'http://x', fetchImpl });
+    const llm = createOpenAiClient({ apiKey: 'k', model: 'big', baseUrl: 'http://x', fallback, fetchImpl });
+    const res = await llm.complete(req);
+    expect(res).toMatchObject({ ok: true, data: { text: 'from the main model' } });
+    expect(seen).toEqual(['big', 'big']);
+  });
+});

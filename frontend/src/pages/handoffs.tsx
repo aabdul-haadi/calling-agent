@@ -340,7 +340,7 @@ export function HandoffsPage() {
     <div className="space-y-5">
       <PageHeader
         eyebrow="Human handoffs"
-        title="Customers waiting for a person"
+        title="Human handoffs"
         description={
           handoffs.data
             ? `${pending} waiting for a human.`

@@ -1,5 +1,6 @@
-import { Menu, Moon, Search, Sun } from 'lucide-react';
+import { ChevronDown, Menu, Moon, Search, Sun } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ProductMark, TenantMark } from '@/components/brand/marks';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/stat';
 import { useTenant } from '@/context/tenant';
@@ -15,7 +16,7 @@ function Breadcrumbs() {
   const suffix = pathname.split('/')[2];
   return (
     <nav aria-label="Breadcrumb" className="hidden min-w-0 text-sm sm:block">
-      <ol className="flex items-center gap-1.5 text-muted-foreground">
+      <ol className="flex items-center gap-2 text-muted-foreground">
         <li>
           <Link to="/" className="hover:text-foreground">
             Operations
@@ -23,18 +24,20 @@ function Breadcrumbs() {
         </li>
         {current && current.id !== 'overview' && (
           <li className="flex items-center gap-1.5">
-            <span aria-hidden="true">/</span>
+            <span aria-hidden="true" className="text-border">
+              /
+            </span>
             <span aria-current="page" className="truncate font-medium text-foreground">
               {current.label}
             </span>
           </li>
         )}
-        {suffix && (current?.id === 'console' || current?.id === 'tenants') && (
+        {suffix && (current?.id === 'console' || current?.id === 'settings') && (
           <li className="flex items-center gap-1.5">
-            <span aria-hidden="true">/</span>
-            <span className="truncate font-mono text-xs">
-              {suffix === tenant?.id ? tenant.displayName : suffix}
+            <span aria-hidden="true" className="text-border">
+              /
             </span>
+            <span className="truncate">{suffix === tenant?.id ? tenant.displayName : suffix}</span>
           </li>
         )}
       </ol>
@@ -57,11 +60,11 @@ function EnvironmentStatus() {
     <div
       role="status"
       title="Company systems in this build are simulated (mock APIs)"
-      className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs md:flex"
+      className="hidden items-center gap-2 text-xs text-muted-foreground xl:flex"
     >
       <StatusDot tone={health.error ? 'danger' : up ? 'ok' : health.loading ? 'idle' : 'warn'} />
-      <span>{label}</span>
-      <span className="text-muted-foreground">· simulated company systems</span>
+      <span className="font-medium text-foreground">{label}</span>
+      <span>with simulated company systems</span>
     </div>
   );
 }
@@ -83,11 +86,11 @@ export function Topbar({
   // On tenant-specific pages the tenant is part of the URL, so switching tenant changes the URL.
   const switchTenant = (id: string) => {
     select(id);
-    const section = /^\/(agent|tenants)\//.exec(pathname)?.[1];
+    const section = /^\/(agent|tenants|settings)\//.exec(pathname)?.[1];
     if (section) navigate(`/${section}/${id}`);
   };
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur sm:px-5">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-3 backdrop-blur-md sm:px-6">
       <Button
         variant="ghost"
         size="icon"
@@ -97,19 +100,20 @@ export function Topbar({
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
       </Button>
-      <Link to="/" className="text-sm font-semibold tracking-tight lg:hidden">
-        ADK
+      <Link to="/" aria-label="Agent Delivery Kit home" className="lg:hidden">
+        <ProductMark className="h-7 w-7" />
       </Link>
       <Breadcrumbs />
       <div className="ml-auto flex items-center gap-2">
         <EnvironmentStatus />
-        <label className="flex items-center gap-2 text-xs">
-          <span className="sr-only sm:not-sr-only sm:text-muted-foreground">Tenant</span>
+        <label className="relative flex h-9 items-center gap-2 rounded-md border border-border bg-card pl-1.5 pr-2 text-sm shadow-soft hover:border-foreground/25 focus-within:ring-2 focus-within:ring-accent">
+          <TenantMark id={tenant?.id} initials={tenant?.initials} className="h-6 w-6" />
+          <span className="sr-only">Tenant</span>
           <select
             value={tenant?.id ?? ''}
             onChange={(e) => switchTenant(e.target.value)}
             disabled={clients.length === 0}
-            className="h-9 max-w-[9.5rem] rounded-md border border-border bg-card px-2 text-sm sm:max-w-none"
+            className="max-w-[8rem] cursor-pointer appearance-none bg-transparent pr-5 font-medium focus:outline-none sm:max-w-none"
           >
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -117,19 +121,23 @@ export function Topbar({
               </option>
             ))}
           </select>
+          <ChevronDown
+            className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-muted-foreground"
+            aria-hidden="true"
+          />
         </label>
-        <Button
-          variant="outline"
-          size="sm"
+        <button
+          type="button"
           onClick={onSearch}
           aria-label="Search pages and tenants (Ctrl+K)"
+          className="flex h-9 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm text-muted-foreground shadow-soft hover:border-foreground/25 hover:text-foreground md:w-56"
         >
-          <Search className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Search</span>
-          <kbd className="hidden rounded border border-border px-1 font-mono text-[0.65rem] text-muted-foreground sm:inline">
+          <Search className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+          <span className="hidden md:inline">Search…</span>
+          <kbd className="ml-auto hidden rounded border border-border bg-muted px-1.5 text-[0.7rem] font-medium md:inline">
             Ctrl K
           </kbd>
-        </Button>
+        </button>
         <Button
           variant="ghost"
           size="icon"
@@ -137,9 +145,9 @@ export function Topbar({
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {theme === 'dark' ? (
-            <Sun className="h-4 w-4" aria-hidden="true" />
+            <Sun className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.75} aria-hidden="true" />
           ) : (
-            <Moon className="h-4 w-4" aria-hidden="true" />
+            <Moon className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.75} aria-hidden="true" />
           )}
         </Button>
       </div>

@@ -437,7 +437,7 @@ function ReleaseCard({ r, clientId, onDone }: { r: LearningRelease; clientId: st
   );
 }
 
-function Releases({ clientId }: { clientId: string }) {
+export function Releases({ clientId }: { clientId: string }) {
   const list = useAsync(() => api.learning.releases(clientId), [clientId]);
   const [note, setNote] = useState<string>();
   const run = async (label: string, fn: () => Promise<unknown>) => {
@@ -524,7 +524,7 @@ export function LearningPage() {
     <div className="grid gap-4">
       <PageHeader
         title="Learning"
-        description="Voice calls and chats feed one reviewed pipeline. Nothing changes how the agents behave until a person approves it and it passes its evaluation."
+        description="Review conversations, turn useful examples into improvements, and test every change before it can affect customers."
         eyebrow="Learning"
         actions={
           <Button size="sm" onClick={() => void runCycle()}>

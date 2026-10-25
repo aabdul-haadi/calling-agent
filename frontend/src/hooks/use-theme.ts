@@ -4,13 +4,13 @@ type Theme = 'light' | 'dark';
 
 function initialTheme(): Theme {
   try {
-    const saved = localStorage.getItem('adk-theme');
+    const saved = localStorage.getItem('adk-theme-v2');
     if (saved === 'light' || saved === 'dark') return saved;
   } catch {
     // storage can be blocked; fall through to the OS preference
   }
-  // Dark is the primary experience; light is opt-in via the toggle.
-  return 'dark';
+  // Light is the primary experience; dark is opt-in via the toggle.
+  return 'light';
 }
 
 export function useTheme() {
@@ -19,7 +19,7 @@ export function useTheme() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     try {
-      localStorage.setItem('adk-theme', theme);
+      localStorage.setItem('adk-theme-v2', theme);
     } catch {
       // ignore
     }
