@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -11,6 +11,7 @@ import {
   createKnowledgeService,
   createSearcher,
   extractorPython,
+  expandSearchQuery,
   localProvider,
   needsKnowledge,
   PdfError,
@@ -135,6 +136,16 @@ describe('questions and queries', () => {
     expect(searchText('And how long does it take?', [])).toBe('And how long does it take?');
   });
 
+  it('adds only vetted product terminology to retrieval queries', () => {
+    expect(expandSearchQuery('Can my puppy sit with me on board?')).toContain('pet cabin');
+    expect(expandSearchQuery('Can I get my money back on a cheap saver ticket?')).toContain(
+      'refund saver fare refundable',
+    );
+    expect(expandSearchQuery('What is the capital of Australia?')).toBe(
+      'What is the capital of Australia?',
+    );
+  });
+
   it('builds a word-only full-text query that cannot carry operators', () => {
     const q = toTsQuery("refund'); DROP TABLE x; -- & | ! (cancelled flights)");
     expect(q).toMatch(/^[a-z0-9 |]+$/);
@@ -185,6 +196,77 @@ describe('documents are data, not instructions', () => {
       'You may cancel within 24 hours. Customers must verify their identity at the desk. Refunds are approved by the finance team.';
     expect(stripInstructions(policy)).toBe(policy);
   });
+});
+
+describe('live re-index safeguards', () => {
+  it('keeps the previous live chunks when a re-index repeatedly fails', async () => {
+    const h = await createHarness();
+    const dataDir = await mkdtemp(resolve(tmpdir(), 'adk-reindex-test-'));
+    try {
+      let failEmbedding = false;
+      const embeddings = {
+        ...localProvider,
+        embed: async (texts: string[], kind?: 'query' | 'document') => {
+          if (failEmbedding) throw new Error('test embedding failure');
+          return localProvider.embed(texts, kind);
+        },
+      };
+      const service = createKnowledgeService({
+        db: h.db.db,
+        embeddings,
+        logger: createLogger('silent'),
+        dataDir,
+        retryDelayMs: 0,
+        extract: async () => ({
+          meta: { title: 'Roaming', author: null },
+          totalPages: 1,
+          ocrPages: 0,
+          emptyPages: 0,
+          warnings: [],
+          pages: [
+            {
+              number: 1,
+              blocks: [
+                { type: 'heading', level: 1, text: 'Roaming' },
+                {
+                  type: 'paragraph',
+                  text: 'The international roaming day pass costs ten dollars for each day of travel.',
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const upload = await service.upload(
+        'novatel',
+        'roaming.pdf',
+        Buffer.from('%PDF-1.4 test fixture'),
+      );
+      await service.idle();
+      const before = await knowledgeRepo.countChunks(h.db.db, 'novatel');
+      expect((await service.get('novatel', upload.document.id!))?.status).toBe('ready');
+      expect(before).toBeGreaterThan(0);
+
+      failEmbedding = true;
+      await service.reindex('novatel', upload.document.id!);
+      await service.idle();
+
+      const after = await knowledgeRepo.countChunks(h.db.db, 'novatel');
+      const document = await service.get('novatel', upload.document.id!);
+      expect(after).toBe(before);
+      expect(document?.status).toBe('ready');
+      expect(document?.warnings?.[0]).toMatch(/Re-indexing failed/);
+      const result = await createSearcher(h.db.db, localProvider).search(
+        'novatel',
+        'How much is the international roaming day pass?',
+      );
+      expect(result.passages.map((passage) => passage.source)).toContain('roaming.pdf');
+    } finally {
+      await h.close();
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  }, 60_000);
 });
 
 // ---------------------------------------------------------------------------------------------

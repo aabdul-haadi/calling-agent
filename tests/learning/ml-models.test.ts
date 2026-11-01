@@ -153,12 +153,12 @@ describe('candidate model: comparison, shadow, promotion', () => {
       local.state.answer = () => bad;
       h.llm.reset();
       h.llm.script(say('HOSTED again'));
-      expect((await ask('How many bags can I check on a voice call?', 'voice')).reply).toBe('HOSTED again');
+      expect((await ask('How many bags can I check in economy?', 'voice')).reply).toBe('HOSTED again');
     }
     local.state.up = false;
     h.llm.reset();
     h.llm.script(say('HOSTED when down'));
-    expect((await ask('How many bags can I check when the model is down?')).reply).toBe('HOSTED when down');
+    expect((await ask('How many bags can I check in economy?')).reply).toBe('HOSTED when down');
     local.state.up = true;
 
     // not a policy question: never routed

@@ -340,7 +340,7 @@ describe('taking yourself back out of the queue', () => {
     expect(wantsToStayWithAssistant(message)).toBe(false);
   });
 
-  it('a waiting customer can carry on with the assistant; the handoff is closed and audited', async () => {
+  it('a waiting customer can continue the conversation without being re-queued; the handoff is closed and audited when they withdraw', async () => {
     const first = await h.chat.chat({
       clientId: 'skylink-air',
       message: 'This is ridiculous, I am furious',
@@ -351,7 +351,8 @@ describe('taking yourself back out of the queue', () => {
       conversationId: first.conversationId,
       message: 'Tell me about baggage',
     });
-    expect(stuck.reply).toMatch(/queue/i); // an ordinary message is still told to wait
+    expect(stuck.reply).toMatch(/added that to the conversation/i);
+    expect(stuck.reply).not.toMatch(/already in the queue/i);
     h.llm.reset();
     h.llm.script(say('Of course. What is your booking reference?'));
     const back = await h.chat.chat({
@@ -366,6 +367,38 @@ describe('taking yourself back out of the queue', () => {
       (a) => a.type,
     );
     expect(types).toContain('handoff_withdrawn');
+  });
+
+  it('acknowledges new details without repeating the queue notice', async () => {
+    const first = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'I want to talk to a person',
+    });
+    const queueNotice = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: first.conversationId,
+      message: 'How long is the queue?',
+    });
+    expect(queueNotice.reply).toMatch(/added that to the conversation/i);
+    expect(queueNotice.reply).not.toMatch(/already in the queue/i);
+
+    const update = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: first.conversationId,
+      message: 'My booking reference is SK1001 and my last name is Rahman.',
+    });
+    expect(update.reply).toMatch(/conversation.*colleague/i);
+    expect(update.state.handedOff).toBe(true);
+
+    const conversation = await h.chat.view(first.conversationId);
+    expect(conversation.messages.at(-2)?.content).toBe(
+      'My booking reference is SK1001 and my last name is Rahman.',
+    );
+    expect(conversation.messages.at(-1)?.content).toBe(update.reply);
+    const { handoffsRepo } = await import('@backend/database');
+    const latestHandoff = await handoffsRepo.latestForConversation(h.db.db, first.conversationId);
+    expect(latestHandoff?.id).toBe(first.handoff?.id);
+    expect(latestHandoff?.status).toBe('pending');
   });
 
   it('once a person has accepted, the customer cannot pull the conversation back', async () => {

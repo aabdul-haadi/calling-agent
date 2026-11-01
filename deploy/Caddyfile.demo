@@ -1,0 +1,47 @@
+# PRIVATE DEMO ONLY. The app's built-in "development" sign-in makes every visitor an
+# administrator, so this variant puts a password in front of the whole site instead.
+# Use deploy/Caddyfile with an OIDC provider for anything with real customers or real data.
+#
+# Create the hash with:  docker run --rm caddy:2-alpine caddy hash-password --plaintext 'a-long-password'
+# In .env.production write every "$" of the hash as "$$".
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
+		-Server
+	}
+
+	handle_path /api/* {
+		reverse_proxy backend:4000
+	}
+
+	handle_path /voice/* {
+		reverse_proxy voice:8765
+	}
+
+	handle {
+		root * /srv
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@media path /visuals/* /avatars/*
+		header @media Cache-Control "public, max-age=86400"
+		@shell {
+			not path /assets/* /visuals/* /avatars/*
+		}
+		header @shell Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -1,4 +1,15 @@
 {
   "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@adk/shared": ["shared/src/index.ts"],
+      "@adk/shared/hmac": ["shared/src/hmac.ts"],
+      "@backend/*": ["backend/src/*"],
+      "@clients/*": ["clients/*"],
+      "@/*": ["frontend/src/*"],
+      "express": ["backend/node_modules/@types/express/index.d.ts"]
+    }
+  },
   "include": ["tests", "clients", "vitest.config.ts", "eslint.config.mjs"]
 }

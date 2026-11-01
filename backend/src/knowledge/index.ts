@@ -8,3 +8,4 @@ export * from './pdf';
 export * from './safety';
 export * from './rerank';
 export * from './gate';
+export * from './text';

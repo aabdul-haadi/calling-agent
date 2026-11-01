@@ -3,7 +3,7 @@ import request from 'supertest';
 import { clientDir, loadClients } from '@backend/clients';
 import { ingestClient, localProvider } from '@backend/knowledge';
 import { resolve } from 'node:path';
-import { callTool, createHarness, say, type Harness } from '../helpers/harness';
+import { callTool, createHarness, nextChatRequestKey, say, type Harness } from '../helpers/harness';
 
 let h: Harness;
 beforeAll(async () => {
@@ -18,6 +18,8 @@ beforeAll(async () => {
 });
 afterAll(() => h.close());
 beforeEach(() => h.llm.reset());
+
+const postChat = () => request(h.app).post('/chat').set('Idempotency-Key', nextChatRequestKey());
 
 describe('operations insights', () => {
   it('starts empty: zero counts and nulls, never invented numbers', async () => {
@@ -39,9 +41,7 @@ describe('operations insights', () => {
       callTool('verify_customer', { bookingRef: 'SK1001', lastName: 'Nobody' }),
       say('Verified, and one attempt failed.'),
     );
-    const chat = await request(h.app)
-      .post('/chat')
-      .send({ clientId: 'skylink-air', message: 'SK1001 Rahman' });
+    const chat = await postChat().send({ clientId: 'skylink-air', message: 'SK1001 Rahman' });
     expect(chat.status).toBe(200);
 
     const d = (await request(h.app).get('/overview?clientId=skylink-air')).body.data;
@@ -99,10 +99,8 @@ describe('operations insights', () => {
       pick,
       say('Please reply yes.'),
     );
-    const first = await request(h.app)
-      .post('/chat')
-      .send({ clientId: 'skylink-air', message: 'SK1001 Rahman' });
-    const second = await request(h.app).post('/chat').send({
+    const first = await postChat().send({ clientId: 'skylink-air', message: 'SK1001 Rahman' });
+    const second = await postChat().send({
       clientId: 'skylink-air',
       conversationId: first.body.data.conversationId,
       message: 'The first one',

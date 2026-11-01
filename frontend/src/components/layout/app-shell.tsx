@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { preloadWhenIdle } from '@/avatar/preload';
 import { Dialog } from '@/components/ui/dialog';
 import { useTenant } from '@/context/tenant';
 import { useAsync } from '@/hooks/use-async';
@@ -29,8 +30,11 @@ export function AppShell() {
   const [palette, setPalette] = useState(false);
 
   // Badge on "Human Handoffs": the real number waiting for a person.
-  const overview = useAsync(() => api.overview(), [], 10_000);
+  const overview = useAsync(() => api.overview(tenant?.id), [tenant?.id], 10_000);
   const badges = { handoffs: overview.data?.handoffs.pending };
+
+  // Fetch the selected company's 3D agent while the page is idle, so the Voice Lab opens ready.
+  useEffect(() => preloadWhenIdle(tenant?.id), [tenant?.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

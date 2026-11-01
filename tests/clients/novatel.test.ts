@@ -13,6 +13,10 @@ beforeAll(async () => {
     ingestKnowledge: true,
     classify: (m) => {
       if (/cancel my plan/i.test(m)) return { intent: 'cancellation_request' };
+      if (/what(?:'s| is) your age/i.test(m)) return { intent: 'out_of_scope' };
+      if (/zorb/i.test(m)) return { intent: 'unknown' };
+      if (/I want Briani/i.test(m)) return { intent: 'cancellation_request' };
+      if (/I want Biryani/i.test(m)) return { wantsHuman: true };
       if (/late|fee|policy|what happens/i.test(m))
         return { intent: 'billing_policy', isPolicyQuestion: true };
       if (/peacock|rocket/i.test(m)) return { intent: 'billing_policy', isPolicyQuestion: true };
@@ -104,6 +108,75 @@ describe('NovaTel: second client on the same engine', () => {
     // the model may have started an answer in parallel, but nothing it wrote or asked for was used
     expect(res.reply).toMatch(/human colleague/);
     expect(res.trace.some((t) => t.type === 'tool')).toBe(false);
+  });
+
+  it('does not transfer for an unrelated phrase misclassified as a cancellation request', async () => {
+    h.llm.script(
+      callTool('transfer_to_human', { reason: 'outside scope' }),
+      callTool('transfer_to_human', { reason: 'outside scope' }),
+    );
+    const res = await h.chat.chat({ clientId: 'novatel', message: 'I want Briani' });
+    expect(res.handoff).toBeUndefined();
+    expect(res.state.handedOff).toBe(false);
+    expect(res.trace.find((event) => event.label.startsWith('Understood intent'))?.label).toContain(
+      'unknown',
+    );
+    expect(res.reply).toContain('bill explanations');
+    expect(res.trace.some((event) => event.label.includes('Blocked an automatic human transfer'))).toBe(
+      true,
+    );
+    expect(res.trace.some((event) => event.type === 'tool')).toBe(false);
+    expect(h.llm.calls.at(-1)?.system).toContain('Nia');
+    expect(h.llm.calls.at(-1)?.system).toContain('request is unclear or unrelated');
+  });
+
+  it('does not escalate after an out-of-scope question followed by an ambiguous request', async () => {
+    h.llm.script(
+      say("I'm an AI assistant, so I don't have an age. I can help with NovaTel services."),
+      callTool('transfer_to_human', { reason: 'outside scope' }),
+      callTool('transfer_to_human', { reason: 'outside scope' }),
+    );
+    const first = await h.chat.chat({ clientId: 'novatel', message: "What's your age?" });
+    expect(first.handoff).toBeUndefined();
+
+    const next = await h.chat.chat({
+      clientId: 'novatel',
+      conversationId: first.conversationId,
+      message: 'I want Briani',
+    });
+    expect(next.handoff).toBeUndefined();
+    expect(next.state.handedOff).toBe(false);
+    expect(next.reply).toContain('bill explanations');
+    expect(next.trace.some((event) => event.label.includes('Blocked an automatic human transfer'))).toBe(
+      true,
+    );
+  });
+
+  it('does not treat two unsupported messages as two failed attempts', async () => {
+    h.llm.script(
+      say('I am not sure what you mean by a zorb. I can help with NovaTel services.'),
+      say('I am not sure what you mean by a zorb. I can help with NovaTel services.'),
+      say('Could you clarify what you mean by Briani?'),
+      say('Could you clarify what you mean by Briani?'),
+    );
+    const first = await h.chat.chat({ clientId: 'novatel', message: 'What is a zorb?' });
+    const second = await h.chat.chat({
+      clientId: 'novatel',
+      conversationId: first.conversationId,
+      message: 'I want Briani',
+    });
+
+    expect(first.handoff).toBeUndefined();
+    expect(second.handoff).toBeUndefined();
+    expect(second.state.handedOff).toBe(false);
+  });
+
+  it('does not treat an unrelated phrase as a human request when classification is wrong', async () => {
+    h.llm.script(say('I can help with your bill or check for a service outage.'));
+    const res = await h.chat.chat({ clientId: 'novatel', message: 'I want Biryani' });
+    expect(res.handoff).toBeUndefined();
+    expect(res.state.handedOff).toBe(false);
+    expect(res.trace.some((event) => event.type === 'handoff')).toBe(false);
   });
 
   it('answers policy questions from NovaTel documents only', async () => {

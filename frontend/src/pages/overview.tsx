@@ -1,9 +1,9 @@
-import { ArrowRight, Bot, Info, MessageSquare, Phone } from 'lucide-react';
+import { ArrowRight, Bot, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { OverviewMetrics } from '@adk/shared';
-import { AgentOrb } from '@/agent3d/agent-orb';
-import { TenantMark } from '@/components/brand/marks';
-import { NetworkIllustration } from '@/components/brand/network-illustration';
+import { useAuth } from '@/auth/context';
+import { avatarFor } from '@/avatar/avatar-config';
+import { preloadAvatar } from '@/avatar/preload';
 import { Badge } from '@/components/ui/badge';
 import { BarList, Gauge, Sparkline, StackedBar } from '@/components/ui/charts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,130 +11,177 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/state-views';
 import { Stat } from '@/components/ui/stat';
+import { AgentIdentityCard } from '@/components/visual/agent-identity-card';
+import type { VisualKey } from '@/components/visual/assets';
+import { DashboardMetricCard } from '@/components/visual/dashboard-metric-card';
+import { QuickActionCard } from '@/components/visual/quick-action-card';
+import { VisualAsset } from '@/components/visual/visual-asset';
 import { useTenant } from '@/context/tenant';
 import { useAsync } from '@/hooks/use-async';
-import { cn, formatDuration, relativeTime } from '@/lib/utils';
+import { formatDuration, relativeTime } from '@/lib/utils';
 import { api } from '@/services/api';
 
 const KIND_TONE = { audit: 'accent', handoff: 'warn', eval: 'ok' } as const;
 
-function Hero({
-  m,
-  tenant,
-}: {
-  m: OverviewMetrics;
-  tenant: {
-    id: string;
-    displayName: string;
-    initials: string;
-    tagline: string;
-    channels: string[];
-  };
-}) {
-  const detail = useAsync(() => api.client(tenant.id), [tenant.id]);
-  const persona = detail.data?.persona.name;
+/** The numbers someone should look at first: who is waiting, what is stuck, how busy it is. */
+function Attention({ m }: { m: OverviewMetrics }) {
+  const waiting = m.handoffs.pending;
+  const approvals = m.conversations.awaitingApproval;
   return (
-    <Card className="overflow-hidden lg:col-span-12">
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <div className="flex flex-col justify-between gap-6 p-6 sm:p-7">
-          <div className="flex items-start gap-4">
-            <TenantMark id={tenant.id} initials={tenant.initials} className="h-12 w-12" />
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold leading-tight">{tenant.displayName}</h2>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">{tenant.tagline}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            {persona && (
-              <div className="flex items-center gap-3">
-                <AgentOrb mode="idle" agentName={persona} hideCaption compact className="w-11" />
-                <div className="leading-tight">
-                  <p className="text-sm font-medium">{persona}</p>
-                  <p className="text-xs text-muted-foreground">AI agent on duty</p>
-                </div>
-              </div>
-            )}
-            <ul aria-label="Channels" className="flex items-center gap-2">
-              {tenant.channels.map((c) => {
-                const Icon = c === 'voice' ? Phone : MessageSquare;
-                return (
-                  <li
-                    key={c}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs font-medium"
-                  >
-                    <Icon
-                      className="h-3.5 w-3.5 text-muted-foreground"
-                      strokeWidth={1.75}
-                      aria-hidden="true"
-                    />
-                    {c === 'voice' ? 'Voice' : 'Chat'}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-        <div className="relative hidden min-h-[13rem] border-l border-border bg-elevated md:block">
-          <NetworkIllustration tenantId={tenant.id} className="absolute inset-0" />
-        </div>
-      </div>
-      <dl className="grid grid-cols-2 border-t border-border lg:grid-cols-4">
-        {[
-          {
-            label: 'Conversations',
-            value: m.conversations.total,
-            hint: `${m.conversations.last24h} in the last 24 h`,
-          },
-          {
-            label: 'Waiting for a human',
-            value: m.handoffs.pending,
-            tone: m.handoffs.pending > 0 ? ('warn' as const) : undefined,
-            hint: `${m.handoffs.accepted} accepted, ${m.handoffs.resolved} resolved`,
-          },
-          {
-            label: 'Awaiting approval',
-            value: m.conversations.awaitingApproval,
-            tone: m.conversations.awaitingApproval > 0 ? ('warn' as const) : undefined,
-            hint: 'Changes the customer has not confirmed',
-          },
-          {
-            label: 'Tool calls',
-            value: m.tools.total,
-            hint: `${m.tools.failed} failed or blocked`,
-          },
-        ].map((s, i) => (
-          <Stat
-            key={s.label}
-            label={s.label}
-            value={s.value}
-            hint={s.hint}
-            tone={s.tone}
-            className={cn(
-              'px-6 py-5',
-              i % 2 === 1 && 'border-l border-border',
-              i >= 2 && 'border-t border-border lg:border-t-0',
-              i === 2 && 'lg:border-l',
-            )}
+    <section aria-labelledby="attention-title" className="lg:col-span-12">
+      <h2 id="attention-title" className="mb-3 text-sm font-semibold">
+        Needs attention
+      </h2>
+      <ul className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <li>
+          <DashboardMetricCard
+            asset="handoffs"
+            label="Waiting for a person"
+            value={waiting}
+            tone={waiting > 0 ? 'warn' : undefined}
+            attention={waiting > 0 ? 'Customers waiting' : undefined}
+            hint={`${m.handoffs.accepted} accepted, ${m.handoffs.resolved} resolved`}
+            to="/handoffs"
           />
-        ))}
-      </dl>
-    </Card>
+        </li>
+        <li>
+          <DashboardMetricCard
+            asset="approval"
+            label="Awaiting approval"
+            value={approvals}
+            tone={approvals > 0 ? 'warn' : undefined}
+            hint="Changes the customer has not confirmed yet"
+            to="/conversations"
+          />
+        </li>
+        <li>
+          <DashboardMetricCard
+            asset="conversations"
+            label="Conversations"
+            value={m.conversations.total}
+            hint={`${m.conversations.last24h} in the last 24 hours`}
+            to="/conversations"
+          />
+        </li>
+        <li>
+          <DashboardMetricCard
+            asset="tools"
+            label="Actions taken by agents"
+            value={m.tools.total}
+            hint={`${m.tools.failed} failed or blocked`}
+            to="/traces"
+          />
+        </li>
+      </ul>
+    </section>
   );
 }
 
-function Metrics({
-  m,
-  tenant,
-}: {
-  m: OverviewMetrics;
-  tenant: {
-    id: string;
-    displayName: string;
-    initials: string;
-    tagline: string;
-    channels: string[];
-  };
-}) {
+function Agents() {
+  const { clients, tenant, select } = useTenant();
+  const voice = useAsync(() => api.voiceStatus(), [], 15_000);
+  const { profile } = useAuth();
+  const can = (permission: string) => !!profile?.permissions.includes(permission);
+  const id = tenant?.id;
+  const actions: {
+    asset: VisualKey;
+    title: string;
+    description: string;
+    to: string;
+    permission: string;
+    preload?: boolean;
+  }[] = [
+    {
+      asset: 'voice',
+      title: 'Start a voice session',
+      description: 'Talk to the agent out loud',
+      to: '/voice',
+      permission: 'support:operate',
+      preload: true,
+    },
+    {
+      asset: 'conversations',
+      title: 'View conversations',
+      description: 'Find what customers asked',
+      to: '/conversations',
+      permission: 'support:read',
+    },
+    {
+      asset: 'handoffs',
+      title: 'Review handoffs',
+      description: 'Help customers who need a person',
+      to: '/handoffs',
+      permission: 'support:handoff',
+    },
+    {
+      asset: 'knowledge',
+      title: 'Manage knowledge',
+      description: 'Policies the agent answers from',
+      to: '/knowledge',
+      permission: 'knowledge:read',
+    },
+    {
+      asset: 'quality',
+      title: 'Run quality tests',
+      description: 'Check answers before customers do',
+      to: '/evaluations',
+      permission: 'evaluations:read',
+    },
+  ];
+  const allowed = actions.filter((a) => can(a.permission));
+  return (
+    <>
+      <section aria-labelledby="agents-title" className="lg:col-span-7">
+        <h2 id="agents-title" className="mb-3 text-sm font-semibold">
+          Your agents
+        </h2>
+        {clients.length === 0 ? (
+          <EmptyState
+            asset="magic"
+            title="No agents yet"
+            hint="Add a company in Company configuration and its agent will appear here."
+          />
+        ) : (
+          <ul className="space-y-4">
+            {clients.map((c) => (
+              <li key={c.id}>
+                <AgentIdentityCard
+                  client={c}
+                  selected={c.id === id}
+                  voiceReady={voice.data ? voice.data.available : undefined}
+                  onSelect={select}
+                  onPreload={preloadAvatar}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {allowed.length > 0 && (
+        <section aria-labelledby="actions-title" className="lg:col-span-5">
+          <h2 id="actions-title" className="mb-3 text-sm font-semibold">
+            What would you like to do?
+          </h2>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            {allowed.map((a) => (
+              <li key={a.to}>
+                <QuickActionCard
+                  asset={a.asset}
+                  title={a.title}
+                  description={a.description}
+                  to={a.to}
+                  onPreload={a.preload ? () => preloadAvatar(id) : undefined}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+}
+
+function Metrics({ m }: { m: OverviewMetrics }) {
   const latest = m.evals.latest;
   const passRate =
     latest && latest.total > 0 ? Math.round((latest.passed / latest.total) * 100) : null;
@@ -142,11 +189,15 @@ function Metrics({
     m.tools.total > 0 ? Math.round(((m.tools.total - m.tools.failed) / m.tools.total) * 100) : null;
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-      <Hero m={m} tenant={tenant} />
+      <Attention m={m} />
+      <Agents />
 
       <Card className="lg:order-2 lg:col-span-5">
         <CardHeader>
-          <CardTitle>Evaluation quality</CardTitle>
+          <span className="flex items-center gap-2.5">
+            <VisualAsset asset="quality" size={32} />
+            <CardTitle>Quality checks</CardTitle>
+          </span>
           {latest && (
             <Badge tone={passRate === 100 ? 'ok' : 'warn'}>
               {latest.passed}/{latest.total} passed
@@ -177,6 +228,7 @@ function Metrics({
             </div>
           ) : (
             <EmptyState
+              asset="target"
               title="No evaluation run yet"
               hint="Run the scenario suite on the Evaluations page to see a pass rate here."
             />
@@ -186,7 +238,10 @@ function Metrics({
 
       <Card className="lg:order-1 lg:col-span-7">
         <CardHeader>
-          <CardTitle>Tool executions</CardTitle>
+          <span className="flex items-center gap-2.5">
+            <VisualAsset asset="tools" size={32} />
+            <CardTitle>What the agents did</CardTitle>
+          </span>
           <span className="text-xs font-medium text-muted-foreground">
             {toolSuccess === null ? 'No calls yet' : `${toolSuccess}% succeeded`}
           </span>
@@ -229,7 +284,10 @@ function Metrics({
 
       <Card className="lg:order-4 lg:col-span-4">
         <CardHeader>
-          <CardTitle>Latency &amp; cost</CardTitle>
+          <span className="flex items-center gap-2.5">
+            <VisualAsset asset="analytics" size={32} />
+            <CardTitle>Speed &amp; usage</CardTitle>
+          </span>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
@@ -254,7 +312,10 @@ function Metrics({
 
       <Card className="lg:order-3 lg:col-span-4">
         <CardHeader>
-          <CardTitle>Conversation phases</CardTitle>
+          <span className="flex items-center gap-2.5">
+            <VisualAsset asset="conversations" size={32} />
+            <CardTitle>Where conversations stand</CardTitle>
+          </span>
         </CardHeader>
         <CardContent>
           {m.conversations.total === 0 ? (
@@ -281,7 +342,10 @@ function Metrics({
 
       <Card className="lg:order-5 lg:col-span-4">
         <CardHeader>
-          <CardTitle>Recent activity</CardTitle>
+          <span className="flex items-center gap-2.5">
+            <VisualAsset asset="time" size={32} />
+            <CardTitle>Recent activity</CardTitle>
+          </span>
         </CardHeader>
         <CardContent>
           {m.recentActivity.length === 0 ? (
@@ -314,7 +378,7 @@ function Metrics({
   );
 }
 
-function WorkflowGuide({ tenantId }: { tenantId?: string }) {
+function WorkflowGuide({ tenantId, agentName }: { tenantId?: string; agentName: string }) {
   const steps = [
     {
       label: 'Configure',
@@ -323,11 +387,11 @@ function WorkflowGuide({ tenantId }: { tenantId?: string }) {
     },
     {
       label: 'Add policies',
-      detail: 'Upload the knowledge Ava should use',
+      detail: `Upload the knowledge ${agentName} should use`,
       to: '/knowledge',
     },
     {
-      label: 'Test Ava',
+      label: `Test ${agentName}`,
       detail: 'Try chat or voice safely',
       to: tenantId ? `/agent/${tenantId}` : '/agent',
     },
@@ -347,13 +411,13 @@ function WorkflowGuide({ tenantId }: { tenantId?: string }) {
       <CardHeader>
         <CardTitle>How the platform fits together</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Start with a company, test Ava, then improve only what passes review.
+          Start with a company, test {agentName}, then improve only what passes review.
         </p>
       </CardHeader>
       <CardContent>
         <ol className="grid gap-2 md:grid-cols-5">
           {steps.map((step, index) => (
-            <li key={step.label} className="flex min-w-0 items-center gap-2">
+            <li key={step.label} className="flex min-w-0 items-stretch gap-2">
               <Link
                 to={step.to}
                 className="min-w-0 flex-1 rounded-md border border-border bg-elevated p-3 hover:border-accent/50"
@@ -386,7 +450,7 @@ export function OverviewPage() {
       <PageHeader
         eyebrow="Operations overview"
         title="Overview"
-        description="See what is happening across your companies, start the next task, and follow the path from setup to safe improvement."
+        description="What is happening now, which customers need a person, and what to do next."
         actions={
           tenant && (
             <Link
@@ -407,27 +471,22 @@ export function OverviewPage() {
           aria-label="Loading overview"
           className="grid grid-cols-1 gap-4 lg:grid-cols-12"
         >
-          <Skeleton className="h-80 lg:col-span-12" />
+          <Skeleton className="h-24 lg:col-span-3" />
+          <Skeleton className="h-24 lg:col-span-3" />
+          <Skeleton className="h-24 lg:col-span-3" />
+          <Skeleton className="h-24 lg:col-span-3" />
           <Skeleton className="h-56 lg:col-span-7" />
           <Skeleton className="h-56 lg:col-span-5" />
         </div>
       ) : overview.error || !overview.data ? (
         <ErrorState message={overview.error ?? 'No data'} onRetry={overview.reload} />
       ) : (
-        <Metrics
-          m={overview.data}
-          tenant={
-            tenant ?? {
-              id: '',
-              displayName: 'Agent',
-              initials: 'A',
-              tagline: '',
-              channels: ['chat'],
-            }
-          }
-        />
+        <Metrics m={overview.data} />
       )}
-      <WorkflowGuide tenantId={tenant?.id} />
+      <WorkflowGuide
+        tenantId={tenant?.id}
+        agentName={(tenant && avatarFor(tenant.id)?.name) || 'the agent'}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import struct
 from typing import Any
+from uuid import UUID
 
 import numpy as np
 import pytest
@@ -119,6 +120,7 @@ async def test_a_full_turn_is_transcribed_answered_and_spoken():
         assert types.index(earlier) < types.index(later), (earlier, later)
     assert r.agent.calls[0]["message"] == "I would like to change my flight"
     assert r.agent.calls[0]["low_confidence"] is False
+    assert str(UUID(r.agent.calls[0]["idempotency_key"])) == r.agent.calls[0]["idempotency_key"]
     # every event: session id, strictly increasing seq
     assert all(e["session"] == "t1" for e in r.events)
     seqs = [e["seq"] for e in r.events]
@@ -703,6 +705,36 @@ async def test_the_runtimes_stage_timings_reach_the_turn_metrics():
     m = r.of(ev.TURN_METRICS)[0]
     assert (m["agentUnderstandMs"], m["agentRetrieveMs"], m["agentLlmMs"], m["agentToolMs"]) == (200, 30, 600, 70)
     assert m["agentFirstTokenMs"] == 530 and m["agentTotalMs"] == 900
+    await r.close()
+
+
+async def test_playback_start_latency_is_reported_once_for_the_current_turn():
+    r = Rig(TURN)
+    r.agent.script(
+        {"type": "agent.first_token"},
+        *text("Your answer is ready."),
+    )
+    await r.start()
+    await r.frames(frames_for(2.8))
+    await r.until(lambda: bool(r.audio))
+    r.session.on_playback_started(1)
+    r.session.on_playback_started(1)
+    r.session.on_playback_started(99)
+    await r.until(lambda: "agent.speech.completed" in r.types())
+    r.session.on_playback_ended(1)
+    await r.until(lambda: "turn.metrics" in r.types())
+
+    metrics = r.of(ev.TURN_METRICS)[0]
+    assert metrics["speechEndToPlaybackStartEventMs"] >= metrics["speechEndToFirstAudioMs"]
+    assert metrics["firstAudioToPlaybackStartEventMs"] >= 0
+    assert metrics["asrResultToFirstLlmTokenMs"] >= 0
+    assert metrics["firstLlmTokenToFirstTtsAudioMs"] >= 0
+    assert metrics["asrResultToFirstTtsAudioMs"] >= 0
+    snapshot = r.metrics.snapshot()["timings_ms"]
+    assert snapshot["speech_end_to_playback_start_event_ms"]["n"] == 1
+    assert snapshot["first_audio_to_playback_start_event_ms"]["n"] == 1
+    assert snapshot["asr_result_to_first_llm_token_ms"]["n"] == 1
+    assert snapshot["first_llm_token_to_first_tts_audio_ms"]["n"] == 1
     await r.close()
 
 

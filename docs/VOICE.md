@@ -29,10 +29,22 @@ speakers ◀── agent audio ── bounded queue, stale-audio filter
 | Streaming turns       | `backend/src/routes/chat.ts` (`POST /chat/stream`)                                           | One JSON event per line. Closing the connection cancels the turn.                      |
 | Session tokens        | `backend/src/voice/token.ts`, `backend/src/routes/voice.ts`                                  | `POST /voice/session`, `GET /voice/status`.                                            |
 
+### Agent avatar
+
+The Voice Lab uses a temporary procedural 3D development avatar. It is built from Three.js
+primitives, has no external model asset or third-party attribution, and is explicitly labeled in
+the UI. It is not a realistic or production character model, and its simple blink and mouth-scale
+animations are not facial morph targets or a full facial rig. The local voice gateway drives mouth
+opening from measured playback level; browser speech synthesis has no exposed playback analyser in
+this app, so that path uses a clearly approximate speech-activity animation. Production use still
+requires licensed, visually reviewed character assets with verified facial expressions and
+commercial-use terms.
+
 ### What changed in the TypeScript runtime
 
 - **Streaming.** The OpenAI-compatible and Anthropic adapters stream reply text when asked (`onTextDelta`); without it they behave exactly as before. Reasoning is never forwarded.
 - **Cancellation.** `runTurn` takes an `AbortSignal`. It stops at safe points: before the model call, between tool calls, before the next step. **A tool call that has started always finishes**, and nothing is rolled back. State, trace and the customer's words are saved, no reply is saved, and an `turn_cancelled` audit record is written.
+- **Request retries.** Each accepted final transcript gets one stable `Idempotency-Key` when forwarded to the runtime. Replaying that HTTP request cannot process the same voice turn twice.
 - **An approval that had not started lapses.** If the customer said "yes" and then interrupted before the change began, the approval is gone at the next turn (approvals cover one turn) and the customer is asked again. A change already in flight is recorded and cannot be repeated.
 - **Doubtful transcripts cannot approve.** The gateway flags a transcript the recognizer was unsure about (`voice.lowConfidence`). The runtime then refuses to read "yes" from it as approval and tells the agent to ask again.
 - **Voice prompt.** On voice the agent reads booking references back, never guesses a value it is unsure of, and reads out the exact flight and time when asking for approval.
@@ -149,7 +161,7 @@ Downloads are checked against pinned SHA-256 hashes. Optional: the 20M recognize
 
 Still wrong after the change: the rare surname "Okafor" (heard as "Akafer"), and homophones ("fare" / "fair", "rebook" / "rebuke"). The agent already reads names and codes back before acting.
 
-**Cost.** The more accurate pass adds time. End-to-end (`python -m evalab.turn_bench --quick`, synthetic voice, scripted reply, 8 turns): end of speech to final transcript median 1.18 s, p95 1.38 s (was p95 0.75 s); end of speech to first audio median 1.36 s, p95 1.53 s. That misses the earlier 800 ms transcript target and the 1.2 s median first-audio target, and meets the 2.5 s p95. Accuracy was chosen over speed because a wrong transcript costs the customer far more than half a second. Set `VOICE_ASR_REFINE=off` to trade back.
+**Cost.** The more accurate pass adds time. The latest `python -m evalab.turn_bench --quick` run (synthetic voice, scripted reply, 8 warm turns) measured end of speech to final transcript at 1.05 s median / 1.28 s p95; end of speech to first audio was 1.34 s / 1.52 s. It misses the earlier 800 ms transcript and 1.2 s median first-audio targets, and meets the 2.5 s first-audio p95 target. Accuracy was chosen over speed because a wrong transcript costs the customer far more than half a second. Set `VOICE_ASR_REFINE=off` to trade back.
 
 **Not measured, important.** All of the above uses a synthetic voice and three read-speech recordings. It has **no Pakistani-accent, Urdu-English code-switching or real-microphone recordings**, because none exist in this repository and nothing was invented. Parakeet v2 is an English model: Urdu words will be wrong. Use the diagnostics below to measure your own voice.
 
@@ -256,7 +268,7 @@ An earlier run of the new prompt exposed two defects that were fixed because of 
 
 ## Speed: where a turn's time goes, and what was done about it
 
-A spoken turn is a chain: the customer stops talking, the turn is confirmed over, the speech is written out, the agent understands it, looks things up, writes an answer, and the first phrase is turned into sound. Every link is now timed (`Where the time went` in the Voice Lab, `turn.metrics` from the gateway, a line in the agent trace, `GET /metrics`), so the slow part is read off, not guessed.
+A spoken turn is a chain: the customer stops talking, the turn is confirmed over, the speech is written out, the agent understands it, looks things up, writes an answer, the first phrase is turned into sound, and the browser schedules playback. The backend emits `agent.first_token` immediately before the first accepted text delta, not when a speculative or discarded response produces a token. The gateway stamps it on that same turn and reports final-ASR-to-first-token, first-token-to-first-TTS-audio, retrieval/tool/model stages, and a `playback.started` event timestamp. That browser event estimates scheduled playback start; it is not acoustic loopback or proof that a physical speaker produced sound. `GET /metrics` keeps rolling aggregate timings; there is no real-call playback measurement in the automated tests.
 
 ### What was slow
 
@@ -280,8 +292,9 @@ A spoken turn is a chain: the customer stops talking, the turn is confirmed over
 
 ### What is still too slow (measured)
 
-- **Pipeline alone** (`python -m evalab.turn_bench --quick`: real speech models, a scripted agent, synthetic voice, 8 turns, i7-6700): first audio median **1.10 s**, 95th percentile **1.18 s**. Meets the 1.2 s and 2.5 s targets. Final transcript 95th percentile is 0.99 s, **missing** the 0.8 s target.
-- **Whole stack in a real browser** (headless Chrome with a recorded caller, the real agent on `gpt-oss-20b`, local speech and search models, all on the same 4-core machine with only 3 GB of memory free): end of speech to first sound **2.0 to 3.6 s** over single runs of three turns. Not meeting the 1.2 s median. The time was: final transcript 0.9 to 1.9 s (the machine was short of memory and the speech models were competing with Chrome), understanding 0.5 to 0.9 s, search 0.3 s, model's first word about 0.7 s later, and the first phrase's sound about 0.5 s after that. These runs were too few and too disturbed to give percentiles; they show where the time is, not a benchmark.
+- **Pipeline alone, latest run** (`python -m evalab.turn_bench --quick`: real speech models, scripted agent, generated test speech, 8 turns on Windows 10, Intel CPU, 8 logical CPUs): final ASR after caller speech p50/p95 **1.047/1.278 s**; first text p50/p95 **1.049/1.280 s**; first TTS audio p50/p95 **1.337/1.525 s**. This misses the 0.8 s transcript p95 and 1.2 s first-audio p50 targets, but meets the 2.5 s first-audio p95 target. First text is from an immediately responding scripted agent, not a real LLM token measurement.
+- **Interruption, same run:** all **6/6** spoken interruptions stopped the current reply; no stale audio frames followed; the new caller turn was understood in **6/6** trials. Speech-onset to stop signal p50/p95 was **157/176 ms**, and confirmed-interruption to server stop p95 was **18.8 ms**. Noise/echo trials did interrupt falsely in **4/4** strong babble (`babble_0.03`) and **4/4** loud echo (`echo_-10`); the lower echo level did so in **1/4**. White-noise and knock trials caused **0/4** false interruptions each. These generated signals are stress fixtures, not a measured real-room false-interruption rate.
+- **Earlier whole-stack browser experiment (historical; not repeated in this run)** used headless Chrome with a recorded caller, the then-configured `gpt-oss-20b` agent, and local speech/search models on a 4-core machine with only 3 GB of memory free. End of speech to first sound was **2.0 to 3.6 s** over three-turn runs. This did not meet the 1.2 s median target. The measured breakdown was final transcript 0.9 to 1.9 s, understanding 0.5 to 0.9 s, search about 0.3 s, model first word about 0.7 s later, and first phrase audio about 0.5 s after that. The runs were too few and disturbed for percentiles; they are not current measurements.
 - The model's time to the first word (about 0.7 s) and the first phrase of speech (about 0.5 s) are the floor on this hardware until a faster model or a GPU is used.
 
 ### Spoken "let me check"

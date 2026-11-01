@@ -1,4 +1,4 @@
-import { splitFor, type TurnInput } from '@backend/learning';
+import { splitForConversation, type TurnInput } from '@backend/learning';
 import type { Harness } from '../helpers/harness';
 
 let counter = 0;
@@ -32,8 +32,8 @@ export async function approvedExamples(
   for (let i = 0; out.length < n; i++) {
     counter += 1;
     const text = `How many bags can I check on ticket variant ${counter * 31 + i} please`;
-    if (splitFor(text) !== side) continue;
     const conversationId = uuid();
+    if (splitForConversation(clientId, conversationId) !== side) continue;
     const reply = opts.replyOf ? opts.replyOf(out.length) : `Variant ${counter}: one bag is included.`;
     const input: TurnInput = {
       clientId,

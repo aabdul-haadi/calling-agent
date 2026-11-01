@@ -1,6 +1,8 @@
-import { ChevronDown, Menu, Moon, Search, Sun } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Moon, Search, Sun } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ProductMark, TenantMark } from '@/components/brand/marks';
+import { useAuth } from '@/auth/context';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/stat';
 import { useTenant } from '@/context/tenant';
@@ -81,8 +83,10 @@ export function Topbar({
   onToggleTheme: () => void;
 }) {
   const { clients, tenant, select } = useTenant();
+  const { configured, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [signOutError, setSignOutError] = useState<string>();
   // On tenant-specific pages the tenant is part of the URL, so switching tenant changes the URL.
   const switchTenant = (id: string) => {
     select(id);
@@ -106,6 +110,16 @@ export function Topbar({
       <Breadcrumbs />
       <div className="ml-auto flex items-center gap-2">
         <EnvironmentStatus />
+        {profile && (
+          <div className="hidden max-w-40 text-right leading-tight xl:block">
+            <p className="truncate text-xs font-medium text-foreground">
+              {profile.name ?? profile.email ?? profile.subject}
+            </p>
+            <p className="truncate text-[0.7rem] text-muted-foreground">
+              {profile.roles.map((role) => role.replace(/_/g, ' ')).join(', ')}
+            </p>
+          </div>
+        )}
         <label className="relative flex h-9 items-center gap-2 rounded-md border border-border bg-card pl-1.5 pr-2 text-sm shadow-soft hover:border-foreground/25 focus-within:ring-2 focus-within:ring-accent">
           <TenantMark id={tenant?.id} initials={tenant?.initials} className="h-6 w-6" />
           <span className="sr-only">Tenant</span>
@@ -129,7 +143,7 @@ export function Topbar({
         <button
           type="button"
           onClick={onSearch}
-          aria-label="Search pages and tenants (Ctrl+K)"
+          aria-label="Search… Ctrl K, pages and tenants"
           className="flex h-9 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm text-muted-foreground shadow-soft hover:border-foreground/25 hover:text-foreground md:w-56"
         >
           <Search className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
@@ -150,7 +164,27 @@ export function Topbar({
             <Moon className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.75} aria-hidden="true" />
           )}
         </Button>
+        {configured && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Sign out"
+            onClick={() => {
+              setSignOutError(undefined);
+              void signOut().catch((reason: unknown) =>
+                setSignOutError(reason instanceof Error ? reason.message : 'Sign out failed.'),
+              );
+            }}
+          >
+            <LogOut className="h-[1.05rem] w-[1.05rem]" aria-hidden="true" />
+          </Button>
+        )}
       </div>
+      {signOutError && (
+        <p role="alert" className="sr-only">
+          {signOutError}
+        </p>
+      )}
     </header>
   );
 }

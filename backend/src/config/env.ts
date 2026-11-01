@@ -3,6 +3,12 @@ import { z } from 'zod';
 export const envSchema = z.object({
   BACKEND_PORT: z.coerce.number().int().default(4000),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  AUTH_MODE: z.enum(['development', 'oidc']).default('development'),
+  // An empty value (a blank line in an env file, or an unset variable passed on by Docker) means "not set".
+  OIDC_ISSUER: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+  OIDC_AUDIENCE: z.string().min(1).optional().or(z.literal('').transform(() => undefined)),
+  OIDC_ROLE_CLAIM: z.string().min(1).default('roles'),
+  OIDC_TENANT_CLAIM: z.string().min(1).default('tenant_ids'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.string().default('postgres://adk:adk@localhost:5432/adk'),
   /** Set to "true" for hosted Postgres such as Supabase. */
@@ -36,7 +42,7 @@ export const envSchema = z.object({
   /** Longest model reply, reasoning included. Providers count this against the per-minute token limit. */
   LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(100).max(4096).default(700),
   /** Optional smaller, faster model just for classifying each message (intent, mood, yes/no). Same provider and key. */
-  LLM_CLASSIFIER_MODEL: z.string().min(1).optional(),
+  LLM_CLASSIFIER_MODEL: z.string().min(1).optional().or(z.literal('').transform(() => undefined)),
   /** Handle a bare yes / no / greeting / thanks by rules instead of a model call. */
   AGENT_FAST_CLASSIFY: z
     .enum(['on', 'off'])
@@ -59,6 +65,11 @@ export const envSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((v) => v === 'on'),
+  /** Tenants with verified notice, contractual, and data-handling authorization for learning capture. */
+  LEARNING_AUTHORIZED_CLIENTS: z
+    .string()
+    .default('')
+    .transform((v) => [...new Set(v.split(',').map((id) => id.trim()).filter(Boolean))]),
   /** Unreviewed learning rows are deleted after this many days. Approved examples stay until removed. */
   LEARNING_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   /** A fine-tuning dataset is only called ready with at least this many approved, checked examples. */
@@ -77,8 +88,6 @@ export const envSchema = z.object({
   LEARNING_MODEL_P95_MS: z.coerce.number().int().min(100).default(8000),
   /** Shadow answers needed before a candidate may be promoted. */
   LEARNING_MIN_SHADOW: z.coerce.number().int().min(1).default(20),
-  /** If set, the review and release endpoints require this bearer token. */
-  LEARNING_REVIEW_TOKEN: z.string().default(''),
   /** auto reads scanned pages with OCR; off never runs OCR. */
   KNOWLEDGE_OCR: z.enum(['auto', 'off']).default('auto'),
 
@@ -103,6 +112,16 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`);
     throw new Error(`Invalid environment:\n${issues.join('\n')}\nCopy .env.example to .env.`);
   }
+  if (source.NODE_ENV === 'production' && parsed.data.AUTH_MODE !== 'oidc')
+    throw new Error('AUTH_MODE=oidc is required in production.');
+  if (parsed.data.AUTH_MODE === 'oidc' && (!parsed.data.OIDC_ISSUER || !parsed.data.OIDC_AUDIENCE))
+    throw new Error('OIDC_ISSUER and OIDC_AUDIENCE are required when AUTH_MODE=oidc.');
+  if (
+    source.NODE_ENV === 'production' &&
+    parsed.data.OIDC_ISSUER &&
+    new URL(parsed.data.OIDC_ISSUER).protocol !== 'https:'
+  )
+    throw new Error('OIDC_ISSUER must use HTTPS in production.');
   return parsed.data;
 }
 

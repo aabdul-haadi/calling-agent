@@ -1,0 +1,143 @@
+# Production stack: database, backend, mock company systems, voice engine, and a web/HTTPS front.
+#   cp deploy/.env.production.example .env.production   (then fill it in)
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+# See deploy/DEPLOY.md. Only the "web" service is reachable from outside (ports 80 and 443).
+
+name: adk
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  db:
+    <<: *restart
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: adk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: adk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U adk -d adk']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mock:
+    <<: *restart
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.node
+      target: mock
+    environment:
+      MOCK_PORT: '4100'
+      MOCK_CLIENT_ID: ${MOCK_CLIENT_ID:-adk-backend}
+      MOCK_CLIENT_SECRET: ${MOCK_CLIENT_SECRET:?set MOCK_CLIENT_SECRET in .env.production}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:?set WEBHOOK_SECRET in .env.production}
+      MOCK_FAILURE_RATE: '0'
+      MOCK_LATENCY_MS: '0'
+
+  backend:
+    <<: *restart
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.node
+      target: backend
+      args:
+        WITH_PDF: ${WITH_PDF:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+      mock:
+        condition: service_started
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      BACKEND_PORT: '4000'
+      CORS_ORIGIN: https://${DOMAIN:?set DOMAIN in .env.production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      AUTH_MODE: ${AUTH_MODE:-oidc}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
+      OIDC_ROLE_CLAIM: ${OIDC_ROLE_CLAIM:-roles}
+      OIDC_TENANT_CLAIM: ${OIDC_TENANT_CLAIM:-tenant_ids}
+
+      DATABASE_URL: postgres://adk:${POSTGRES_PASSWORD}@db:5432/adk
+      DATABASE_SSL: 'false'
+
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5-5}
+      LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
+      LLM_CLASSIFIER_MODEL: ${LLM_CLASSIFIER_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-semantic}
+
+      MOCK_SERVICES_URL: http://mock:4100
+      MOCK_CLIENT_ID: ${MOCK_CLIENT_ID:-adk-backend}
+      MOCK_CLIENT_SECRET: ${MOCK_CLIENT_SECRET}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+
+      # The browser connects to the voice engine through the web front; the backend itself
+      # asks it for its status over the private network.
+      VOICE_GATEWAY_SECRET: ${VOICE_GATEWAY_SECRET:?set VOICE_GATEWAY_SECRET in .env.production}
+      VOICE_GATEWAY_URL: wss://${DOMAIN}/voice/ws
+      VOICE_GATEWAY_HTTP_URL: http://voice:8765
+    volumes:
+      - appdata:/app/data
+
+  voice:
+    <<: *restart
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.voice
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VOICE_GATEWAY_SECRET: ${VOICE_GATEWAY_SECRET:?set VOICE_GATEWAY_SECRET in .env.production}
+      AGENT_RUNTIME_URL: http://backend:4000
+      VOICE_ALLOWED_ORIGINS: https://${DOMAIN}
+      VOICE_ASR_THREADS: ${VOICE_ASR_THREADS:-2}
+      VOICE_ASR_REFINE_THREADS: ${VOICE_ASR_REFINE_THREADS:-2}
+      VOICE_TTS_THREADS: ${VOICE_TTS_THREADS:-2}
+    volumes:
+      - voicemodels:/app/voice-service/models
+
+  web:
+    <<: *restart
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_API_URL: https://${DOMAIN}/api
+        VITE_OIDC_AUTHORITY: ${OIDC_ISSUER:-}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-}
+        VITE_OIDC_SCOPE: ${VITE_OIDC_SCOPE:-openid profile email}
+    depends_on:
+      - backend
+      - voice
+    # deploy/Caddyfile (OIDC sign-in) or deploy/Caddyfile.demo (private demo behind a password)
+    command: caddy run --config /etc/caddy/${CADDYFILE:-Caddyfile} --adapter caddyfile
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.production}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:-}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  appdata:
+  voicemodels:
+  caddy_data:
+  caddy_config:

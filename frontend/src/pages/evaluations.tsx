@@ -106,6 +106,7 @@ function Suite({ clientId }: { clientId: string }) {
         </div>
       ) : !run ? (
         <EmptyState
+          asset="quality"
           title="No test runs yet"
           hint="Press “Run tests” to run the scenarios. It uses the real AI model, so it can take a minute."
         />
@@ -126,6 +127,7 @@ function Suite({ clientId }: { clientId: string }) {
               <FailurePanel result={selected} onClose={() => setSelected(undefined)} />
             ) : (
               <EmptyState
+                asset="target"
                 title="Pick a scenario"
                 hint="See what was expected, which hard checks passed, what the LLM judge thought, and the full transcript."
               />

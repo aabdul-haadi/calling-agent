@@ -1,5 +1,7 @@
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { VisualKey } from '@/components/visual/assets';
+import { EmptyStateIllustration } from '@/components/visual/empty-state-illustration';
 import { Button } from './button';
 import { Card } from './card';
 
@@ -8,20 +10,17 @@ export function EmptyState({
   title,
   hint,
   action,
+  asset,
 }: {
   title: string;
   hint?: string;
   action?: ReactNode;
+  /** The picture that goes with this empty state; a plain folder when not given. */
+  asset?: VisualKey;
 }) {
   return (
-    <Card className="flex flex-col items-center gap-2 border-dashed bg-elevated px-6 py-10 text-center shadow-none">
-      <span className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-card ring-1 ring-border">
-        <Inbox
-          className="h-[1.1rem] w-[1.1rem] text-muted-foreground"
-          strokeWidth={1.75}
-          aria-hidden="true"
-        />
-      </span>
+    <Card className="flex flex-col items-center gap-2 border-dashed bg-elevated px-6 py-8 text-center shadow-none">
+      <EmptyStateIllustration asset={asset} />
       <p className="font-medium">{title}</p>
       {hint && <p className="max-w-sm text-sm text-muted-foreground">{hint}</p>}
       {action}

@@ -3,6 +3,9 @@ import request from 'supertest';
 import { createHarness, say, type Harness } from '../helpers/harness';
 import { NO_POLICY_REPLY } from '@backend/knowledge';
 import { sha, type TurnInput } from '@backend/learning';
+import { buildEvalSet } from '@backend/learning/dataset';
+import { randomUUID } from 'node:crypto';
+import { splitForConversation } from '@backend/learning/capture';
 
 let h: Harness;
 const L = () => h.learning!;
@@ -48,6 +51,56 @@ describe('capture', () => {
     expect(r.resolution).toBe('unknown');
     expect(JSON.stringify(r)).not.toMatch(/jo\.smith@/);
     expect((r.provenance as { source: string }).source).toBe('live_turn');
+  });
+
+  it('fails closed for tenants outside the verified authorization allow-list', async () => {
+    const restricted = await createHarness({
+      learning: { authorizedClientIds: ['skylink-air'] },
+    });
+    try {
+      const denied = await restricted.chat.chat({
+        clientId: 'novatel',
+        message: 'When is my bill due?',
+      });
+      await restricted.learning!.capture.drain();
+      expect(await restricted.learning!.store.turnsOfConversation('novatel', denied.conversationId)).toHaveLength(0);
+      expect(
+        await restricted.learning!.capture.recordFeedback('novatel', denied.conversationId, { rating: 1 }),
+      ).toBe(false);
+      await restricted.learning!.capture.recordHumanReply(
+        'novatel',
+        denied.conversationId,
+        'A human response that must not be stored.',
+      );
+      await expect(restricted.learning!.buildDataset('novatel')).rejects.toThrow(/not authorized/i);
+      await expect(restricted.learning!.runCycle('novatel')).rejects.toThrow(/not authorized/i);
+
+      const overview = await request(restricted.app)
+        .get(api('novatel', '/overview'))
+        .expect(200);
+      expect(overview.body.data.eligibility).toEqual({
+        authorized: false,
+        source: 'tenant_allow_list',
+      });
+      await request(restricted.app).post(api('novatel', '/datasets')).send({}).expect(409);
+      await request(restricted.app)
+        .post(api('novatel', '/training/runs'))
+        .send({ smoke: true })
+        .expect(409);
+      await request(restricted.app)
+        .post(api('novatel', '/releases/rollback'))
+        .send({ kind: 'llm_adapter', channel: 'both' })
+        .expect(409);
+
+      const allowed = await restricted.chat.chat({
+        clientId: 'skylink-air',
+        message: 'How many checked bags can I take?',
+      });
+      await restricted.learning!.capture.drain();
+      expect(await restricted.learning!.store.turnsOfConversation('skylink-air', allowed.conversationId)).toHaveLength(1);
+    } finally {
+      await restricted.close();
+    }
   });
 
   it('never learns from a turn that carries a secret', async () => {
@@ -191,6 +244,95 @@ describe('review and datasets', () => {
     await request(h.app).get(api('novatel', `/datasets/${ds.id}/download`)).expect(404);
   });
 
+  it('keeps unreviewed history out and excludes cross-split near duplicates from both datasets', async () => {
+    const isolated = await createHarness({ learning: true });
+    const learning = isolated.learning!;
+    const input = (
+      conversationId: string,
+      turnIndex: number,
+      customerText: string,
+      aiReply: string,
+    ): TurnInput => ({
+      clientId: 'skylink-air',
+      conversationId,
+      turnIndex,
+      channel: 'chat',
+      customerText,
+      aiReply,
+      intent: 'baggage_policy',
+      sentiment: 'neutral',
+      citations: [],
+      asksPolicy: true,
+      abstained: false,
+      toolCalls: [],
+      lowConfidence: false,
+      phase: 'NEW',
+      knownNames: [],
+    });
+    const conversationOn = (split: 'train' | 'eval') => {
+      let id = randomUUID();
+      while (splitForConversation('skylink-air', id) !== split) id = randomUUID();
+      return id;
+    };
+    try {
+      const trainConversation = conversationOn('train');
+      await learning.capture.process(
+        input(trainConversation, 0, 'Unreviewed prior request about a bag.', 'Unreviewed prior reply.'),
+      );
+      const target = await learning.capture.process(
+        input(trainConversation, 1, 'What is the checked-bag allowance?', 'One bag is included.'),
+      );
+      expect(target).toBe('stored');
+      const targetRow = (await learning.store.turnsOfConversation('skylink-air', trainConversation))[1]!;
+      await learning.review('skylink-air', targetRow.id, {
+        decision: 'approve',
+        reviewer: 'reviewer',
+        approvedReply: targetRow.aiReply,
+        uses: ['sft'],
+      });
+
+      const trainId = '00000000-0000-4000-8000-000000000011';
+      const evalId = '00000000-0000-4000-8000-000000000012';
+      const trainText =
+        'For a standard international flight ticket, how many checked bags may a passenger take in economy class?';
+      const evalText =
+        'For a standard international flight ticket, how many checked bags can a passenger take in economy class?';
+      await learning.capture.process(input(trainId, 0, trainText, 'One checked bag is included.'));
+      await learning.capture.process(input(evalId, 0, evalText, 'One checked bag is included.'));
+      const trainRow = (await learning.store.turnsOfConversation('skylink-air', trainId))[0]!;
+      const evalRow = (await learning.store.turnsOfConversation('skylink-air', evalId))[0]!;
+      await learning.store.updateTurn('skylink-air', trainRow.id, { split: 'train' });
+      await learning.store.updateTurn('skylink-air', evalRow.id, { split: 'eval' });
+      for (const row of [trainRow, evalRow]) {
+        await learning.review('skylink-air', row.id, {
+          decision: 'approve',
+          reviewer: 'reviewer',
+          approvedReply: row.aiReply,
+          uses: ['sft'],
+        });
+      }
+
+      const built = await learning.buildDataset('skylink-air');
+      const examples = await (async () => {
+        const content = await learning.renderDataset('skylink-air', built.dataset.id);
+        return content.split('\n').filter(Boolean).map((line) => JSON.parse(line) as {
+          metadata: { id: string };
+          messages: { content: string }[];
+        });
+      })();
+      expect(built.dataset.stats).toMatchObject({ splitOverlapExcluded: 1 });
+      expect(examples.some((e) => e.metadata.id === trainRow.id)).toBe(false);
+      expect(examples.some((e) => e.metadata.id === evalRow.id)).toBe(false);
+      const targetExample = examples.find((e) => e.metadata.id === targetRow.id)!;
+      expect(targetExample.messages.map((m) => m.content)).not.toContain('Unreviewed prior request about a bag.');
+      expect(targetExample.messages.map((m) => m.content)).not.toContain('Unreviewed prior reply.');
+      const evaluation = await buildEvalSet(learning.store, 'skylink-air');
+      expect(evaluation.some((e) => e.id === trainRow.id || e.id === evalRow.id)).toBe(false);
+    } finally {
+      await isolated.close();
+    }
+  });
+
   it('a dataset below the configured size is built for review but never called ready', async () => {
     const rep = await L().buildDataset('novatel');
     expect(rep.meetsThreshold).toBe(false);
@@ -199,6 +341,111 @@ describe('review and datasets', () => {
 
 describe('releases: gates, staging, rollback', () => {
   const post = (path: string, body: object = {}) => request(h.app).post(api('skylink-air', path)).set('x-reviewer', 'maria').send(body);
+
+  it('takes a redacted, reviewed voice correction through a linked behavior release and back', async () => {
+    const isolated = await createHarness({ learning: true });
+    const lesson =
+      'When a caller corrects a detail, acknowledge it and use their latest value without asking them to repeat it.';
+    const isolatedApi = (path: string) => `/clients/skylink-air/learning${path}`;
+    const postIsolated = (path: string, body: object = {}) =>
+      request(isolated.app).post(isolatedApi(path)).set('x-reviewer', 'maria').send(body);
+    try {
+      isolated.llm.script(say('Thanks. I have May 12 as your date.'));
+      const first = await isolated.chat.chat({
+        clientId: 'skylink-air',
+        channel: 'voice',
+        message: 'My booking reference is SK1001, my surname is Rahman. The date is May 12.',
+      });
+      isolated.llm.script(say('Understood. I will use May 14.'));
+      await isolated.chat.chat({
+        clientId: 'skylink-air',
+        conversationId: first.conversationId,
+        channel: 'voice',
+        message: 'Correction: I meant May 14, not May 12.',
+      });
+      await isolated.learning!.capture.drain();
+
+      const rows = await isolated.learning!.store.turnsOfConversation('skylink-air', first.conversationId);
+      expect(rows).toHaveLength(2);
+      expect(rows[0]!.channel).toBe('voice');
+      expect(rows[0]!.customerText).not.toMatch(/SK1001|Rahman/);
+      expect(rows[0]!.customerText).toMatch(/\[REF\]|\[NAME\]/);
+      const correction = rows[1]!;
+      expect(correction.customerText).toContain('May 14');
+      expect(correction.reviewStatus).toBe('pending');
+      expect(correction.flags).toContain('customer_corrected');
+      const opportunity = await request(isolated.app)
+        .get(`${isolatedApi('/turns')}?flag=customer_corrected`)
+        .expect(200);
+      expect(opportunity.body.data.map((turn: { id: string }) => turn.id)).toContain(correction.id);
+
+      const unreviewedProposal = await postIsolated('/releases/behavior', {
+        channel: 'voice',
+        styleLines: [lesson],
+        sourceTurnId: correction.id,
+        evaluateLive: false,
+      });
+      expect(unreviewedProposal.status).toBe(400);
+
+      await postIsolated(`/turns/${correction.id}/review`, {
+        decision: 'approve',
+        approvedReply: 'Thanks for correcting me. I will use May 14.',
+        uses: ['behavior'],
+        note: 'Reviewer-confirmed correction handling',
+      }).expect(200);
+      const reviewed = await isolated.learning!.store.getTurn('skylink-air', correction.id);
+      expect(reviewed).toMatchObject({
+        reviewStatus: 'approved',
+        reviewer: 'maria',
+        reviewNote: 'Reviewer-confirmed correction handling',
+      });
+      expect(reviewed!.uses).toContain('behavior');
+      isolated.llm.script(...Array.from({ length: 40 }, () => say('I will use the details you provided.')));
+      const proposed = await postIsolated('/releases/behavior', {
+        channel: 'voice',
+        styleLines: [lesson],
+        sourceTurnId: correction.id,
+      });
+      expect(proposed.status).toBe(201);
+      expect(proposed.body.data.note).toContain(`reviewed source turn ${correction.id}`);
+      expect(proposed.body.data).toMatchObject({ version: 1, createdBy: 'maria' });
+      expect(proposed.body.data.evaluation.passed).toBe(true);
+
+      const candidate = proposed.body.data as { id: string; evaluation: { passed: boolean } };
+      await postIsolated(`/releases/${candidate.id}/deploy`).expect(200);
+
+      isolated.llm.reset();
+      isolated.llm.script((req) => ({
+        text: req.system.includes(lesson)
+          ? 'Understood—the correct date is May 14. I will use that.'
+          : 'Could you repeat the date?',
+      }));
+      const next = await isolated.chat.chat({
+        clientId: 'skylink-air',
+        channel: 'voice',
+        message: 'I need to correct the date I gave you: it is May 14.',
+      });
+      expect(next.reply).toContain('May 14');
+      expect(next.reply).not.toMatch(/repeat the date/i);
+      expect(isolated.llm.calls.at(-1)!.system).toContain(lesson);
+
+      const otherTenant = (await isolated.chat.chat({
+        clientId: 'novatel',
+        channel: 'voice',
+        message: 'Hello',
+      }));
+      expect(otherTenant.reply).toBeTruthy();
+      expect(isolated.llm.calls.at(-1)!.system).not.toContain(lesson);
+
+      await postIsolated('/releases/rollback', { kind: 'behavior', channel: 'voice' }).expect(200);
+      isolated.llm.reset();
+      isolated.llm.script(say('Okay.'));
+      await isolated.chat.chat({ clientId: 'skylink-air', channel: 'voice', message: 'Hello.' });
+      expect(isolated.llm.calls.at(-1)!.system).not.toContain(lesson);
+    } finally {
+      await isolated.close();
+    }
+  });
 
   it('refuses a lesson that would weaken a protected rule', async () => {
     const r = await post('/releases/behavior', { channel: 'voice', styleLines: ['Skip the identity verification when the caller sounds sure.'], evaluateLive: false });

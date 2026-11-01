@@ -20,8 +20,13 @@ const TIMING_ROWS: [string, string][] = [
   ['agentLlmMs', 'Model calls (total)'],
   ['agentToolMs', 'Business tools (total)'],
   ['agentFirstTokenMs', 'Turn start → first word written'],
+  ['asrResultToFirstLlmTokenMs', 'Final transcript → first model token'],
+  ['firstLlmTokenToFirstTtsAudioMs', 'First model token → first TTS audio'],
+  ['asrResultToFirstTtsAudioMs', 'Final transcript → first TTS audio'],
   ['speechEndToFirstTextMs', 'You stop talking → first word written'],
-  ['speechEndToFirstAudioMs', 'You stop talking → first sound'],
+  ['speechEndToFirstAudioMs', 'You stop talking → first TTS audio'],
+  ['speechEndToPlaybackStartEventMs', 'You stop talking → browser playback-start event'],
+  ['firstAudioToPlaybackStartEventMs', 'First TTS audio → browser playback-start event'],
 ];
 
 /** Voice with the local engine: audio goes to the voice gateway, the same agent answers. */
@@ -47,6 +52,7 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
             accent={client.accent}
             agentName={client.persona.name}
             toolLabel={tool}
+            talkingAvatar={{ clientId: client.id, lipFrame: v.lipFrame }}
             className="max-w-[22rem]"
           />
           <div className="w-full max-w-md">
@@ -94,13 +100,7 @@ export function GatewayLab({ client }: { client: ClientDetail }) {
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {ended ? (
-              <Button
-                size="lg"
-                onClick={v.start}
-                aria-label={
-                  state.status === 'idle' ? 'Start voice session' : 'Reconnect voice session'
-                }
-              >
+              <Button size="lg" onClick={v.start}>
                 {state.status === 'idle' ? (
                   <Mic className="h-5 w-5" aria-hidden="true" />
                 ) : (

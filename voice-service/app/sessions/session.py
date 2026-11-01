@@ -21,6 +21,7 @@ import enum
 import logging
 import threading
 import time
+from uuid import uuid4
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
@@ -650,7 +651,7 @@ class VoiceSession:
                 self._answer_presence_check(turn)
                 return
             await self._interrupt(ev.R_BARGE_IN)
-        self._start_reply(turn, text, low)
+        self._start_reply(turn, text, low, str(uuid4()))
 
     def _answer_presence_check(self, turn: _Turn) -> None:
         """"Are you listening?" while the agent is working: say so at once and let the work carry on."""
@@ -684,7 +685,7 @@ class VoiceSession:
     # the agent's reply
     # ------------------------------------------------------------------------------------------
 
-    def _start_reply(self, turn: _Turn, text: str, low: bool) -> None:
+    def _start_reply(self, turn: _Turn, text: str, low: bool, idempotency_key: str) -> None:
         self._gen += 1
         self._response_turn = turn.id
         self._tts_cancel = threading.Event()
@@ -695,11 +696,19 @@ class VoiceSession:
         self._reply = turn
         self.state = State.THINKING
         self._agent_task = asyncio.create_task(
-            self._run_reply(turn, text, low, self._gen, self._tts_cancel),
+            self._run_reply(turn, text, low, idempotency_key, self._gen, self._tts_cancel),
             name=f"voice-reply-{self.id}-{turn.id}",
         )
 
-    async def _run_reply(self, turn: _Turn, text: str, low: bool, gen: int, cancel: threading.Event) -> None:
+    async def _run_reply(
+        self,
+        turn: _Turn,
+        text: str,
+        low: bool,
+        idempotency_key: str,
+        gen: int,
+        cancel: threading.Event,
+    ) -> None:
         phrases: asyncio.Queue[str | None] = asyncio.Queue()
         self._phrases = phrases
         self._activity = None
@@ -715,18 +724,20 @@ class VoiceSession:
                 conversation_id=self.conversation_id,
                 message=text,
                 low_confidence=low,
+                idempotency_key=idempotency_key,
             )
             async for event in events:
                 if gen != self._gen:
                     await events.aclose()  # drop the connection: the runtime stops at its next safe point
                     return
                 kind = event.get("type")
-                if kind == "turn.started":
-                    self._speech = SpeechPrefs.from_event(event.get("speech"))
+                if kind in ("turn.started", "turn.completed"):
                     cid = event.get("conversationId")
                     if isinstance(cid, str) and cid != self.conversation_id:
                         self.conversation_id = cid
                         self.emit(ev.SESSION_CONVERSATION, turn.id, conversationId=cid)
+                if kind == "turn.started":
+                    self._speech = SpeechPrefs.from_event(event.get("speech"))
                 elif kind == "agent.thinking":
                     self.emit(ev.AGENT_THINKING, turn.id)
                 elif kind == "knowledge.used":
@@ -746,6 +757,8 @@ class VoiceSession:
                         acks.start("knowledge", self._speech.progress_knowledge)
                 elif kind == "turn.timing":
                     turn.agent_timings = event.get("timings") if isinstance(event.get("timings"), dict) else None
+                elif kind == "agent.first_token":
+                    turn.marks.setdefault("first_llm_token", self._clock())
                 elif kind == "tool.completed":
                     acks.done(str(event.get("tool", ""))[:64])
                     self._activity = None
@@ -811,15 +824,43 @@ class VoiceSession:
                 metrics["firstPartialMs"] = (marks["first_partial"] - marks["speech_detected"]) * 1000
             if "final" in marks:
                 metrics["speechEndToFinalMs"] = (marks["final"] - speech_end) * 1000
+            if "first_llm_token" in marks and "final" in marks:
+                metrics["asrResultToFirstLlmTokenMs"] = (
+                    marks["first_llm_token"] - marks["final"]
+                ) * 1000
+                if "first_audio" in marks:
+                    metrics["firstLlmTokenToFirstTtsAudioMs"] = (
+                        marks["first_audio"] - marks["first_llm_token"]
+                    ) * 1000
             if "first_text" in marks:
                 metrics["speechEndToFirstTextMs"] = (marks["first_text"] - speech_end) * 1000
             if "first_audio" in marks:
                 ms = (marks["first_audio"] - speech_end) * 1000
                 metrics["speechEndToFirstAudioMs"] = ms
                 self._metrics.observe("speech_end_to_first_audio_ms", ms)
+                if "final" in marks:
+                    metrics["asrResultToFirstTtsAudioMs"] = (
+                        marks["first_audio"] - marks["final"]
+                    ) * 1000
+            if "playback_started" in marks:
+                metrics["speechEndToPlaybackStartEventMs"] = (
+                    marks["playback_started"] - speech_end
+                ) * 1000
+                if "first_audio" in marks:
+                    metrics["firstAudioToPlaybackStartEventMs"] = (
+                        marks["playback_started"] - marks["first_audio"]
+                    ) * 1000
             if "first_text" in marks:
                 self._metrics.observe("speech_end_to_first_text_ms", metrics["speechEndToFirstTextMs"])
         metrics.update(_agent_stage_metrics(turn.agent_timings))
+        if "asrResultToFirstLlmTokenMs" in metrics:
+            self._metrics.observe(
+                "asr_result_to_first_llm_token_ms", metrics["asrResultToFirstLlmTokenMs"]
+            )
+        if "firstLlmTokenToFirstTtsAudioMs" in metrics:
+            self._metrics.observe(
+                "first_llm_token_to_first_tts_audio_ms", metrics["firstLlmTokenToFirstTtsAudioMs"]
+            )
         for key, name in (("agentUnderstandMs", "agent_understand_ms"), ("agentRetrieveMs", "agent_retrieve_ms"),
                           ("agentLlmMs", "agent_llm_ms"), ("agentToolMs", "agent_tool_ms"),
                           ("agentFirstTokenMs", "agent_first_token_ms")):
@@ -943,7 +984,23 @@ class VoiceSession:
             self._barge.reset()
 
     def on_playback_started(self, turn: int) -> None:
-        pass
+        if turn != self._response_turn or self._reply is None or self._reply.id != turn:
+            return
+        marks = self._reply.marks
+        if "playback_started" in marks:
+            return
+        now = self._clock()
+        marks["playback_started"] = now
+        speech_end = marks.get("speech_end")
+        first_audio = marks.get("first_audio")
+        if speech_end is not None:
+            self._metrics.observe(
+                "speech_end_to_playback_start_event_ms", (now - speech_end) * 1000
+            )
+        if first_audio is not None:
+            self._metrics.observe(
+                "first_audio_to_playback_start_event_ms", (now - first_audio) * 1000
+            )
 
     def on_playback_stopped(self, turn: int, stop_ms: float | None) -> None:
         if stop_ms is not None:

@@ -568,6 +568,7 @@ export function KnowledgePage() {
         </div>
       ) : !docs.data || docs.data.length === 0 ? (
         <EmptyState
+          asset="newDocument"
           title="No documents indexed"
           hint="Upload a PDF above, or add policy files to the company's knowledge folder."
         />

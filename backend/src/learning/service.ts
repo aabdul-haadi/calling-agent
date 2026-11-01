@@ -12,7 +12,13 @@ import type { KnowledgeService } from '../knowledge';
 import { REPO_ROOT } from '../config/repo-root';
 import { resolve as resolvePath } from 'node:path';
 import { createLearningCapture, normalize, type LearningCapture, type TurnInput } from './capture';
-import { checkExample, createSftDataset, renderDataset, type DatasetReport } from './dataset';
+import {
+  checkExample,
+  createSftDataset,
+  partitionReviewedTurns,
+  renderDataset,
+  type DatasetReport,
+} from './dataset';
 import {
   DEFAULT_GRID_LEXICAL,
   DEFAULT_GRID_RERANK,
@@ -45,6 +51,7 @@ import { createLearningStore, type LearningStore, type ReleaseKind, type Release
 
 export interface LearningConfig {
   enabled: boolean;
+  authorizedClientIds?: readonly string[];
   retentionDays: number;
   minSftExamples: number;
   minIntentExamples: number;
@@ -104,17 +111,36 @@ export interface CycleReport {
 
 export function createLearningService(deps: LearningDeps) {
   const { logger, registry: clients, config } = deps;
+  const authorizedClientIds = new Set(config.authorizedClientIds ?? []);
+  const unknownAuthorizedClients = [...authorizedClientIds].filter((id) => !clients.get(id));
+  if (unknownAuthorizedClients.length > 0)
+    throw new Error(`Unknown LEARNING_AUTHORIZED_CLIENTS: ${unknownAuthorizedClients.join(', ')}`);
+  const isAuthorized = (clientId: string) => config.enabled && authorizedClientIds.has(clientId);
+  const assertAuthorized = (clientId: string) => {
+    if (!config.enabled)
+      throw new ReviewError('INVALID', 'Conversation-derived learning is disabled.');
+    if (!authorizedClientIds.has(clientId))
+      throw new ReviewError(
+        'INVALID',
+        'This company is not authorized for conversation-derived learning. Confirm its notice, contractual basis, and data-handling approval before enabling it.',
+      );
+  };
   const store: LearningStore = createLearningStore(deps.db);
-  const capture: LearningCapture = createLearningCapture({ store, logger, enabled: config.enabled });
+  const capture: LearningCapture = createLearningCapture({
+    store,
+    logger,
+    enabled: config.enabled,
+    authorizedClientIds: [...authorizedClientIds],
+  });
   const releases: Registry = createRegistry(store, logger);
-  const runtime: LearningRuntime = createRuntime(releases, store);
+  const releaseRuntime: LearningRuntime = createRuntime(releases, store);
   const workflows = createMlWorkflows({
     db: deps.db,
     logger,
     registry: clients,
     store,
     releases,
-    runtime,
+    runtime: releaseRuntime,
     llm: deps.llm,
     searcher: deps.searcher,
     knowledge: deps.knowledge,
@@ -126,6 +152,18 @@ export function createLearningService(deps: LearningDeps) {
   });
   const shadow = new Map<string, { n: number; agree: number; confidentN: number; confidentAgree: number }>();
   let cycleRunning = false;
+  const runtime: LearningRuntime = {
+    behaviorLines: async (clientId, channel, conversationId) =>
+      isAuthorized(clientId) ? releaseRuntime.behaviorLines(clientId, channel, conversationId) : [],
+    retrievalOverride: async (clientId) =>
+      isAuthorized(clientId) ? releaseRuntime.retrievalOverride(clientId) : undefined,
+    shadowIntent: async (clientId, channel) =>
+      isAuthorized(clientId) ? releaseRuntime.shadowIntent(clientId, channel) : undefined,
+    routesLocally: async (clientId, channel) =>
+      isAuthorized(clientId) && (await releaseRuntime.routesLocally?.(clientId, channel)) === true,
+    localAnswer: async (args) =>
+      isAuthorized(args.clientId) ? releaseRuntime.localAnswer?.(args) : undefined,
+  };
 
   const module = (clientId: string) => {
     const m = clients.get(clientId);
@@ -163,6 +201,7 @@ export function createLearningService(deps: LearningDeps) {
 
   /** Hand a finished turn to the learning pipeline. Returns at once; the work is queued. */
   function observe(o: TurnObservation): void {
+    if (!isAuthorized(o.clientId)) return;
     const input = toInput(o);
     if (!input) return;
     capture.record(input);
@@ -204,6 +243,7 @@ export function createLearningService(deps: LearningDeps) {
         uses: [],
       }))!;
     }
+    assertAuthorized(clientId);
     const uses = [...new Set(input.uses ?? ['sft'])];
     const reply = (input.approvedReply ?? turn.humanReply ?? turn.aiReply).trim();
     // A reviewer's edit is redacted again and must come out clean: a pasted phone number is caught here.
@@ -235,19 +275,22 @@ export function createLearningService(deps: LearningDeps) {
 
   async function buildDataset(clientId: string, channel?: 'voice' | 'chat'): Promise<DatasetReport> {
     module(clientId);
+    assertAuthorized(clientId);
     return createSftDataset(store, clientId, { minExamples: config.minSftExamples, ...(channel ? { channel } : {}) });
   }
 
   // ---- intent model ----------------------------------------------------------------------------
 
   async function liveIntentData(clientId: string): Promise<{ train: Labelled[]; heldOut: Labelled[] }> {
-    const rows = (await store.listTurns(clientId, { status: 'approved', limit: 5000 })).filter((t) => (t.uses as string[]).includes('intent'));
+    const rows = await store.listTurns(clientId, { limit: 5000 });
+    const partition = partitionReviewedTurns(rows, 'intent');
     const asCase = (t: TurnRow): Labelled => ({ say: t.customerText, intent: t.intent });
-    return { train: rows.filter((t) => t.split === 'train').map(asCase), heldOut: rows.filter((t) => t.split === 'eval').map(asCase) };
+    return { train: partition.train.map(asCase), heldOut: partition.evaluation.map(asCase) };
   }
 
   async function trainIntentModel(clientId: string, by: string): Promise<{ release: ReleaseRow; model: IntentModel }> {
     module(clientId);
+    assertAuthorized(clientId);
     const set = EVAL_SETS[clientId];
     const live = await liveIntentData(clientId);
     // Seeds first, then reviewed live examples that are not held out. Held-out material is never trained on.
@@ -283,6 +326,7 @@ export function createLearningService(deps: LearningDeps) {
 
   async function proposeRetrieval(clientId: string, by: string): Promise<{ release?: ReleaseRow; note: string }> {
     module(clientId);
+    assertAuthorized(clientId);
     if (!deps.searcher) return { note: 'The knowledge search is not available.' };
     const ranked = await rankedFor(clientId);
     const base = deps.searcher.config;
@@ -323,15 +367,30 @@ export function createLearningService(deps: LearningDeps) {
     clientId: string,
     channel: Channel,
     by: string,
-    input: { styleLines?: string[]; avoidOpeners?: string[]; rollout?: number; evaluateLive?: boolean },
+    input: {
+      styleLines?: string[];
+      avoidOpeners?: string[];
+      rollout?: number;
+      evaluateLive?: boolean;
+      sourceTurnId?: string;
+    },
   ): Promise<ReleaseRow> {
     const m = module(clientId);
+    assertAuthorized(clientId);
+    if (input.sourceTurnId) {
+      const source = await store.getTurn(clientId, input.sourceTurnId);
+      if (!source) throw new ReviewError('NOT_FOUND', 'Reviewed source turn not found for this company');
+      if (source.reviewStatus !== 'approved' || !(source.uses as string[]).includes('behavior'))
+        throw new ReviewError('INVALID', 'A behavior lesson must reference a turn approved for behavior use');
+    }
     const config2: BehaviorConfig = {
       styleLines: input.styleLines ?? [],
       avoidOpeners: input.avoidOpeners ?? (await frequentOpeners(clientId)),
     };
     const release = await releases.propose(clientId, 'behavior', channel, config2, {
-      note: 'behaviour lessons',
+      note: input.sourceTurnId
+        ? `behaviour lessons; reviewed source turn ${input.sourceTurnId}`
+        : 'behaviour lessons',
       createdBy: by,
       ...(input.rollout !== undefined ? { rollout: input.rollout } : {}),
     });
@@ -370,6 +429,7 @@ export function createLearningService(deps: LearningDeps) {
    */
   async function runCycle(clientId: string, trigger = 'manual'): Promise<CycleReport> {
     module(clientId);
+    assertAuthorized(clientId);
     return job(clientId, 'cycle', trigger, async () => {
       await capture.drain();
       const report: CycleReport = {
@@ -419,7 +479,17 @@ export function createLearningService(deps: LearningDeps) {
       cycleRunning = true;
       void (async () => {
         try {
-          for (const s of clients.summaries()) await runCycle(s.id, 'schedule').catch(() => undefined);
+          for (const s of clients.summaries()) {
+            try {
+              if (isAuthorized(s.id)) await runCycle(s.id, 'schedule');
+              else await store.expire(s.id, new Date(Date.now() - config.retentionDays * 86_400_000));
+            } catch (err) {
+              logger.error(
+                { clientId: s.id, err: err instanceof Error ? err.message : String(err) },
+                'scheduled learning maintenance failed',
+              );
+            }
+          }
         } finally {
           cycleRunning = false;
         }
@@ -454,12 +524,17 @@ export function createLearningService(deps: LearningDeps) {
       jobs: jobs.slice(0, 5).map((j) => ({ kind: j.kind, status: j.status, startedAt: j.startedAt })),
       shadow: sh,
       thresholds: { minSftExamples: config.minSftExamples, minIntentExamples: config.minIntentExamples, retentionDays: config.retentionDays },
+      eligibility: {
+        authorized: isAuthorized(clientId),
+        source: 'tenant_allow_list',
+      },
     };
   }
 
   return {
     store,
     capture,
+    assertAuthorized,
     releases,
     runtime,
     workflows,
@@ -467,6 +542,7 @@ export function createLearningService(deps: LearningDeps) {
     review,
     buildDataset,
     renderDataset: async (clientId: string, datasetId: string) => {
+      assertAuthorized(clientId);
       const d = await store.getDataset(clientId, datasetId);
       if (!d) throw new ReviewError('NOT_FOUND', 'Dataset not found');
       return renderDataset(store, clientId, d);
@@ -475,6 +551,7 @@ export function createLearningService(deps: LearningDeps) {
     proposeRetrieval,
     proposeBehavior,
     evaluateRelease: async (clientId: string, id: string): Promise<ReleaseRow> => {
+      assertAuthorized(clientId);
       const r = await store.getRelease(clientId, id);
       if (!r) throw new ReleaseError('NOT_FOUND', 'Release not found');
       const env = r.params as Envelope<unknown>;
@@ -491,8 +568,14 @@ export function createLearningService(deps: LearningDeps) {
       }
       return releases.attachEvaluation(clientId, id, ev);
     },
-    deploy: (clientId: string, id: string, by: string) => job(clientId, 'deploy', by, () => releases.deploy(clientId, id, by)),
-    rollback: (clientId: string, kind: ReleaseKind, channel: Channel, by: string) => job(clientId, 'rollback', by, () => releases.rollback(clientId, kind, channel, by)),
+    deploy: (clientId: string, id: string, by: string) => {
+      assertAuthorized(clientId);
+      return job(clientId, 'deploy', by, () => releases.deploy(clientId, id, by));
+    },
+    rollback: (clientId: string, kind: ReleaseKind, channel: Channel, by: string) => {
+      assertAuthorized(clientId);
+      return job(clientId, 'rollback', by, () => releases.rollback(clientId, kind, channel, by));
+    },
     runCycle,
     startSchedule,
     overview,

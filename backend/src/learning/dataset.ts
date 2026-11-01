@@ -1,5 +1,5 @@
 import { normalize, sha } from './capture';
-import { wordCount } from './analyze';
+import { similarity, wordCount } from './analyze';
 import { leftovers } from './redact';
 import type { DatasetRow, LearningStore, TurnRow } from './store';
 
@@ -29,6 +29,116 @@ export interface BuildResult {
   examples: SftExample[];
   rejected: Rejection[];
   duplicates: number;
+  splitOverlapExcluded: number;
+}
+
+type Split = 'train' | 'eval';
+const SPLIT_OVERLAP_THRESHOLD = 0.85;
+
+function conversationSplits(rows: TurnRow[]): Map<string, Split> {
+  const ordered = [...rows].sort(
+    (a, b) => a.conversationId.localeCompare(b.conversationId) || a.turnIndex - b.turnIndex,
+  );
+  const splits = new Map<string, Split>();
+  for (const row of ordered) {
+    if (!splits.has(row.conversationId)) splits.set(row.conversationId, row.split as Split);
+  }
+  return splits;
+}
+
+function turnsByConversation(rows: TurnRow[]): Map<string, TurnRow[]> {
+  const grouped = new Map<string, TurnRow[]>();
+  for (const row of rows) {
+    const turns = grouped.get(row.conversationId) ?? [];
+    turns.push(row);
+    grouped.set(row.conversationId, turns);
+  }
+  return grouped;
+}
+
+function splitOverlapIds(rows: TurnRow[], splits: ReadonlyMap<string, Split>): Set<string> {
+  const train = rows.filter((t) => splits.get(t.conversationId) === 'train');
+  const evalRows = rows.filter((t) => splits.get(t.conversationId) === 'eval');
+  const overlapping = new Set<string>();
+  const text = new Map(rows.map((t) => [t.id, normalize(t.customerText)]));
+  for (const a of train) {
+    const aText = text.get(a.id)!;
+    if (!aText) continue;
+    for (const b of evalRows) {
+      const bText = text.get(b.id)!;
+      if (bText && similarity(aText, bText) >= SPLIT_OVERLAP_THRESHOLD) {
+        overlapping.add(a.id);
+        overlapping.add(b.id);
+      }
+    }
+  }
+  return overlapping;
+}
+
+export function partitionReviewedTurns(
+  rows: TurnRow[],
+  use: 'sft' | 'intent',
+): {
+  train: TurnRow[];
+  evaluation: TurnRow[];
+  trainOverlaps: TurnRow[];
+  overlapIds: Set<string>;
+  conversationSides: Map<string, Split>;
+} {
+  const conversationSides = conversationSplits(rows);
+  const approved = rows.filter(
+    (t) => t.reviewStatus === 'approved' && (t.uses as string[]).includes(use),
+  );
+  const overlapIds = splitOverlapIds(approved, conversationSides);
+  return {
+    train: approved.filter(
+      (t) =>
+        conversationSides.get(t.conversationId) === 'train' &&
+        t.split === 'train' &&
+        !overlapIds.has(t.id),
+    ),
+    evaluation: approved.filter(
+      (t) =>
+        conversationSides.get(t.conversationId) === 'eval' &&
+        t.split === 'eval' &&
+        !overlapIds.has(t.id),
+    ),
+    trainOverlaps: approved.filter(
+      (t) =>
+        conversationSides.get(t.conversationId) === 'train' &&
+        t.split === 'train' &&
+        overlapIds.has(t.id),
+    ),
+    overlapIds,
+    conversationSides,
+  };
+}
+
+function approvedHistory(
+  turns: ReadonlyMap<string, TurnRow[]>,
+  target: TurnRow,
+  split: Split,
+  splits: ReadonlyMap<string, Split>,
+  overlaps: ReadonlySet<string>,
+): { role: 'user' | 'assistant'; content: string }[] {
+  return (turns.get(target.conversationId) ?? [])
+    .filter(
+      (h) =>
+        h.turnIndex < target.turnIndex &&
+        h.split === split &&
+        splits.get(h.conversationId) === split &&
+        h.reviewStatus === 'approved' &&
+        (h.uses as string[]).includes('sft') &&
+        !!h.approvedReply &&
+        !overlaps.has(h.id) &&
+        !checkExample(h, { expectedSplit: split }),
+    )
+    .sort((a, b) => a.turnIndex - b.turnIndex)
+    .slice(-3)
+    .flatMap((h) => [
+      { role: 'user' as const, content: h.customerText },
+      { role: 'assistant' as const, content: h.approvedReply!.trim() },
+    ]);
 }
 
 const originOf = (t: TurnRow): SftExample['meta']['origin'] => {
@@ -39,11 +149,12 @@ const originOf = (t: TurnRow): SftExample['meta']['origin'] => {
 };
 
 /** Automatic checks on top of the human approval. A reviewer's yes does not waive them. */
-export function checkExample(t: TurnRow, opts: { evalSide?: boolean } = {}): string | undefined {
+export function checkExample(t: TurnRow, opts: { expectedSplit?: Split } = {}): string | undefined {
   const reply = (t.approvedReply ?? '').trim();
   if (!reply) return 'no approved reply';
-  if (!opts.evalSide && t.split !== 'train') return 'held out for evaluation';
-  if (opts.evalSide && t.split !== 'eval') return 'not on the evaluation side';
+  const expectedSplit = opts.expectedSplit ?? 'train';
+  if (t.split !== expectedSplit)
+    return expectedSplit === 'eval' ? 'not on the evaluation side' : 'held out for evaluation';
   const dirty = [...leftovers(t.customerText), ...leftovers(reply)];
   if (dirty.length > 0) return `contains ${[...new Set(dirty)].join(', ')}`;
   if (t.channel === 'voice') {
@@ -58,14 +169,25 @@ export function checkExample(t: TurnRow, opts: { evalSide?: boolean } = {}): str
 }
 
 export async function buildSft(store: LearningStore, clientId: string, channel?: 'voice' | 'chat'): Promise<BuildResult> {
-  const approved = (await store.listTurns(clientId, { status: 'approved', limit: 5000 })).filter(
-    (t) => (t.uses as string[]).includes('sft') && (!channel || t.channel === channel),
+  const rows = await store.listTurns(clientId, { limit: 5000 });
+  const partition = partitionReviewedTurns(rows, 'sft');
+  const splits = partition.conversationSides;
+  const turns = turnsByConversation(rows);
+  const overlaps = partition.overlapIds;
+  const approved = [...partition.train, ...partition.trainOverlaps].filter(
+    (t) => !channel || t.channel === channel,
   );
   const rejected: Rejection[] = [];
   const seen = new Set<string>();
   let duplicates = 0;
+  let splitOverlapExcluded = 0;
   const examples: SftExample[] = [];
   for (const t of [...approved].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (overlaps.has(t.id)) {
+      splitOverlapExcluded++;
+      rejected.push({ id: t.id, reason: 'near-duplicate across train/evaluation split' });
+      continue;
+    }
     const why = checkExample(t);
     if (why) {
       rejected.push({ id: t.id, reason: why });
@@ -77,13 +199,7 @@ export async function buildSft(store: LearningStore, clientId: string, channel?:
       continue;
     }
     seen.add(key);
-    const history = (await store.turnsOfConversation(clientId, t.conversationId))
-      .filter((h) => h.turnIndex < t.turnIndex)
-      .slice(-3)
-      .flatMap((h) => [
-        { role: 'user' as const, content: h.customerText },
-        { role: 'assistant' as const, content: h.approvedReply?.trim() || h.aiReply },
-      ]);
+    const history = approvedHistory(turns, t, 'train', splits, overlaps);
     examples.push({
       id: t.id,
       channel: t.channel as 'voice' | 'chat',
@@ -101,7 +217,7 @@ export async function buildSft(store: LearningStore, clientId: string, channel?:
       },
     });
   }
-  return { examples, rejected, duplicates };
+  return { examples, rejected, duplicates, splitOverlapExcluded };
 }
 
 export const toJsonl = (examples: SftExample[]): string =>
@@ -135,6 +251,7 @@ export async function createSftDataset(
       byChannel,
       duplicatesRemoved: built.duplicates,
       rejectedByChecks: built.rejected.length,
+      splitOverlapExcluded: built.splitOverlapExcluded,
       rejectionReasons: built.rejected.reduce<Record<string, number>>((m, r) => {
         m[r.reason] = (m[r.reason] ?? 0) + 1;
         return m;
@@ -167,22 +284,23 @@ export interface EvalExample {
 
 /** Held-out, reviewed examples: the questions a candidate model is judged on and never trained on. */
 export async function buildEvalSet(store: LearningStore, clientId: string): Promise<EvalExample[]> {
-  const rows = (await store.listTurns(clientId, { status: 'approved', limit: 5000 })).filter(
-    (t) => (t.uses as string[]).includes('sft') && !checkExample(t, { evalSide: true }),
-  );
+  const allRows = await store.listTurns(clientId, { limit: 5000 });
+  const partition = partitionReviewedTurns(allRows, 'sft');
+  const splits = partition.conversationSides;
+  const turns = turnsByConversation(allRows);
+  const overlaps = partition.overlapIds;
+  const rows = partition.evaluation.filter((t) => !checkExample(t, { expectedSplit: 'eval' }));
   const out: EvalExample[] = [];
   for (const t of [...rows].sort((a, b) => a.id.localeCompare(b.id))) {
-    const history = (await store.turnsOfConversation(clientId, t.conversationId))
-      .filter((h) => h.turnIndex < t.turnIndex)
-      .slice(-3)
-      .flatMap((h) => [
-        { role: 'user' as const, content: h.customerText },
-        { role: 'assistant' as const, content: h.approvedReply?.trim() || h.aiReply },
-      ]);
+    const history = approvedHistory(turns, t, 'eval', splits, overlaps);
     out.push({
       id: t.id,
       channel: t.channel as 'voice' | 'chat',
-      messages: [{ role: 'system', content: SYSTEM[t.channel as 'voice' | 'chat'] }, ...history, { role: 'user', content: t.customerText }],
+      messages: [
+        { role: 'system', content: SYSTEM[t.channel as 'voice' | 'chat'] },
+        ...history,
+        { role: 'user', content: t.customerText },
+      ],
       reference: t.approvedReply!.trim(),
     });
   }

@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { TurnEvent } from '@adk/shared';
 import { auditRepo, conversationsRepo } from '@backend/database';
-import { callTool, createHarness, say, type Harness, type ScriptStep } from '../helpers/harness';
+import {
+  callTool,
+  createHarness,
+  nextChatRequestKey,
+  say,
+  type Harness,
+  type ScriptStep,
+} from '../helpers/harness';
 
 let h: Harness;
 beforeAll(async () => {
@@ -65,6 +72,8 @@ describe('streamed turn events', () => {
     const types = events.map((e) => e.type);
     expect(types.indexOf('tool.started')).toBeLessThan(types.indexOf('tool.completed'));
     expect(types.indexOf('tool.completed')).toBeLessThan(types.indexOf('agent.text.delta'));
+    expect(types.indexOf('agent.first_token')).toBeLessThan(types.indexOf('agent.text.delta'));
+    expect(types.filter((type) => type === 'agent.first_token')).toHaveLength(1);
     expect(events.find((e) => e.type === 'tool.completed')).toEqual({
       type: 'tool.completed',
       tool: 'verify_customer',
@@ -294,7 +303,10 @@ describe('POST /chat/stream', () => {
     h.llm.script(say('Hello there, how can I help you today?'));
     const res = await fetch(await urlOf('/chat/stream'), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'Idempotency-Key': nextChatRequestKey(),
+      },
       body: JSON.stringify(ask('Hi')),
     });
     expect(res.headers.get('content-type')).toContain('application/x-ndjson');
@@ -316,7 +328,10 @@ describe('POST /chat/stream', () => {
     const ctrl = new AbortController();
     const res = await fetch(await urlOf('/chat/stream'), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'Idempotency-Key': nextChatRequestKey(),
+      },
       body: JSON.stringify(ask('Tell me about baggage')),
       signal: ctrl.signal,
     });
@@ -340,7 +355,10 @@ describe('POST /chat/stream', () => {
   it('rejects a bad body with a normal JSON error before streaming', async () => {
     const res = await fetch(await urlOf('/chat/stream'), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'Idempotency-Key': nextChatRequestKey(),
+      },
       body: JSON.stringify({ clientId: 'skylink-air', message: '' }),
     });
     expect(res.status).toBe(400);

@@ -165,9 +165,17 @@ class FakeAgent:
         """Dicts are events; numbers are seconds to wait."""
         self.scripts.append(list(events))
 
-    async def stream_turn(self, *, client_id, conversation_id, message, low_confidence) -> AsyncIterator[dict[str, Any]]:
+    async def stream_turn(
+        self, *, client_id, conversation_id, message, low_confidence, idempotency_key
+    ) -> AsyncIterator[dict[str, Any]]:
         self.calls.append(
-            {"client_id": client_id, "conversation_id": conversation_id, "message": message, "low_confidence": low_confidence}
+            {
+                "client_id": client_id,
+                "conversation_id": conversation_id,
+                "message": message,
+                "low_confidence": low_confidence,
+                "idempotency_key": idempotency_key,
+            }
         )
         script = self.scripts.pop(0) if self.scripts else [{"type": "agent.text.delta", "text": "Okay."}]
         index = len(self.calls) - 1

@@ -9,7 +9,7 @@ import { defineTool } from './types';
 export const transferToHuman = defineTool({
   name: 'transfer_to_human',
   description:
-    'Transfer the customer to a human agent. Use when the customer asks for a person, when the request is outside your scope, or when a rule blocks what they need.',
+    'Transfer the customer only when they explicitly ask for a person or accept an offer to speak with one. Do not transfer for an unfamiliar, ambiguous, or out-of-scope request alone; explain what you can help with and ask a brief clarification instead.',
   input: z.object({ reason: z.string().trim().min(3).max(200) }),
   label: 'Requested a human agent',
   summarize: () => 'Transfer requested',

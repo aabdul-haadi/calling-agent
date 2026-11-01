@@ -1,0 +1,1 @@
+CREATE INDEX "chat_request_keys_retention_idx" ON "chat_request_keys" USING btree ("status","created_at");

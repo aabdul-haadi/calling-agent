@@ -36,6 +36,27 @@
       "when": 1792078446770,
       "tag": "0004_training_and_knowledge_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793054460280,
+      "tag": "0005_chat-request-idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793054584401,
+      "tag": "0006_chat-request-conversation-scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793055479136,
+      "tag": "0007_chat-request-retention-index",
+      "breakpoints": true
     }
   ]
 }

@@ -70,6 +70,7 @@ export function createServices(
     },
     config: {
       enabled: env.LEARNING_ENABLED,
+      authorizedClientIds: env.LEARNING_AUTHORIZED_CLIENTS,
       retentionDays: env.LEARNING_RETENTION_DAYS,
       minSftExamples: env.LEARNING_MIN_SFT_EXAMPLES,
       minIntentExamples: env.LEARNING_MIN_INTENT_EXAMPLES,

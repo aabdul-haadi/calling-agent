@@ -22,6 +22,7 @@ class AgentRuntime(Protocol):
         conversation_id: str | None,
         message: str,
         low_confidence: bool,
+        idempotency_key: str,
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield the runtime's events for one turn, parsed. Cancelling the consumer cancels the turn."""
 
@@ -31,9 +32,11 @@ class HttpAgentRuntime:
         self,
         base_url: str,
         timeout_s: float = 60.0,
+        gateway_secret: str = "",
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
+        self._gateway_secret = gateway_secret
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=3.0, read=timeout_s, write=5.0, pool=3.0),
             transport=transport,
@@ -56,6 +59,7 @@ class HttpAgentRuntime:
         conversation_id: str | None,
         message: str,
         low_confidence: bool,
+        idempotency_key: str,
     ) -> AsyncIterator[dict[str, Any]]:
         body: dict[str, Any] = {"clientId": client_id, "message": message, "channel": "voice"}
         if conversation_id:
@@ -63,7 +67,15 @@ class HttpAgentRuntime:
         if low_confidence:
             body["voice"] = {"lowConfidence": True}
         try:
-            async with self._client.stream("POST", f"{self._base}/chat/stream", json=body) as resp:
+            headers = {"Idempotency-Key": idempotency_key}
+            if self._gateway_secret:
+                headers["X-Voice-Gateway-Secret"] = self._gateway_secret
+            async with self._client.stream(
+                "POST",
+                f"{self._base}/chat/stream",
+                json=body,
+                headers=headers,
+            ) as resp:
                 if resp.status_code != 200:
                     yield {
                         "type": "turn.error",

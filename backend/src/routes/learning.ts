@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'node:crypto';
 import express, { Router, type Request } from 'express';
 import { z } from 'zod';
 import type { ClientRegistry } from '../clients';
@@ -24,6 +23,7 @@ const behaviorBody = z.object({
   avoidOpeners: z.array(z.string().max(60)).max(12).optional(),
   rollout: z.number().int().min(0).max(100).optional(),
   evaluateLive: z.boolean().optional(),
+  sourceTurnId: uuid.optional(),
 });
 const rollbackBody = z.object({
   kind: z.enum(['retrieval', 'behavior', 'intent_model', 'llm_adapter']),
@@ -37,9 +37,9 @@ const feedbackBody = z.object({
 });
 
 /**
- * The learning console's API. Everything is scoped to one company in the URL. If LEARNING_REVIEW_TOKEN
- * is set, every console route needs it as a bearer token; the customer feedback route never does and
- * can only add a rating or a suggested correction to the conversation's own latest turn (unapproved).
+ * The learning console's API. Application-wide OIDC authorization protects these routes, and every
+ * operation is scoped to one company in the URL. Customer feedback is separately permissioned and
+ * can only add an unapproved rating or suggested correction to the conversation's latest turn.
  */
 export function learningRouter(env: Env, registry: ClientRegistry, learning: LearningService): Router {
   const router = Router();
@@ -48,17 +48,23 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
     if (!id || !registry.get(id)) throw new HttpError(404, 'NOT_FOUND', 'Unknown client');
     return id;
   };
-  const authorize = (req: Request): string => {
-    const token = env.LEARNING_REVIEW_TOKEN;
-    if (token) {
-      const given = (req.header('authorization') ?? '').replace(/^Bearer\s+/i, '');
-      const a = Buffer.from(given);
-      const b = Buffer.from(token);
-      if (a.length !== b.length || !timingSafeEqual(a, b))
-        throw new HttpError(401, 'UNAUTHORIZED', 'The learning console needs the review token');
+  const eligible = (id: string | undefined): string => {
+    const clientId = known(id);
+    try {
+      learning.assertAuthorized(clientId);
+    } catch (err) {
+      if (err instanceof ReviewError)
+        throw new HttpError(409, err.code, err.message);
+      throw err;
     }
-    const who = (req.header('x-reviewer') ?? '').trim().slice(0, 60);
-    return who || 'console';
+    return clientId;
+  };
+  const authorize = (req: Request): string => {
+    const principal = req.principal;
+    if (!principal) throw new HttpError(401, 'UNAUTHORIZED', 'Sign in to continue.');
+    const developmentName =
+      env.AUTH_MODE === 'development' ? (req.header('x-reviewer') ?? '').trim() : '';
+    return (developmentName || principal.name || principal.email || principal.sub).slice(0, 120);
   };
   const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
     const r = schema.safeParse(body);
@@ -127,7 +133,7 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
   router.post(`${base}/datasets`, async (req, res) => {
     authorize(req);
     const body = parse(z.object({ channel: z.enum(['voice', 'chat']).optional() }), req.body ?? {});
-    res.status(201).json({ data: await guard(() => learning.buildDataset(known(req.params.id), body.channel)) });
+    res.status(201).json({ data: await guard(() => learning.buildDataset(eligible(req.params.id), body.channel)) });
   });
   router.get(`${base}/datasets/:dsId/download`, async (req, res) => {
     authorize(req);
@@ -142,24 +148,24 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
   router.post(`${base}/releases/behavior`, async (req, res) => {
     const by = authorize(req);
     const body = parse(behaviorBody, req.body ?? {});
-    res.status(201).json({ data: await guard(() => learning.proposeBehavior(known(req.params.id), body.channel, by, body)) });
+    res.status(201).json({ data: await guard(() => learning.proposeBehavior(eligible(req.params.id), body.channel, by, body)) });
   });
   router.post(`${base}/releases/retrieval/tune`, async (req, res) => {
     const by = authorize(req);
-    res.status(201).json({ data: await guard(() => learning.proposeRetrieval(known(req.params.id), by)) });
+    res.status(201).json({ data: await guard(() => learning.proposeRetrieval(eligible(req.params.id), by)) });
   });
   router.post(`${base}/models/intent/train`, async (req, res) => {
     const by = authorize(req);
-    const { release } = await guard(() => learning.trainIntentModel(known(req.params.id), by));
+    const { release } = await guard(() => learning.trainIntentModel(eligible(req.params.id), by));
     res.status(201).json({ data: release });
   });
   router.post(`${base}/releases/:rid/evaluate`, async (req, res) => {
     authorize(req);
-    res.json({ data: await guard(() => learning.evaluateRelease(known(req.params.id), parse(uuid, req.params.rid))) });
+    res.json({ data: await guard(() => learning.evaluateRelease(eligible(req.params.id), parse(uuid, req.params.rid))) });
   });
   router.post(`${base}/releases/:rid/shadow`, async (req, res) => {
     authorize(req);
-    res.json({ data: await guard(() => learning.releases.startShadow(known(req.params.id), parse(uuid, req.params.rid))) });
+    res.json({ data: await guard(() => learning.releases.startShadow(eligible(req.params.id), parse(uuid, req.params.rid))) });
   });
   router.post(`${base}/releases/:rid/deploy`, async (req, res) => {
     const by = authorize(req);
@@ -173,7 +179,7 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
   router.post(`${base}/releases/rollback`, async (req, res) => {
     const by = authorize(req);
     const body = parse(rollbackBody, req.body);
-    res.json({ data: await guard(() => learning.rollback(known(req.params.id), body.kind, body.channel, by)) });
+    res.json({ data: await guard(() => learning.rollback(eligible(req.params.id), body.kind, body.channel, by)) });
   });
 
   router.get(`${base}/jobs`, async (req, res) => {
@@ -182,7 +188,7 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
   });
   router.post(`${base}/cycle`, async (req, res) => {
     authorize(req);
-    res.status(202).json({ data: await guard(() => learning.runCycle(known(req.params.id), 'manual')) });
+    res.status(202).json({ data: await guard(() => learning.runCycle(eligible(req.params.id), 'manual')) });
   });
 
   router.delete(`${base}/conversations/:cid`, async (req, res) => {
@@ -227,7 +233,7 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
     const by = authorize(req);
     const body = parse(trainingBody, req.body ?? {});
     const run = await guard(() =>
-      wf.training.start(known(req.params.id), { datasetId: body.datasetId, smoke: body.smoke === true, config: body.config ?? {}, by }),
+      wf.training.start(eligible(req.params.id), { datasetId: body.datasetId, smoke: body.smoke === true, config: body.config ?? {}, by }),
     );
     res.status(202).json({ data: run });
   });
@@ -237,26 +243,26 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
   });
   router.post(`${base}/training/runs/:runId/resume`, async (req, res) => {
     const by = authorize(req);
-    res.status(202).json({ data: await guard(() => wf.training.resume(known(req.params.id), parse(uuid, req.params.runId), by)) });
+    res.status(202).json({ data: await guard(() => wf.training.resume(eligible(req.params.id), parse(uuid, req.params.runId), by)) });
   });
 
   // ---- candidate models: compare, shadow, promote --------------------------------------------
   router.post(`${base}/models/:rid/evaluate`, async (req, res) => {
     authorize(req);
     const body = parse(z.object({ latencyApproved: z.boolean().optional() }), req.body ?? {});
-    res.json({ data: await guard(() => wf.evaluateModel(known(req.params.id), parse(uuid, req.params.rid), body)) });
+    res.json({ data: await guard(() => wf.evaluateModel(eligible(req.params.id), parse(uuid, req.params.rid), body)) });
   });
   router.post(`${base}/models/:rid/shadow`, async (req, res) => {
     authorize(req);
-    res.json({ data: await guard(() => wf.startShadow(known(req.params.id), parse(uuid, req.params.rid))) });
+    res.json({ data: await guard(() => wf.startShadow(eligible(req.params.id), parse(uuid, req.params.rid))) });
   });
   router.get(`${base}/models/:rid/shadow`, async (req, res) => {
     authorize(req);
-    res.json({ data: await wf.shadowReport(known(req.params.id), parse(uuid, req.params.rid)) });
+    res.json({ data: await wf.shadowReport(eligible(req.params.id), parse(uuid, req.params.rid)) });
   });
   router.post(`${base}/models/:rid/promote`, async (req, res) => {
     const by = authorize(req);
-    res.json({ data: await guard(() => wf.promoteModel(known(req.params.id), parse(uuid, req.params.rid), by)) });
+    res.json({ data: await guard(() => wf.promoteModel(eligible(req.params.id), parse(uuid, req.params.rid), by)) });
   });
 
   // ---- knowledge changes: diagnose, propose, build a candidate index, approve, publish, roll back
@@ -266,7 +272,7 @@ export function learningRouter(env: Env, registry: ClientRegistry, learning: Lea
   };
   router.get(`${base}/knowledge/gaps/:gapId/diagnosis`, async (req, res) => {
     authorize(req);
-    const clientId = known(req.params.id);
+    const clientId = eligible(req.params.id);
     const gap = (await learning.store.listGaps(clientId)).find((g) => g.id === parse(uuid, req.params.gapId));
     if (!gap) throw new HttpError(404, 'NOT_FOUND', 'No such gap');
     res.json({ data: await guard(() => kc().diagnose(clientId, gap)) });

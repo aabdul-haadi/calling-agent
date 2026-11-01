@@ -26,3 +26,6 @@ backend/eval-results/
 ml/.venv/
 ml/artifacts/
 ml/install*.log
+
+# Production secrets (the template deploy/.env.production.example is tracked)
+.env.production

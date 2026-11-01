@@ -27,7 +27,7 @@ class TestTheGatewayKnowsNothingAboutTheBusiness:
     FORBIDDEN = [
         "mock-services", "4100", "/bookings", "/accounts", "/flights", "bookingRef", "accountId",
         "change_flight", "verify_customer", "get_booking", "search_alternatives", "get_bill",
-        "Idempotency-Key", "customerConfirmed", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ",
+        "customerConfirmed", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ",
     ]
 
     @pytest.mark.parametrize("needle", FORBIDDEN)
@@ -63,11 +63,17 @@ class TestWhatTheGatewaySendsToTheRuntime:
         return HttpAgentRuntime("http://runtime.test", transport=httpx.MockTransport(handler))
 
     async def collect(self, rt, **over):
-        args = {"client_id": "skylink-air", "conversation_id": None, "message": "hello", "low_confidence": False}
+        args = {
+            "client_id": "skylink-air",
+            "conversation_id": None,
+            "message": "hello",
+            "low_confidence": False,
+            "idempotency_key": "test-idempotency-key",
+        }
         args.update(over)
         return [e async for e in rt.stream_turn(**args)]
 
-    async def test_it_posts_only_the_words_the_tenant_and_the_conversation(self):
+    async def test_it_posts_the_turn_and_idempotency_key_without_credentials(self):
         seen = {}
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -82,7 +88,7 @@ class TestWhatTheGatewaySendsToTheRuntime:
             "clientId": "skylink-air", "message": "hello", "channel": "voice",
             "conversationId": "11111111-1111-1111-1111-111111111111", "voice": {"lowConfidence": True},
         }
-        # no credentials of any kind travel with the request
+        assert "idempotency-key" in seen["headers"]
         assert not seen["headers"] & {"authorization", "x-api-key", "cookie", "x-voice-gateway-secret"}
 
     async def test_a_spoken_instruction_is_passed_on_as_plain_words_never_acted_on(self):

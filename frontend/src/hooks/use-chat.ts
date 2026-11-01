@@ -34,22 +34,27 @@ export function useChat(clientId: string) {
   const [simulator, setSim] = useState<SimulatorControls>({ apiFailing: false, latencyMs: 0 });
   // Ref copy so `send` always sees the latest id even when called twice quickly (voice).
   const idRef = useRef<string | undefined>(undefined);
+  const sendingRef = useRef(false);
 
   const send = useCallback(
     async (text: string, channel: Channel = 'chat'): Promise<string | undefined> => {
       const message = text.trim();
-      if (!message || sending) return undefined;
+      if (!message || sendingRef.current) return undefined;
       setError(undefined);
       setMessages((m) => [...m, { id: nextId(), role: 'user', content: message }]);
+      sendingRef.current = true;
       setSending(true);
       try {
-        const res = await api.chat({
-          clientId,
-          conversationId: idRef.current,
-          message,
-          channel,
-          simulator: idRef.current ? undefined : simulator,
-        });
+        const res = await api.chat(
+          {
+            clientId,
+            conversationId: idRef.current,
+            message,
+            channel,
+            simulator: idRef.current ? undefined : simulator,
+          },
+          crypto.randomUUID(),
+        );
         idRef.current = res.conversationId;
         setConversationId(res.conversationId);
         // After a handoff the agent is silent once a human has accepted: an empty reply adds nothing.
@@ -65,15 +70,15 @@ export function useChat(clientId: string) {
         setError(e instanceof Error ? e.message : 'Something went wrong');
         return undefined;
       } finally {
+        sendingRef.current = false;
         setSending(false);
       }
     },
-    [clientId, sending, simulator],
+    [clientId, simulator],
   );
 
   // Once a person has the conversation, their replies are saved on the server: fetch them.
   const handedOff = Boolean(state?.handedOff) || Boolean(handoff);
-  const sendingRef = useRef(false);
   useEffect(() => {
     sendingRef.current = sending;
   });

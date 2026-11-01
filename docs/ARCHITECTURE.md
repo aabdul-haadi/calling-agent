@@ -35,6 +35,7 @@ sequenceDiagram
 | Layer          | Folder                                   | Responsibility                                                                       |
 | -------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
 | Routes         | `backend/src/routes`                     | HTTP, input validation, `{ data }` / `{ error }` envelope                            |
+| Authentication | `backend/src/auth`                       | OIDC access-token verification, role permissions, and tenant scoping                  |
 | Chat service   | `backend/src/agent/service.ts`           | Conversation load/save, one turn at a time per conversation, persistence             |
 | Agent loop     | `backend/src/agent/loop.ts`              | The turn: classify, retrieve, call model, dispatch tools, handoff checks, trace      |
 | Dispatcher     | `backend/src/tools/dispatcher`           | The single door for tools: allow-list, zod, auth gate, rules                         |
@@ -60,6 +61,15 @@ Dependency direction: `frontend -> shared`, `backend -> shared`, `clients -> bac
 | Never improvise policy                                                                        | Relevance gate in retrieval; deterministic fallback reply without calling the model                                                                                                        | No           |
 | Tone, plain language                                                                          | System prompt + LLM judge in evals                                                                                                                                                         | Yes          |
 
+## Retried chat requests
+
+The web and voice clients send one required `Idempotency-Key` per logical customer turn. The backend
+reserves that key in `chat_request_keys`, scoped to the tenant, and stores the completed response for 30 days.
+Concurrent requests with the same key wait for and replay the first result; reusing a key with a
+different message or conversation is rejected with HTTP 409. A new key always means a new turn, even
+when the customer repeats the same words. The web client retries one network failure with the same
+key. Streaming callers receive the saved final reply rather than running the agent again.
+
 ## Approval-bound changes and the conversation phase
 
 A tool that changes something (today `change_flight`) declares an `approval.propose` step. The dispatcher runs it against the live booking and gets a one-line summary plus a **binding**: the exact values the customer would be agreeing to (booking, target flight, current flight, changes already made).
@@ -74,13 +84,13 @@ The conversation also has an explicit **phase** (`NEW, VERIFYING, VERIFIED, PLAN
 
 Every proposal, approval, rejection, expiry, execution and reconciliation is written to the append-only `audit_events` table (`GET /conversations/:id/audit`).
 
-Limits worth knowing: the yes/no reading is still done by a model (the classifier), but only on the customer's own message and only while a proposal is pending. Per-request token and time budgets, cancellation and a login are not built yet.
+Limits worth knowing: the yes/no reading is still done by a model (the classifier), but only on the customer's own message and only while a proposal is pending. Per-request token and time budgets are not built yet. See [AUTHENTICATION.md](./AUTHENTICATION.md) for OIDC setup and the server-enforced role and tenant permissions.
 
 ## After a handoff: the human side
 
 Once a conversation is handed over, the agent stays out of it. A person works it from the Human Handoffs page: **accept** (claims it), **reply** (saved as a `human` message the customer's chat fetches every few seconds) and **resolve** (closes it and tells the customer). While nobody has accepted, a customer who writes again is told they are in the queue; after acceptance the agent says nothing and the human answers. Accept, every reply (length only, not the text) and resolve are written to the audit log. A reply needs an accepted handoff, and a resolved handoff accepts nothing more.
 
-There is no login, so anyone who can reach the API can act as the human agent. A real deployment must put the handoff routes behind staff authentication.
+In OIDC mode, only identities with the tenant-scoped `support:handoff` permission can accept, reply to, or resolve a handoff. The local development mode grants a development-only administrator identity and must not be used in production.
 
 ## Data model
 

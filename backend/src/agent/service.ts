@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type {
   ChatRequest,
   ChatResponse,
@@ -11,6 +11,7 @@ import type { ClientRegistry } from '../clients';
 import type { Env } from '../config';
 import {
   auditRepo,
+  chatRequestsRepo,
   conversationsRepo as repo,
   createDbIdempotencyStore,
   handoffsRepo,
@@ -24,7 +25,7 @@ import { HttpError } from '../middleware/error-handler';
 import { clientCredentialsFetcher, createTokenCache, type TokenCache } from '../tools/auth';
 import { createApiClient, type RetryPolicy } from '../tools/http';
 import { auditEvent } from './audit';
-import { ALREADY_HANDED_OFF, runTurn } from './loop';
+import { ALREADY_HANDED_OFF, HANDOFF_UPDATE_ACK, runTurn } from './loop';
 import { newState, toStateView } from './state';
 
 export interface ChatServiceDeps {
@@ -44,7 +45,11 @@ export interface ChatServiceDeps {
   onTurn?: (turn: TurnObservation) => void;
   /** Reviewed style lessons for the reply instructions (learning system). */
   learning?: {
-    behaviorLines(clientId: string, channel: 'voice' | 'chat', conversationId: string): Promise<string[]>;
+    behaviorLines(
+      clientId: string,
+      channel: 'voice' | 'chat',
+      conversationId: string,
+    ): Promise<string[]>;
     routesLocally?(clientId: string, channel: 'voice' | 'chat'): Promise<boolean>;
     localAnswer?(args: {
       clientId: string;
@@ -81,6 +86,8 @@ export interface ChatCallOptions {
   signal?: AbortSignal;
   /** Receives the turn's events as they happen. */
   onEvent?: (event: TurnEvent) => void;
+  /** Stable client-generated key used to replay a completed logical turn. */
+  idempotencyKey?: string;
 }
 
 export interface ChatService {
@@ -97,6 +104,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
   const tokenCaches = new Map<string, TokenCache>();
   // One turn at a time per conversation, so a double-submit cannot interleave two agent loops.
   const locks = new Map<string, Promise<unknown>>();
+  let requestReservationCount = 0;
 
   const tokensFor = (clientId: string, basePath: string): TokenCache => {
     let cache = tokenCaches.get(clientId);
@@ -197,10 +205,11 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       const handoff = await handoffsRepo.latestForConversation(db, id);
       const waiting = !handoff || handoff.status === 'pending';
       await repo.addMessage(db, id, 'user', req.message);
-      if (waiting) await repo.addMessage(db, id, 'assistant', ALREADY_HANDED_OFF);
+      const reply = waiting ? HANDOFF_UPDATE_ACK : '';
+      if (reply) await repo.addMessage(db, id, 'assistant', reply);
       return {
         conversationId: id,
-        reply: waiting ? ALREADY_HANDED_OFF : '',
+        reply,
         state: toStateView(convo.state),
         trace: [],
         citations: [],
@@ -274,7 +283,11 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
           collected: out.state.collected,
           trace: out.trace,
           citations: out.citations,
-          toolCalls: out.toolCalls.map((t) => ({ tool: t.tool, status: t.status, latencyMs: t.latencyMs })),
+          toolCalls: out.toolCalls.map((t) => ({
+            tool: t.tool,
+            status: t.status,
+            latencyMs: t.latencyMs,
+          })),
           handoffReason: out.handoff?.reason,
           totalMs: out.timings?.totalMs,
         });
@@ -295,17 +308,107 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     };
   }
 
-  return {
-    async chat(req, opts) {
-      const key = req.conversationId ?? randomUUID();
-      const previous = locks.get(key) ?? Promise.resolve();
-      const run = previous.catch(() => undefined).then(() => runLocked(req, opts));
-      locks.set(key, run);
-      try {
-        return await run;
-      } finally {
-        if (locks.get(key) === run) locks.delete(key);
+  async function runQueued(req: ChatRequest, opts?: ChatCallOptions): Promise<ChatResponse> {
+    const key = req.conversationId ?? randomUUID();
+    const previous = locks.get(key) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(() => runLocked(req, opts));
+    locks.set(key, run);
+    try {
+      return await run;
+    } finally {
+      if (locks.get(key) === run) locks.delete(key);
+    }
+  }
+
+  function requestFingerprint(req: ChatRequest): string {
+    return createHash('sha256')
+      .update(
+        JSON.stringify({
+          clientId: req.clientId,
+          message: req.message,
+          channel: req.channel ?? 'chat',
+          voice: req.voice ?? null,
+          simulator: req.simulator ?? null,
+        }),
+      )
+      .digest('hex');
+  }
+
+  function requestKey(req: ChatRequest, idempotencyKey: string): string {
+    return createHash('sha256').update(`${req.clientId}\0${idempotencyKey}`).digest('hex');
+  }
+
+  async function waitForChatRequest(
+    req: ChatRequest,
+    key: string,
+    fingerprint: string,
+    opts?: ChatCallOptions,
+  ): Promise<ChatResponse> {
+    for (;;) {
+      if (opts?.signal?.aborted)
+        throw new HttpError(409, 'REQUEST_CANCELLED', 'The request was cancelled.');
+      if (requestReservationCount++ % 100 === 0)
+        await chatRequestsRepo.pruneExpiredChatRequests(db);
+      const ownerToken = randomUUID();
+      const reservation = await chatRequestsRepo.reserveChatRequest(
+        db,
+        key,
+        fingerprint,
+        req.conversationId ?? null,
+        ownerToken,
+      );
+      if (reservation.kind === 'completed') return reservation.response;
+      if (reservation.kind === 'conflict') {
+        throw new HttpError(
+          409,
+          'IDEMPOTENCY_KEY_REUSED',
+          'This Idempotency-Key was already used with a different request.',
+        );
       }
+      if (reservation.kind === 'owner') {
+        const leaseController = new AbortController();
+        const signal = opts?.signal
+          ? AbortSignal.any([opts.signal, leaseController.signal])
+          : leaseController.signal;
+        const leaseRenewal = setInterval(
+          () => {
+            void chatRequestsRepo
+              .renewChatRequestLease(db, key, ownerToken)
+              .then((renewed) => {
+                if (!renewed) leaseController.abort();
+              })
+              .catch((err: unknown) => {
+                deps.logger.error(
+                  { err: err instanceof Error ? err.message : String(err) },
+                  'chat request idempotency lease renewal failed',
+                );
+                leaseController.abort();
+              });
+          },
+          Math.floor(chatRequestsRepo.CHAT_REQUEST_LEASE_MS / 3),
+        );
+        try {
+          const response = await runQueued(req, { ...opts, signal });
+          if (await chatRequestsRepo.completeChatRequest(db, key, ownerToken, response)) {
+            return response;
+          }
+        } catch (err) {
+          await chatRequestsRepo.releaseChatRequest(db, key, ownerToken);
+          throw err;
+        } finally {
+          clearInterval(leaseRenewal);
+        }
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+  }
+
+  return {
+    chat: async (req, opts) => {
+      if (!opts?.idempotencyKey) return runQueued(req, opts);
+      const key = requestKey(req, opts.idempotencyKey);
+      return waitForChatRequest(req, key, requestFingerprint(req), opts);
     },
     view,
     async reset(conversationId) {

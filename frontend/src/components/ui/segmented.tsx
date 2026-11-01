@@ -53,7 +53,7 @@ export function Segmented<T extends string>({
           >
             {o.label}
             {o.count !== undefined && (
-              <span className={cn('tabular-nums', on ? 'opacity-80' : 'opacity-60')}>
+              <span className={cn('tabular-nums', on ? 'opacity-90' : 'opacity-100')}>
                 {o.count}
               </span>
             )}

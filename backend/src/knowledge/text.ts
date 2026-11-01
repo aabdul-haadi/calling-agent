@@ -26,9 +26,12 @@ const SYNONYMS: Record<string, string> = {
   rebooking: 'rebook',
   rebooked: 'rebook',
   reschedule: 'rebook',
+  switch: 'change',
+  switched: 'change',
   dog: 'pet',
   cat: 'pet',
   animal: 'pet',
+  additional: 'extra',
   kg: 'weight',
   kilo: 'weight',
   heavy: 'weight',
@@ -50,4 +53,20 @@ export function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[a-z0-9]+/g) ?? [])
     .filter((w) => w.length > 1 && !STOPWORDS.has(w))
     .map(stem);
+}
+
+/** Add vetted domain terms for retrieval only; the original question still goes to reranking and the agent. */
+export function expandSearchQuery(text: string): string {
+  const expansions: string[] = [];
+  if (/\b(?:pupp(?:y|ies)|kittens?)\b/i.test(text)) expansions.push('pet cabin');
+  if (/\b(?:cash|money)\s+back\b/i.test(text)) expansions.push('refund');
+  if (/\b(?:cheap|cheapest)\b/i.test(text) && /\b(?:ticket|fare)\b/i.test(text))
+    expansions.push('saver fare refundable');
+  if (/\b(?:no service|no network)\b/i.test(text)) expansions.push('network signal outage');
+  if (/\b(?:eat|food)\b/i.test(text) && /\b(?:gate|delay|flight)\b/i.test(text))
+    expansions.push('meal voucher delay');
+  if (/\bsecond suitcase\b/i.test(text)) expansions.push('extra checked bag');
+  if (/\bleave\b/i.test(text) && /\bfirst year\b/i.test(text))
+    expansions.push('early termination fee');
+  return expansions.length > 0 ? `${text} ${[...new Set(expansions)].join(' ')}` : text;
 }

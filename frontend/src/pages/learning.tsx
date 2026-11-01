@@ -9,6 +9,7 @@ import { EmptyState, ErrorState } from '@/components/ui/state-views';
 import { Stat } from '@/components/ui/stat';
 import { Tabs } from '@/components/ui/tabs';
 import { useTenant } from '@/context/tenant';
+import { useAuth } from '@/auth/context';
 import { useAsync } from '@/hooks/use-async';
 import { relativeTime } from '@/lib/utils';
 import { Gates, KnowledgeChangesTab, ModelCard, TrainingTab } from '@/pages/learning-ml';
@@ -32,6 +33,7 @@ const FLAG_TEXT: Record<string, string> = {
   tool_failed: 'A system call failed',
   formatting_in_voice: 'Formatting in a spoken reply',
   lost_context: 'Customer said they had already told us',
+  customer_corrected: 'Customer corrected an earlier detail',
 };
 
 const RELEASE_TONE: Record<string, 'ok' | 'warn' | 'danger' | 'neutral' | 'accent'> = {
@@ -54,8 +56,8 @@ const KIND_TEXT: Record<string, string> = {
 const message = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong.');
 
 function Reviewer() {
+  const { configured, profile } = useAuth();
   const [name, setName] = useState(learningCredentials().reviewer);
-  const [token, setToken] = useState(learningCredentials().token);
   const save = (k: string, v: string) => {
     try {
       localStorage.setItem(k, v);
@@ -63,6 +65,12 @@ function Reviewer() {
       // a browser that blocks storage simply asks again next time
     }
   };
+  if (configured)
+    return (
+      <p className="text-sm text-muted-foreground">
+        Review decisions are recorded as {profile?.name ?? profile?.email ?? profile?.subject}.
+      </p>
+    );
   return (
     <div className="flex flex-wrap items-end gap-3 text-sm">
       <label className="grid gap-1">
@@ -76,19 +84,6 @@ function Reviewer() {
             save('adk.reviewer', e.target.value);
           }}
           placeholder="Your name (kept with every decision)"
-        />
-      </label>
-      <label className="grid gap-1">
-        <span className="eyebrow">Review token (if set)</span>
-        <input
-          id="review-token"
-          type="password"
-          className="h-9 rounded-md border border-border bg-card px-2"
-          value={token}
-          onChange={(e) => {
-            setToken(e.target.value);
-            save('adk.reviewToken', e.target.value);
-          }}
         />
       </label>
     </div>
@@ -243,7 +238,7 @@ function ReviewQueue({ clientId }: { clientId: string }) {
       ) : turns.loading ? (
         <Skeleton className="h-40" />
       ) : !turns.data?.length ? (
-        <EmptyState title="Nothing here" hint="Turns from calls and chats appear here once they have been redacted and checked." />
+        <EmptyState asset="folder" title="Nothing here" hint="Turns from calls and chats appear here once they have been redacted and checked." />
       ) : (
         turns.data.map((t) => <TurnCard key={t.id} t={t} clientId={clientId} onDone={turns.reload} />)
       )}
@@ -260,7 +255,7 @@ function Gaps({ clientId }: { clientId: string }) {
   if (gaps.error) return <ErrorState message={gaps.error} onRetry={gaps.reload} />;
   if (gaps.loading) return <Skeleton className="h-32" />;
   if (!gaps.data?.length)
-    return <EmptyState title="No recurring gaps yet" hint="Run a learning cycle after customers have asked questions the documents do not answer." />;
+    return <EmptyState asset="learning" title="No recurring gaps yet" hint="Run a learning cycle after customers have asked questions the documents do not answer." />;
   return (
     <div className="grid gap-3">
       {gaps.data.map((g) => (
@@ -332,7 +327,7 @@ function Datasets({ clientId }: { clientId: string }) {
       ) : list.loading ? (
         <Skeleton className="h-24" />
       ) : !list.data?.length ? (
-        <EmptyState title="No datasets yet" hint="Approve examples for fine-tuning, then freeze them here." />
+        <EmptyState asset="savedFolder" title="No datasets yet" hint="Approve examples for fine-tuning, then freeze them here." />
       ) : (
         list.data.map((d) => (
           <Card key={d.id}>
@@ -473,7 +468,7 @@ export function Releases({ clientId }: { clientId: string }) {
       ) : list.loading ? (
         <Skeleton className="h-32" />
       ) : !list.data?.length ? (
-        <EmptyState title="No releases yet" hint="A release only goes live after it passes every evaluation gate and a person deploys it." />
+        <EmptyState asset="models" title="No releases yet" hint="A release only goes live after it passes every evaluation gate and a person deploys it." />
       ) : (
         list.data.map((r) => <ReleaseCard key={r.id} r={r} clientId={clientId} onDone={list.reload} />)
       )}
@@ -485,7 +480,7 @@ function Jobs({ clientId }: { clientId: string }) {
   const jobs = useAsync(() => api.learning.jobs(clientId), [clientId], 10000);
   if (jobs.error) return <ErrorState message={jobs.error} onRetry={jobs.reload} />;
   if (jobs.loading) return <Skeleton className="h-24" />;
-  if (!jobs.data?.length) return <EmptyState title="No jobs yet" hint="Run a learning cycle to see its steps here." />;
+  if (!jobs.data?.length) return <EmptyState asset="time" title="No jobs yet" hint="Run a learning cycle to see its steps here." />;
   return (
     <div className="grid gap-2">
       {jobs.data.map((j) => (
@@ -510,6 +505,7 @@ export function LearningPage() {
   const [tab, setTab] = useState('review');
   const [cycle, setCycle] = useState<string>();
   const o = overview.data;
+  const authorized = o?.eligibility?.authorized;
   const runCycle = async () => {
     setCycle('Running…');
     try {
@@ -521,17 +517,33 @@ export function LearningPage() {
     overview.reload();
   };
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 grid-cols-1 gap-4">
       <PageHeader
         title="Learning"
         description="Review conversations, turn useful examples into improvements, and test every change before it can affect customers."
         eyebrow="Learning"
         actions={
-          <Button size="sm" onClick={() => void runCycle()}>
+          <Button size="sm" disabled={authorized !== true} onClick={() => void runCycle()}>
             Run a learning cycle
           </Button>
         }
       />
+      {o && (
+        <p
+          role={authorized === true ? 'status' : 'alert'}
+          className={`rounded-md border p-3 text-sm ${
+            authorized === true
+              ? 'border-border bg-card text-muted-foreground'
+              : 'border-danger/40 bg-danger/10 text-danger'
+          }`}
+        >
+          {authorized === true
+            ? 'Tenant authorization is enabled for conversation-derived learning.'
+            : authorized === false
+              ? 'Conversation-derived learning is disabled for this company. Add it to LEARNING_AUTHORIZED_CLIENTS only after confirming the applicable customer notice, contractual basis, and data-handling approval.'
+              : 'Unable to verify tenant authorization. Learning actions are disabled until authorization details are available.'}
+        </p>
+      )}
       {cycle && (
         <p role="status" className="text-sm">
           {cycle}

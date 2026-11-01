@@ -1,4 +1,4 @@
-import { Settings2 } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, Settings2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import type { ClientDetail } from '@adk/shared';
@@ -67,6 +67,7 @@ function AuditTab({ conversationId, refreshKey }: { conversationId?: string; ref
 function Console({ client }: { client: ClientDetail }) {
   const chat = useChat(client.id);
   const [tab, setTab] = useState('trace');
+  const [inspectorOpen, setInspectorOpen] = useState(true);
   const voiceRef = useRef<ReturnType<typeof useVoice> | undefined>(undefined);
   const hasVoice = client.channels.includes('voice');
 
@@ -96,12 +97,26 @@ function Console({ client }: { client: ClientDetail }) {
   return (
     <div data-accent={client.accent} className="space-y-4">
       <PageHeader
-        eyebrow={`Agent Console · ${client.displayName}`}
-        title="Agent workspace"
-        description="Try Ava with chat, see what she knows, and understand each action before you use it with customers."
+        eyebrow={`Support workspace · ${client.displayName}`}
+        title="Support workspace"
+        description="Test a customer conversation with chat or voice. Company systems are simulated in this workspace."
         actions={
           <>
             {chat.handoff && <Badge tone="warn">Handed to a human</Badge>}
+            <button
+              type="button"
+              onClick={() => setInspectorOpen((open) => !open)}
+              aria-expanded={inspectorOpen}
+              aria-controls="support-inspector"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[0.8125rem] font-medium shadow-soft hover:border-foreground/25"
+            >
+              {inspectorOpen ? (
+                <PanelRightClose className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <PanelRightOpen className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span>{inspectorOpen ? 'Hide details' : 'Show details'}</span>
+            </button>
             <DemoControls
               value={chat.simulator}
               onChange={chat.updateSimulator}
@@ -118,7 +133,11 @@ function Console({ client }: { client: ClientDetail }) {
         }
       />
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
+      <div
+        className={`grid grid-cols-1 items-start gap-5 ${
+          inspectorOpen ? 'lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_27rem]' : ''
+        }`}
+      >
         <div className="min-w-0 space-y-3">
           <AgentStage
             name={client.persona.name}
@@ -158,44 +177,50 @@ function Console({ client }: { client: ClientDetail }) {
           />
         </div>
 
-        <Card className="min-w-0 px-4 pb-4 pt-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7.5rem)] lg:overflow-y-auto">
-          <Tabs
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              {
-                id: 'trace',
-                label: 'Live trace',
-                content:
-                  turns.length === 0 ? (
-                    <EmptyState
-                      title="No steps yet"
-                      hint="What the agent does will appear here: understanding, policy lookups, tool calls, approvals."
-                    />
-                  ) : (
-                    <TraceTimeline turns={turns} />
+        {inspectorOpen && (
+          <Card
+            id="support-inspector"
+            className="min-w-0 px-4 pb-4 pt-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7.5rem)] lg:overflow-y-auto"
+          >
+            <Tabs
+              value={tab}
+              onChange={setTab}
+              tabs={[
+                {
+                  id: 'trace',
+                  label: 'Live trace',
+                  content:
+                    turns.length === 0 ? (
+                      <EmptyState
+                        asset="traces"
+                        title="No steps yet"
+                        hint="The agent's decisions, policy lookups, tool calls, and approvals will appear here."
+                      />
+                    ) : (
+                      <TraceTimeline turns={turns} />
+                    ),
+                },
+                {
+                  id: 'state',
+                  label: 'Customer context',
+                  content: (
+                    <div className="space-y-3">
+                      <StateCard state={chat.state} client={client} />
+                      <KnowledgeCard citations={chat.citations} />
+                    </div>
                   ),
-              },
-              {
-                id: 'state',
-                label: 'State',
-                content: (
-                  <div className="space-y-3">
-                    <StateCard state={chat.state} client={client} />
-                    <KnowledgeCard citations={chat.citations} />
-                  </div>
-                ),
-              },
-              {
-                id: 'audit',
-                label: 'Audit',
-                content: (
-                  <AuditTab conversationId={chat.conversationId} refreshKey={chat.trace.length} />
-                ),
-              },
-            ]}
-          />
-        </Card>
+                },
+                {
+                  id: 'audit',
+                  label: 'Audit',
+                  content: (
+                    <AuditTab conversationId={chat.conversationId} refreshKey={chat.trace.length} />
+                  ),
+                },
+              ]}
+            />
+          </Card>
+        )}
       </div>
     </div>
   );

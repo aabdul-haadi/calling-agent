@@ -5,7 +5,7 @@ import type { ClientRegistry } from './clients';
 import type { Env } from './config';
 import type { Db } from './database';
 import type { Logger } from './logger';
-import { errorHandler, notFound, rateLimit, requestId } from './middleware';
+import { errorHandler, HttpError, notFound, rateLimit, requestId } from './middleware';
 import { chatRouter } from './routes/chat';
 import { clientsRouter } from './routes/clients';
 import { auditRouter } from './routes/audit';
@@ -19,6 +19,8 @@ import { testsRouter, type EvalService } from './routes/tests';
 import { voiceRouter } from './routes/voice';
 import { learningRouter } from './routes/learning';
 import type { LearningService } from './learning';
+import { assertTenantAccess, permissionForRequest, requestTenantId, requirePermission } from './auth/authorization';
+import { createAuthenticator } from './auth/oidc';
 
 export interface AppDeps {
   env: Env;
@@ -41,8 +43,45 @@ export function createApp(deps: AppDeps): Express {
   app.use(rateLimit({ windowMs: 60_000, max: 600 }));
 
   app.use(healthRouter(deps.db));
+  app.get('/auth/config', (_req, res) => {
+    res.json({
+      data: {
+        mode: deps.env.AUTH_MODE,
+        issuer: deps.env.OIDC_ISSUER ?? null,
+      },
+    });
+  });
+  app.use(createAuthenticator(deps.env, deps.registry));
+  app.use((req, _res, next) => {
+    try {
+      const permission = permissionForRequest(req);
+      if (!permission)
+        throw new HttpError(404, 'NOT_FOUND', 'No such API operation.');
+      const principal = requirePermission(req, permission);
+      const tenantId = requestTenantId(req);
+      if (tenantId) assertTenantAccess(principal, tenantId);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.get('/auth/me', (req, res) => {
+    const principal = requirePermission(req, 'auth:read');
+    res.json({
+      data: {
+        subject: principal.sub,
+        name: principal.name,
+        email: principal.email,
+        roles: principal.roles,
+        tenantIds: principal.tenantIds.filter((id) => id !== '*'),
+        permissions: principal.permissions,
+        authentication: principal.service ?? deps.env.AUTH_MODE,
+      },
+    });
+  });
+
   app.use(clientsRouter(deps.registry));
-  app.use(chatRouter(deps.chat));
+  app.use(chatRouter(deps.chat, deps.db));
   app.use(handoffsRouter(deps.db, deps.learning));
   app.use(auditRouter(deps.db));
   app.use(knowledgeRouter(deps.env, deps.registry, deps.knowledge, deps.searcher));

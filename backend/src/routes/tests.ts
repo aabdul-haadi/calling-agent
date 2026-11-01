@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { EvalRunView } from '@adk/shared';
 import { HttpError } from '../middleware';
+import { assertTenantAccess } from '../auth/authorization';
 
 export interface EvalService {
   /** Starts a run in the background and returns its id immediately. */
@@ -29,6 +30,7 @@ export function testsRouter(evals: EvalService): Router {
   router.get('/tests/runs/:id', async (req, res) => {
     const run = await evals.get(String(req.params.id));
     if (!run) throw new HttpError(404, 'NOT_FOUND', 'No such run');
+    assertTenantAccess(req.principal!, run.clientId);
     res.json({ data: run });
   });
 

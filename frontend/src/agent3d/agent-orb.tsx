@@ -11,10 +11,14 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { lazy, Suspense, type CSSProperties } from 'react';
 import { useReducedMotion } from '@/hooks/use-env';
 import { cn } from '@/lib/utils';
+import { TalkingAvatar } from '@/avatar/talking-avatar';
+import type { LipFrame } from '@/avatar/lip-sync';
 import { describeAgent, MODE_META, type AgentMode } from './agent-state';
+
+const DevelopmentAvatarScene = lazy(() => import('./development-avatar-scene'));
 
 /**
  * The agent's presence: a persona avatar with a status ring, the way a contact-centre
@@ -151,6 +155,13 @@ export interface AgentOrbProps {
   hideCaption?: boolean;
   /** Small inline use: no status badge. */
   compact?: boolean;
+  /** Show the temporary procedural 3D avatar instead of the status orb. */
+  developmentAvatar?: boolean;
+  /**
+   * Show the tenant's rigged 3D character. `lipFrame` reads the audio really being played; leave it
+   * out when there is none to analyse (the mouth then stays closed rather than being faked).
+   */
+  talkingAvatar?: { clientId: string; lipFrame?: () => LipFrame };
 }
 
 /**
@@ -160,11 +171,14 @@ export interface AgentOrbProps {
 export function AgentOrb({
   mode,
   level = 0,
+  accent = 'sky',
   agentName,
   toolLabel,
   className,
   hideCaption,
   compact,
+  developmentAvatar = false,
+  talkingAvatar,
 }: AgentOrbProps) {
   const reduced = useReducedMotion();
   const caption = describeAgent(mode, agentName, toolLabel);
@@ -174,7 +188,29 @@ export function AgentOrb({
       className={cn('relative isolate aspect-square w-full', className)}
       style={{ containerType: 'inline-size' }}
     >
-      <Avatar mode={mode} name={agentName} level={level} still={reduced} compact={compact} />
+      {talkingAvatar ? (
+        <div className="absolute inset-0 overflow-hidden rounded-xl">
+          <TalkingAvatar
+            clientId={talkingAvatar.clientId}
+            mode={mode}
+            lipFrame={talkingAvatar.lipFrame}
+            fallback={<Avatar mode={mode} name={agentName} level={level} still compact={compact} />}
+          />
+        </div>
+      ) : developmentAvatar ? (
+        <div className="absolute inset-0 overflow-hidden rounded-xl" aria-hidden="true">
+          <Suspense
+            fallback={<Avatar mode={mode} name={agentName} level={level} still compact={compact} />}
+          >
+            <DevelopmentAvatarScene mode={mode} level={level} accent={accent} />
+          </Suspense>
+          <span className="absolute left-1/2 top-1 -translate-x-1/2 rounded-full border border-border bg-card/90 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Temporary development avatar
+          </span>
+        </div>
+      ) : (
+        <Avatar mode={mode} name={agentName} level={level} still={reduced} compact={compact} />
+      )}
       <p
         role="status"
         className={cn(

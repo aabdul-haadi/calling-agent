@@ -12,7 +12,8 @@ export type Flag =
   | 'low_confidence_speech'
   | 'tool_failed'
   | 'formatting_in_voice'
-  | 'lost_context';
+  | 'lost_context'
+  | 'customer_corrected';
 
 export const FLAG_TEXT: Record<Flag, string> = {
   robotic_opener: 'Starts with a stock phrase',
@@ -25,6 +26,7 @@ export const FLAG_TEXT: Record<Flag, string> = {
   tool_failed: 'A company system call failed',
   formatting_in_voice: 'List or formatting characters in a spoken reply',
   lost_context: 'The customer said they had already given this',
+  customer_corrected: 'The customer corrected an earlier detail',
 };
 
 const ROBOTIC_OPENERS = [
@@ -40,6 +42,8 @@ const ROBOTIC_OPENERS = [
   /^let me check (?:our|the) policy/i,
 ];
 const ALREADY_SAID = /\b(?:i (?:already|just) (?:told|said|gave)|i said|as i said|like i said|third time|again\?)\b/i;
+const CUSTOMER_CORRECTION =
+  /\b(?:correction\b|i meant\b|i mean\b|actually,?\s+(?:the|i|it|that|my)\b|i gave you the wrong\b|the correct (?:date|time|name|number|flight|booking)\b)/i;
 
 const words = (s: string): string[] =>
   s
@@ -83,6 +87,7 @@ export function flagsFor(f: TurnFacts): Flag[] {
   if (f.previousCustomerText && similarity(f.previousCustomerText, f.customerText) >= 0.75)
     flags.push('customer_repeated');
   if (ALREADY_SAID.test(f.customerText)) flags.push('lost_context');
+  if (CUSTOMER_CORRECTION.test(f.customerText)) flags.push('customer_corrected');
   const limit = f.channel === 'voice' ? 60 : 180;
   if (wordCount(f.aiReply) > limit) flags.push('too_long');
   if (f.asksPolicy && f.abstained) flags.push('unanswered');

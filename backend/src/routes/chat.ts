@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import type { ChatService } from '../agent';
 import type { TurnEvent } from '@adk/shared';
 import { HttpError, rateLimit } from '../middleware';
+import type { Db } from '../database';
+import { conversationsRepo } from '../database';
+import { assertTenantAccess } from '../auth/authorization';
 
 const chatBody = z.object({
   clientId: z.string().min(1),
@@ -15,6 +18,12 @@ const chatBody = z.object({
     .object({ apiFailing: z.boolean(), latencyMs: z.number().int().min(0).max(3000) })
     .optional(),
 });
+const idempotencyKeyHeader = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9._:-]+$/)
+  .optional();
 
 const simulatorBody = z.object({
   apiFailing: z.boolean(),
@@ -35,11 +44,40 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   return res.data;
 }
 
-export function chatRouter(chat: ChatService): Router {
+function requiredIdempotencyKey(value: unknown): string {
+  const key = parse(idempotencyKeyHeader, value);
+  if (!key)
+    throw new HttpError(
+      400,
+      'IDEMPOTENCY_KEY_REQUIRED',
+      'Set an Idempotency-Key header for each logical chat turn.',
+    );
+  return key;
+}
+
+export function chatRouter(chat: ChatService, db: Db): Router {
   const router = Router();
+  const assertConversationScope = async (
+    id: string,
+    principal: NonNullable<Request['principal']>,
+    clientId?: string,
+  ) => {
+    const conversation = await conversationsRepo.getConversation(db, id);
+    if (!conversation || (clientId && conversation.clientId !== clientId))
+      throw new HttpError(404, 'NOT_FOUND', 'No such conversation');
+    assertTenantAccess(principal, conversation.clientId);
+    return conversation;
+  };
 
   router.post('/chat', rateLimit({ windowMs: 60_000, max: 60 }), async (req, res) => {
-    res.json({ data: await chat.chat(parse(chatBody, req.body)) });
+    const idempotencyKey = requiredIdempotencyKey(req.header('idempotency-key'));
+    const body = parse(chatBody, req.body);
+    assertTenantAccess(req.principal!, body.clientId);
+    if (body.conversationId)
+      await assertConversationScope(body.conversationId, req.principal!, body.clientId);
+    res.json({
+      data: await chat.chat(body, { idempotencyKey }),
+    });
   });
 
   /**
@@ -49,6 +87,10 @@ export function chatRouter(chat: ChatService): Router {
    */
   router.post('/chat/stream', rateLimit({ windowMs: 60_000, max: 60 }), async (req, res) => {
     const body = parse(chatBody, req.body);
+    const idempotencyKey = requiredIdempotencyKey(req.header('idempotency-key'));
+    assertTenantAccess(req.principal!, body.clientId);
+    if (body.conversationId)
+      await assertConversationScope(body.conversationId, req.principal!, body.clientId);
     const abort = new AbortController();
     res.on('close', () => {
       if (!res.writableEnded) abort.abort();
@@ -73,7 +115,7 @@ export function chatRouter(chat: ChatService): Router {
     };
 
     try {
-      const out = await chat.chat(body, { signal: abort.signal, onEvent });
+      const out = await chat.chat(body, { signal: abort.signal, onEvent, idempotencyKey });
       if (out.cancelled || abort.signal.aborted) {
         send({ type: 'turn.cancelled', conversationId: out.conversationId });
       } else {
@@ -100,21 +142,29 @@ export function chatRouter(chat: ChatService): Router {
   });
 
   router.get('/conversations/:id', async (req, res) => {
-    res.json({ data: await chat.view(parse(idParam, req.params.id)) });
+    const id = parse(idParam, req.params.id);
+    await assertConversationScope(id, req.principal!);
+    res.json({ data: await chat.view(id) });
   });
 
   router.delete('/conversations/:id', async (req, res) => {
-    res.json({ data: await chat.reset(parse(idParam, req.params.id)) });
+    const id = parse(idParam, req.params.id);
+    await assertConversationScope(id, req.principal!);
+    res.json({ data: await chat.reset(id) });
   });
 
   router.patch('/conversations/:id/simulator', async (req, res) => {
+    const id = parse(idParam, req.params.id);
+    await assertConversationScope(id, req.principal!);
     res.json({
-      data: await chat.setSimulator(parse(idParam, req.params.id), parse(simulatorBody, req.body)),
+      data: await chat.setSimulator(id, parse(simulatorBody, req.body)),
     });
   });
 
   router.post('/conversations/:id/voice-latency', async (req, res) => {
-    await chat.addVoiceLatency(parse(idParam, req.params.id), parse(latencyBody, req.body).ms);
+    const id = parse(idParam, req.params.id);
+    await assertConversationScope(id, req.principal!);
+    await chat.addVoiceLatency(id, parse(latencyBody, req.body).ms);
     res.status(204).end();
   });
 

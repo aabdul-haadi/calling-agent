@@ -14,13 +14,19 @@ export function insightsRouter(db: Db, registry: ClientRegistry): Router {
   };
 
   router.get('/overview', async (req, res) => {
-    res.json({ data: await insightsRepo.computeOverview(db, knownClient(req.query.clientId)) });
+    const clientId = knownClient(req.query.clientId);
+    if (!clientId && !req.principal?.tenantIds.includes('*'))
+      throw new HttpError(400, 'CLIENT_REQUIRED', 'Choose an authorized company to view its overview.');
+    res.json({ data: await insightsRepo.computeOverview(db, clientId) });
   });
 
   router.get('/conversations', async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+    const clientId = knownClient(req.query.clientId);
+    if (!clientId && !req.principal?.tenantIds.includes('*'))
+      throw new HttpError(400, 'CLIENT_REQUIRED', 'Choose an authorized company to view conversations.');
     res.json({
-      data: await insightsRepo.listConversations(db, knownClient(req.query.clientId), limit),
+      data: await insightsRepo.listConversations(db, clientId, limit),
     });
   });
 

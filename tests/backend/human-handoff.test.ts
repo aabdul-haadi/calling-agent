@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { auditRepo } from '@backend/database';
-import { createHarness, say, type Harness } from '../helpers/harness';
+import { createHarness, nextChatRequestKey, say, type Harness } from '../helpers/harness';
 
 let h: Harness;
 beforeAll(async () => {
@@ -12,11 +12,14 @@ beforeAll(async () => {
 afterAll(() => h.close());
 beforeEach(() => h.llm.reset());
 
+const postChat = () => request(h.app).post('/chat').set('Idempotency-Key', nextChatRequestKey());
+
 /** A conversation the customer handed to a person, with the resulting handoff. */
 async function handedOver() {
-  const first = await request(h.app)
-    .post('/chat')
-    .send({ clientId: 'skylink-air', message: 'I want to talk to a person' });
+  const first = await postChat().send({
+    clientId: 'skylink-air',
+    message: 'I want to talk to a person',
+  });
   const conversationId: string = first.body.data.conversationId;
   const list = await request(h.app).get('/handoffs?clientId=skylink-air');
   const handoff = list.body.data.find(
@@ -108,15 +111,19 @@ describe('human side of a handoff', () => {
     const { conversationId, handoffId } = await handedOver();
     h.llm.script(say('The agent must NOT speak after a handoff.'));
 
-    const waiting = await request(h.app)
-      .post('/chat')
-      .send({ clientId: 'skylink-air', conversationId, message: 'Hello? Anyone there?' });
+    const waiting = await postChat().send({
+      clientId: 'skylink-air',
+      conversationId,
+      message: 'Hello? Anyone there?',
+    });
     expect(waiting.body.data.reply).toMatch(/in the queue/);
 
     await request(h.app).post(`/handoffs/${handoffId}/accept`);
-    const accepted = await request(h.app)
-      .post('/chat')
-      .send({ clientId: 'skylink-air', conversationId, message: 'My booking is SK1001' });
+    const accepted = await postChat().send({
+      clientId: 'skylink-air',
+      conversationId,
+      message: 'My booking is SK1001',
+    });
     expect(accepted.body.data.reply).toBe('');
     expect(h.llm.remaining()).toBe(1); // the scripted agent reply was never used
 

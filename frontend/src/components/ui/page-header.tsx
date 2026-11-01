@@ -18,15 +18,17 @@ export function PageHeader({
   return (
     <header
       data-section={eyebrow}
-      className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3"
+      className="flex w-full min-w-0 flex-wrap items-end justify-between gap-x-6 gap-y-3"
     >
       <div className="min-w-0 space-y-1">
         <h1 className="text-display">{title}</h1>
         {description && (
-          <p className="max-w-2xl text-[0.9375rem] text-muted-foreground">{description}</p>
+          <p className="max-w-2xl break-words text-[0.9375rem] text-muted-foreground">
+            {description}
+          </p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>
   );
 }

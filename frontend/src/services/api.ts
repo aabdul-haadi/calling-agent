@@ -13,6 +13,7 @@ import type {
   OverviewMetrics,
   SimulatorControls,
 } from '@adk/shared';
+import { getAccessToken } from '@/auth/client';
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -25,15 +26,24 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+async function call<T>(path: string, init?: RequestInit, networkRetries = 0): Promise<T> {
   let res: Response;
-  try {
-    res = await fetch(`${BASE}${path}`, {
-      ...init,
-      headers: { 'content-type': 'application/json', ...init?.headers },
-    });
-  } catch {
-    throw new ApiError('NETWORK', "Can't reach the server. Is the backend running?");
+  const accessToken = await getAccessToken();
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(`${BASE}${path}`, {
+        ...init,
+        headers: {
+          'content-type': 'application/json',
+          ...init?.headers,
+          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+        },
+      });
+      break;
+    } catch {
+      if (attempt >= networkRetries)
+        throw new ApiError('NETWORK', "Can't reach the server. Is the backend running?");
+    }
   }
   if (res.status === 204) return undefined as T;
   const body = (await res.json().catch(() => undefined)) as ApiResponse<T> | undefined;
@@ -47,25 +57,21 @@ const json = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
-/** Who is reviewing, and the optional review token. Kept in this browser only. */
-export function learningCredentials(): { reviewer: string; token: string } {
+/** Local development reviewer label. OIDC deployments always record the verified identity. */
+export function learningCredentials(): { reviewer: string } {
   try {
-    return {
-      reviewer: localStorage.getItem('adk.reviewer') ?? '',
-      token: localStorage.getItem('adk.reviewToken') ?? '',
-    };
+    return { reviewer: localStorage.getItem('adk.reviewer') ?? '' };
   } catch {
-    return { reviewer: '', token: '' };
+    return { reviewer: '' };
   }
 }
 
 function learningInit(init: RequestInit = {}): RequestInit {
-  const { reviewer, token } = learningCredentials();
+  const { reviewer } = learningCredentials();
   return {
     ...init,
     headers: {
       ...(reviewer ? { 'x-reviewer': reviewer } : {}),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
   };
 }
@@ -92,6 +98,19 @@ export interface LearningTurn {
   approvedReply: string | null;
   split: 'train' | 'eval';
   createdAt: string;
+}
+export interface AuthProfile {
+  subject: string;
+  name?: string;
+  email?: string;
+  roles: string[];
+  tenantIds: string[];
+  permissions: string[];
+  authentication: 'development' | 'oidc' | 'voice-gateway';
+}
+export interface AuthConfig {
+  mode: 'development' | 'oidc';
+  issuer: string | null;
 }
 export interface LearningGap {
   id: string;
@@ -186,6 +205,7 @@ export interface ShadowReport {
 }
 
 export interface LearningOverview {
+  eligibility: { authorized: boolean; source: 'tenant_allow_list' };
   review: Record<string, number>;
   capture: { queued: number; stored: number; duplicates: number; excluded: number; failed: number };
   byChannel: Record<string, number>;
@@ -219,10 +239,20 @@ export interface VoiceSession {
 }
 
 export const api = {
+  authConfig: () => call<AuthConfig>('/auth/config'),
+  authMe: () => call<AuthProfile>('/auth/me'),
   health: () => call<{ status: string; db: string }>('/health'),
   clients: () => call<ClientSummary[]>('/clients'),
   client: (id: string) => call<ClientDetail>(`/clients/${id}`),
-  chat: (req: ChatRequest) => call<ChatResponse>('/chat', json('POST', req)),
+  chat: (req: ChatRequest, idempotencyKey: string) =>
+    call<ChatResponse>(
+      '/chat',
+      {
+        ...json('POST', req),
+        headers: { 'idempotency-key': idempotencyKey },
+      },
+      1,
+    ),
   conversation: (id: string) => call<ConversationView>(`/conversations/${id}`),
   resetConversation: (id: string) => call<ConversationView>(`/conversations/${id}`, json('DELETE')),
   setSimulator: (id: string, sim: SimulatorControls) =>

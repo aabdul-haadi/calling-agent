@@ -39,7 +39,14 @@ vi.mock('@/services/api', async () => {
   };
   return {
     ...actual,
-    api: { health: vi.fn(), clients: vi.fn(), client: vi.fn(), overview: vi.fn(), learning },
+    api: {
+      authConfig: vi.fn(),
+      health: vi.fn(),
+      clients: vi.fn(),
+      client: vi.fn(),
+      overview: vi.fn(),
+      learning,
+    },
   };
 });
 const mocked = vi.mocked(api, true);
@@ -89,11 +96,13 @@ const failing: LearningRelease = {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  mocked.authConfig.mockResolvedValue({ mode: 'development', issuer: null });
   mocked.health.mockResolvedValue({ status: 'ok', db: 'up' });
   mocked.clients.mockResolvedValue(clients);
   mocked.client.mockResolvedValue(clientDetail);
   mocked.overview.mockResolvedValue(overview);
   mocked.learning.overview.mockResolvedValue({
+    eligibility: { authorized: true, source: 'tenant_allow_list' },
     review: { pending: 4, approved: 2 },
     capture: { queued: 0, stored: 6, duplicates: 0, excluded: 1, failed: 0 },
     byChannel: { voice: 3, chat: 3 },
@@ -138,6 +147,23 @@ describe('Learning console', () => {
     expect(screen.getByText('Stock opening phrase')).toBeInTheDocument();
     expect(screen.getByText(/unverified lead/i)).toBeInTheDocument();
     expect((await screen.findAllByText('Waiting for review')).length).toBeGreaterThan(0);
+  });
+
+  it('explains when tenant authorization blocks conversation-derived learning', async () => {
+    mocked.learning.overview.mockResolvedValue({
+      eligibility: { authorized: false, source: 'tenant_allow_list' },
+      review: {},
+      capture: { queued: 0, stored: 0, duplicates: 0, excluded: 0, failed: 0 },
+      byChannel: {},
+      flags: {},
+      openGaps: 0,
+      datasets: 0,
+      shadow: {},
+      thresholds: { minSftExamples: 200, minIntentExamples: 30, retentionDays: 90 },
+    });
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/LEARNING_AUTHORIZED_CLIENTS/);
+    expect(screen.getByRole('button', { name: 'Run a learning cycle' })).toBeDisabled();
   });
 
   it('approving sends the edited reply and what it is for, then reloads', async () => {

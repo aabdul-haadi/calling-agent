@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+# The two TypeScript services. Build one with --target:
+#   docker build -f deploy/Dockerfile.node --target backend -t adk-backend .
+#   docker build -f deploy/Dockerfile.node --target mock    -t adk-mock .
+# The build context is the repository root.
+
+FROM node:24-bookworm-slim AS deps
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+# The pnpm version comes from "packageManager" in package.json.
+RUN corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY shared/package.json shared/
+COPY backend/package.json backend/
+COPY mock-services/package.json mock-services/
+COPY frontend/package.json frontend/
+# Only what the two services need; the frozen lockfile makes the build reproducible.
+RUN pnpm install --frozen-lockfile --filter "@adk/backend..." --filter "@adk/mock-services..."
+
+# ---------------------------------------------------------------------------------------------
+FROM deps AS source
+COPY tsconfig.base.json tsconfig.json ./
+COPY shared shared
+COPY clients clients
+
+# ---------------------------------------------------------------------------------------------
+FROM source AS mock
+COPY mock-services mock-services
+ENV NODE_ENV=production MOCK_PORT=4100
+USER node
+WORKDIR /app/mock-services
+EXPOSE 4100
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:4100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node_modules/.bin/tsx", "src/server.ts"]
+
+# ---------------------------------------------------------------------------------------------
+FROM source AS backend
+# PDF reading (text layer, tables, OCR for scans) needs the small Python package in docproc/.
+# Set --build-arg WITH_PDF=false for a smaller image; PDF upload then reports that it is unavailable.
+ARG WITH_PDF=true
+RUN if [ "$WITH_PDF" = "true" ]; then \
+      apt-get update \
+      && apt-get install -y --no-install-recommends python3 python3-venv libgl1 libglib2.0-0 \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+COPY docproc docproc
+RUN if [ "$WITH_PDF" = "true" ]; then \
+      python3 -m venv docproc/.venv \
+      && docproc/.venv/bin/pip install --no-cache-dir ./docproc; \
+    fi
+COPY backend backend
+# Uploaded documents and the downloaded embedding model live here: mount a volume on /app/data.
+RUN mkdir -p /app/data && chown -R node:node /app/data /app/backend
+ENV NODE_ENV=production
+USER node
+WORKDIR /app/backend
+EXPOSE 4000
+# The first start downloads the embedding model and indexes the policy documents: allow it time.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=300s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node_modules/.bin/tsx", "src/server.ts"]

@@ -115,6 +115,8 @@ const AI_DOWN_REPLY =
   "I'm sorry, I'm having technical trouble right now. I'm passing you to a human colleague who can help.";
 export const ALREADY_HANDED_OFF =
   "You're already in the queue for a human colleague. They have a summary of this chat and will be with you shortly.";
+export const HANDOFF_UPDATE_ACK =
+  "Thanks, I've added that to the conversation for your colleague.";
 
 function toolSpecs(tools: AnyToolDefinition[]): LlmToolSpec[] {
   return tools.map((t) => {
@@ -177,6 +179,10 @@ export function describeTimings(t: TurnTimings): string {
 
 // Words that make a message a formal complaint, which some companies must always pass to a person.
 const SAYS_COMPLAINT = /\b(?:complain\w*|compensat\w*|sue|lawyer|legal action|ombudsman|regulator|report (?:you|this|him|her|them))\b/i;
+const SAYS_CANCEL =
+  /\b(?:i|we)\s+(?:want|need|would like|wish)\s+to\s+(?:cancel|terminate|disconnect|end|close)\b|\b(?:cancel|terminate|disconnect|end|close)\s+(?:my|our|this|the)\s+(?:plan|service|account|subscription|line)\b/i;
+const NEGATES_CANCEL =
+  /\b(?:do not|don't|never|no longer|not)\s+(?:want|need)\s+to\s+(?:cancel|terminate|disconnect|end|close)\b|\b(?:do not|don't|never|not)\s+(?:cancel|terminate|disconnect|end|close)\b/i;
 
 export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOutput> {
   const { module, conversationId } = input;
@@ -384,6 +390,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   let turnNote: string | undefined = isPresenceCheck(input.userMessage)
     ? 'The caller is only checking that you are still there. Answer that in a few words ("Yes, I’m here"), then carry on with exactly what you were doing, without restarting, re-asking or handing over.'
     : undefined;
+  let firstLlmTokenReported = false;
   function startModelCall(i: number, speculative: boolean): ModelRound {
     const system = buildSystemPrompt({
       config,
@@ -406,6 +413,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     const say = (text: string) => {
       streamed += text.length;
       spoken += text;
+      if (!firstLlmTokenReported) {
+        firstLlmTokenReported = true;
+        emit?.({ type: 'agent.first_token' });
+      }
       emit?.({ type: 'agent.text.delta', text });
     };
     const done = timedModel(
@@ -533,15 +544,30 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
       }
     : negatesHuman(input.userMessage)
       ? { ...checked, wantsHuman: false }
+      : checked.wantsHuman && !asksForPerson(input.userMessage)
+        ? { ...checked, wantsHuman: false }
+        : checked.intent === 'cancellation_request' &&
+            (!SAYS_CANCEL.test(input.userMessage) || NEGATES_CANCEL.test(input.userMessage))
+          ? { ...checked, intent: 'unknown' }
       : checked.intent === 'complaint' && !SAYS_COMPLAINT.test(input.userMessage)
-        ? // annoyance in the middle of a task is not a formal complaint
-          { ...checked, intent: state.lastIntent }
+        ? { ...checked, intent: 'unknown' }
         : checked;
+  if (!classification.presenceCheck && ['unknown', 'out_of_scope'].includes(classification.intent)) {
+    if (early) {
+      abandon();
+      early = undefined;
+    }
+    turnNote =
+      classification.intent === 'unknown'
+        ? 'The latest request is unclear or unrelated to the supported services. Ask one short question about what the customer means; do not assume an account or billing task, request account details, or transfer them.'
+        : 'The request is outside the supported services. Briefly explain what you can help with and ask what the customer needs; do not request account details or transfer them unless they ask.';
+  }
   const offer = offersColleague(config, classification) && !state.offeredColleague;
   if (offer) {
     state = { ...state, offeredColleague: true };
-    turnNote =
+    const frustrationNote =
       'The caller sounds frustrated. Acknowledge it in one short sentence, keep helping with what they asked, and offer once to bring in a colleague if they would prefer. Do not transfer unless they say yes.';
+    turnNote = turnNote ? `${turnNote} ${frustrationNote}` : frustrationNote;
     if (early) {
       abandon(); // it was written without this instruction
       early = undefined;
@@ -640,6 +666,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   let reply = '';
   let loopGuardHit = false;
   let aiUnavailable = false;
+  let blockedAutomaticHandoff = false;
 
   // A tool-free policy answer from a reviewed local model (only if one is released and the engine
   // accepts its words); otherwise the hosted model answers exactly as before.
@@ -726,6 +753,32 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
     for (const call of res.data.toolCalls) {
       // Between two tool calls is a safe place to stop. Once a call starts it always finishes.
       if (isCancelled()) return cancelTurn();
+      const unsupportedIntent =
+        classification.intent === 'unknown' || classification.intent === 'out_of_scope';
+      const lastMessage = input.history.at(-1);
+      const acceptedHumanOffer =
+        lastMessage?.role === 'assistant' &&
+        /\b(?:human|person|colleague|agent|representative)\b/i.test(lastMessage.content) &&
+        /^(?:yes|yeah|yep|sure|please do|go ahead|connect me|transfer me|that would help|yes please)[\s.!]*$/i.test(
+          input.userMessage.trim(),
+        );
+      if (
+        call.name === 'transfer_to_human' &&
+        unsupportedIntent &&
+        !asksForPerson(input.userMessage) &&
+        !acceptedHumanOffer
+      ) {
+        addTrace(
+          'guard',
+          'Blocked an automatic human transfer for an unsupported request',
+          'warn',
+          undefined,
+          { intent: classification.intent },
+        );
+        reply = `I can help with ${config.scope.join(', ')}. What would you like help with?`;
+        blockedAutomaticHandoff = true;
+        break;
+      }
       const known = config.tools.includes(call.name);
       if (known) emit?.({ type: 'tool.started', tool: call.name });
       const outcome = await timed('tool', call.name, () =>
@@ -854,6 +907,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
         ),
       });
     }
+    if (blockedAutomaticHandoff) break;
     // Stop calling tools once two systems in a row are down: handing off beats hammering a dead API.
     if (state.unavailableStreak >= 2) break;
   }
@@ -862,8 +916,7 @@ export async function runTurn(deps: TurnDeps, input: TurnInput): Promise<TurnOut
   const toolFailureCounts =
     lastToolFailed === 'error' &&
     ['UNAVAILABLE', 'NOT_FOUND', 'UNAUTHORIZED', 'INVALID_ARGS'].includes(lastErrorCode);
-  const turnFailed =
-    (classification.intent === 'unknown' && !classification.presenceCheck) || toolFailureCounts;
+  const turnFailed = toolFailureCounts;
   state = { ...state, failedTurns: turnFailed ? state.failedTurns + 1 : 0 };
 
   if (aiUnavailable)

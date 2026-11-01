@@ -6,6 +6,7 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 export default defineConfig({
   resolve: {
     alias: [
+      { find: /^@\//, replacement: r('./frontend/src') + '/' },
       { find: /^@adk\/shared$/, replacement: r('./shared/src/index.ts') },
       { find: /^@adk\/shared\/hmac$/, replacement: r('./shared/src/hmac.ts') },
       { find: /^@adk\/mock-services\/(.*)$/, replacement: r('./mock-services/src/') + '$1' },

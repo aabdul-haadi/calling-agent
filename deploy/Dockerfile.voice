@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+# The real-time voice engine (speech recognition, speech synthesis, interruption handling).
+# The build context is the repository root. The speech models (about 460 MB) are not baked into
+# the image: the entrypoint downloads and verifies them into a volume on first start.
+
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 VOICE_HOST=0.0.0.0 VOICE_PORT=8765
+WORKDIR /app/voice-service
+COPY voice-service/pyproject.toml ./
+COPY voice-service/app app
+# Editable on purpose: the code finds ./models relative to its own location.
+RUN pip install -e .
+COPY deploy/voice-entrypoint.sh /usr/local/bin/voice-entrypoint
+RUN chmod +x /usr/local/bin/voice-entrypoint \
+    && useradd --system --create-home voice \
+    && mkdir -p /app/voice-service/models \
+    && chown -R voice:voice /app/voice-service
+USER voice
+EXPOSE 8765
+HEALTHCHECK --interval=15s --timeout=5s --start-period=180s --retries=10 \
+  CMD python -c "import json,urllib.request,sys; d=json.load(urllib.request.urlopen('http://127.0.0.1:8765/health',timeout=4)); sys.exit(0 if d.get('ready') else 1)"
+ENTRYPOINT ["voice-entrypoint"]

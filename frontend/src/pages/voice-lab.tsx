@@ -61,12 +61,17 @@ function BrowserSpeechLab({ client }: { client: ClientDetail }) {
           <div className="flex flex-col items-center gap-4 p-4 sm:p-6">
             <AgentOrb
               mode={signals.mode}
-              level={voice.muted ? 0 : voice.level}
+              level={voice.muted || voice.speaking ? 0 : voice.level}
               accent={client.accent}
               agentName={client.persona.name}
               toolLabel={signals.activeTool}
+              talkingAvatar={{ clientId: client.id }}
               className="max-w-[22rem]"
             />
+            <p className="-mt-2 max-w-xs text-center text-xs text-muted-foreground">
+              The browser&apos;s own voice cannot be analysed, so the mouth stays still here. Switch to
+              the local engine for lip-sync that follows the audio.
+            </p>
             <div className="w-full max-w-md">
               <Waveform
                 level={voice.muted ? 0 : voice.level}
@@ -94,7 +99,7 @@ function BrowserSpeechLab({ client }: { client: ClientDetail }) {
             ) : (
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {!voice.active ? (
-                  <Button size="lg" onClick={voice.start} aria-label="Start voice session">
+                  <Button size="lg" onClick={voice.start}>
                     <Mic className="h-5 w-5" aria-hidden="true" /> Start talking
                   </Button>
                 ) : (
@@ -305,6 +310,7 @@ export function VoiceLabPage() {
       <div className="space-y-5">
         <PageHeader eyebrow="Voice Lab" title="Talk to the agent" />
         <EmptyState
+          asset="chat"
           title={`${tenant.displayName} is chat only`}
           hint="Voice is configured per tenant. Switch to a tenant with the voice channel (for example SkyLink Air) in the top bar."
         />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { SILENT_FRAME } from '@/avatar/lip-sync';
 import { api } from '@/services/api';
 import { VoiceClient, MicrophoneError, voiceEngineSupported } from '@/voice/client';
 import { INITIAL, reduce } from '@/voice/state';
@@ -52,6 +53,9 @@ export function useVoiceGateway(clientId: string) {
     clientRef.current = undefined;
   }, []);
 
+  /** Stable reader for the avatar: polled per animation frame, never causes a re-render. */
+  const lipFrame = useCallback(() => clientRef.current?.lipFrame() ?? SILENT_FRAME, []);
+
   const interrupt = useCallback(() => clientRef.current?.interrupt(), []);
 
   const toggleMute = useCallback(() => {
@@ -95,6 +99,7 @@ export function useVoiceGateway(clientId: string) {
     start,
     stop,
     interrupt,
+    lipFrame,
     toggleMute,
     retryStatus: status.reload,
   };

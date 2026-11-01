@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import type { HandoffView } from '@adk/shared';
 import { auditEvent, type AuditType } from '../agent/audit';
 import { auditRepo, conversationsRepo, handoffsRepo, type Db } from '../database';
 import { HttpError, rateLimit } from '../middleware';
 import type { LearningService } from '../learning';
+import { assertTenantAccess } from '../auth/authorization';
 
 const replyBody = z.object({ message: z.string().trim().min(1).max(2000) });
 
@@ -23,9 +24,13 @@ export function handoffsRouter(
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(400, 'INVALID_REQUEST', 'Bad handoff id');
     return id;
   };
-  const load = async (raw: unknown): Promise<HandoffView> => {
+  const load = async (
+    raw: unknown,
+    principal: NonNullable<Request['principal']>,
+  ): Promise<HandoffView> => {
     const found = await handoffsRepo.getHandoff(db, idOf(raw));
     if (!found) throw new HttpError(404, 'NOT_FOUND', 'No such handoff');
+    assertTenantAccess(principal, found.clientId);
     return found;
   };
   const audit = (h: HandoffView, type: AuditType, data: Record<string, unknown> = {}) =>
@@ -35,11 +40,22 @@ export function handoffsRouter(
 
   router.get('/handoffs', async (req, res) => {
     const clientId = typeof req.query.clientId === 'string' ? req.query.clientId : undefined;
-    res.json({ data: await handoffsRepo.listHandoffs(db, clientId) });
+    const principal = req.principal!;
+    const visibleClientIds = principal.tenantIds.includes('*')
+      ? undefined
+      : principal.tenantIds;
+    const results = clientId
+      ? await handoffsRepo.listHandoffs(db, clientId)
+      : visibleClientIds
+        ? (await Promise.all(visibleClientIds.map((id) => handoffsRepo.listHandoffs(db, id))))
+            .flat()
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        : await handoffsRepo.listHandoffs(db);
+    res.json({ data: results });
   });
 
   router.post('/handoffs/:id/accept', async (req, res) => {
-    const current = await load(req.params.id);
+    const current = await load(req.params.id, req.principal!);
     if (current.status === 'resolved')
       throw new HttpError(409, 'HANDOFF_CLOSED', 'This handoff is already resolved');
     const accepted = await handoffsRepo.acceptHandoff(db, current.id);
@@ -49,7 +65,7 @@ export function handoffsRouter(
   });
 
   router.post('/handoffs/:id/reply', rateLimit({ windowMs: 60_000, max: 60 }), async (req, res) => {
-    const current = await load(req.params.id);
+    const current = await load(req.params.id, req.principal!);
     const parsed = replyBody.safeParse(req.body);
     if (!parsed.success)
       throw new HttpError(400, 'INVALID_REQUEST', 'Write a reply of 1 to 2000 characters');
@@ -65,7 +81,7 @@ export function handoffsRouter(
   });
 
   router.post('/handoffs/:id/resolve', async (req, res) => {
-    const current = await load(req.params.id);
+    const current = await load(req.params.id, req.principal!);
     if (current.status === 'pending')
       throw new HttpError(409, 'ACCEPT_FIRST', 'Accept the handoff before resolving it');
     if (current.status === 'resolved') {

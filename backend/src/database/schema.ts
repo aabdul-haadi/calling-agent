@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { ChatResponse } from '@adk/shared';
 import {
   boolean,
   customType,
@@ -183,6 +184,22 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   result: jsonb('result').notNull(),
   createdAt: createdAt(),
 });
+
+export const chatRequestKeys = pgTable(
+  'chat_request_keys',
+  {
+    key: text('key').primaryKey(),
+    fingerprint: text('fingerprint').notNull(),
+    conversationId: uuid('conversation_id'),
+    status: text('status').notNull(),
+    ownerToken: text('owner_token'),
+    response: jsonb('response').$type<ChatResponse>(),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('chat_request_keys_retention_idx').on(t.status, t.createdAt)],
+);
 
 export const evalRuns = pgTable('eval_runs', {
   id: uuid('id').primaryKey().defaultRandom(),

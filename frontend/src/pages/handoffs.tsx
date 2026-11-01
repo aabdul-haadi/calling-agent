@@ -395,6 +395,7 @@ export function HandoffsPage() {
         <ErrorState message={handoffs.error} onRetry={handoffs.reload} />
       ) : shown.length === 0 ? (
         <EmptyState
+          asset="allClear"
           title={status === 'all' ? 'Nobody is waiting' : 'Nothing in this view'}
           hint="When the agent hands a customer over, they will show up here with a summary and the reason."
         />

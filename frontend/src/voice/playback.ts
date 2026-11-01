@@ -1,3 +1,4 @@
+import { analyseSpeech, NO_VISEMES, type LipFrame } from '@/avatar/lip-sync';
 import { TurnGate, type OutputFrame } from './protocol';
 
 export interface PlaybackHandlers {
@@ -25,6 +26,12 @@ export class Playback {
   private readonly analyser: AnalyserNode;
   private readonly scheduled = new Set<Scheduled>();
   private readonly samples: Float32Array<ArrayBuffer>;
+  /** Second, branch-only reading of the same output for the avatar's mouth (nothing is re-played). */
+  private readonly lipAnalyser: AnalyserNode;
+  private lipTime?: Float32Array<ArrayBuffer>;
+  private lipFreq?: Float32Array<ArrayBuffer>;
+  private lipGateOpen = false;
+  private epoch = 0;
   private nextTime = 0;
   private startedTurn = 0;
   private endTimer: ReturnType<typeof setTimeout> | undefined;
@@ -42,6 +49,10 @@ export class Playback {
     this.samples = new Float32Array(this.analyser.fftSize);
     this.gain.connect(this.analyser);
     this.analyser.connect(ctx.destination);
+    this.lipAnalyser = ctx.createAnalyser();
+    this.lipAnalyser.fftSize = 1024;
+    this.lipAnalyser.smoothingTimeConstant = 0.2;
+    this.gain.connect(this.lipAnalyser); // a read-only branch: it is not connected to the speakers
   }
 
   enqueue(frame: OutputFrame): void {
@@ -94,6 +105,8 @@ export class Playback {
   interrupt(turn: number): number {
     const t0 = performance.now();
     this.gate.interrupt(turn);
+    this.epoch += 1;
+    this.lipGateOpen = false;
     clearTimeout(this.endTimer);
     clearTimeout(this.startTimer);
     const now = this.ctx.currentTime;
@@ -121,6 +134,27 @@ export class Playback {
     return Math.min(1, Math.sqrt(sum / this.samples.length) * 4);
   }
 
+  /**
+   * What the avatar's mouth should do right now, read from the audio actually being played. Only
+   * analyses while a scheduled chunk exists and the output is not muted, so it costs nothing in
+   * silence. After `interrupt()` the output is muted and nothing is scheduled, so this reports a
+   * closed mouth at once, whatever the next frame tries to do.
+   */
+  lipFrame(): LipFrame {
+    const heard = this.scheduled.size > 0 && this.gain.gain.value > 0;
+    if (!heard) {
+      this.lipGateOpen = false;
+      return { active: false, epoch: this.epoch, level: 0, visemes: NO_VISEMES };
+    }
+    this.lipTime ??= new Float32Array(this.lipAnalyser.fftSize);
+    this.lipFreq ??= new Float32Array(this.lipAnalyser.frequencyBinCount);
+    this.lipAnalyser.getFloatTimeDomainData(this.lipTime);
+    this.lipAnalyser.getFloatFrequencyData(this.lipFreq);
+    const heardNow = analyseSpeech(this.lipTime, this.lipFreq, this.ctx.sampleRate, this.lipGateOpen);
+    this.lipGateOpen = heardNow.gateOpen;
+    return { active: true, epoch: this.epoch, level: heardNow.level, visemes: heardNow.visemes };
+  }
+
   get playing(): boolean {
     return this.scheduled.size > 0;
   }
@@ -136,7 +170,9 @@ export class Playback {
       }
     }
     this.scheduled.clear();
+    this.epoch += 1;
     this.gain.disconnect();
     this.analyser.disconnect();
+    this.lipAnalyser.disconnect();
   }
 }

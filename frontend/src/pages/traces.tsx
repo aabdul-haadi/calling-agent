@@ -161,9 +161,10 @@ function Explorer({ conversationId }: { conversationId: string }) {
       </div>
 
       {events.length === 0 ? (
-        <EmptyState title="No steps recorded" hint="This conversation has no trace events yet." />
+        <EmptyState asset="traces" title="No steps recorded" hint="This conversation has no trace events yet." />
       ) : shown.length === 0 ? (
         <EmptyState
+          asset="traces"
           title="Nothing matches those filters"
           hint={`Recorded step types: ${kinds.join(', ')}.`}
           action={
@@ -222,6 +223,7 @@ export function TracesPage() {
         </div>
       ) : !list.data || list.data.length === 0 ? (
         <EmptyState
+          asset="chat"
           title="No conversations yet"
           hint="Start a chat in the Agent Console and its trace will show up here."
         />

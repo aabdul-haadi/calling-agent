@@ -71,7 +71,10 @@ class Engine:
             self.load_seconds["tts_warmup"] = round(self.synth.warm_up(), 2)
             self.detector_factory(threshold=0.5, min_speech_ms=100, min_silence_ms=600)  # fails fast if missing
             if self.agent is None:
-                self.agent = HttpAgentRuntime(s.agent_runtime_url)
+                self.agent = HttpAgentRuntime(
+                    s.agent_runtime_url,
+                    gateway_secret=s.gateway_secret,
+                )
             self.ready = True
             log.info("voice models ready: %s", self.load_seconds)
         except Exception as exc:  # noqa: BLE001 - reported on /health, never crashes the process

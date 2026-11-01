@@ -1,0 +1,1 @@
+ALTER TABLE "chat_request_keys" ADD COLUMN "conversation_id" uuid;

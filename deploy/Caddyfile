@@ -1,0 +1,42 @@
+# Production entry point: HTTPS (certificates are requested and renewed automatically), the web
+# app, and the two backends behind one address. Sign-in is handled by your OIDC provider.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
+		-Server
+	}
+
+	# The API. The prefix is removed, so the backend sees /clients, /health, ...
+	handle_path /api/* {
+		reverse_proxy backend:4000
+	}
+
+	# The voice engine's WebSocket and health check.
+	handle_path /voice/* {
+		reverse_proxy voice:8765
+	}
+
+	# The web app. Unknown paths open the app, which routes them (for example /auth/callback).
+	handle {
+		root * /srv
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@media path /visuals/* /avatars/*
+		header @media Cache-Control "public, max-age=86400"
+		@shell {
+			not path /assets/* /visuals/* /avatars/*
+		}
+		header @shell Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -38,6 +38,10 @@ export const normalize = (s: string): string =>
 export const sha = (s: string): string => createHash('sha256').update(s).digest('hex');
 export const splitFor = (customerText: string): 'train' | 'eval' =>
   parseInt(sha(normalize(customerText)).slice(0, 8), 16) % EVAL_SHARE === 0 ? 'eval' : 'train';
+export const splitForConversation = (clientId: string, conversationId: string): 'train' | 'eval' =>
+  parseInt(sha(`${clientId}|${conversationId}`).slice(0, 8), 16) % EVAL_SHARE === 0
+    ? 'eval'
+    : 'train';
 
 export interface CaptureStats {
   queued: number;
@@ -73,15 +77,18 @@ export function createLearningCapture(opts: {
   store: LearningStore;
   logger: Logger;
   enabled?: boolean;
+  authorizedClientIds?: readonly string[];
   retryDelayMs?: number;
 }): LearningCapture {
   const { store, logger } = opts;
   const enabled = opts.enabled !== false;
+  const authorizedClientIds = new Set(opts.authorizedClientIds ?? []);
   const retryDelay = opts.retryDelayMs ?? 500;
   const stats: CaptureStats = { queued: 0, stored: 0, duplicates: 0, excluded: 0, failed: 0 };
   let tail: Promise<void> = Promise.resolve();
 
   async function process(input: TurnInput): Promise<'stored' | 'duplicate' | 'excluded'> {
+    if (!enabled || !authorizedClientIds.has(input.clientId)) return 'excluded';
     // A turn that carries a password, code or card number is never learned from, redacted or not.
     if (hasSecret(input.customerText) || hasSecret(input.aiReply)) return 'excluded';
     const names = input.knownNames;
@@ -129,7 +136,7 @@ export function createLearningCapture(opts: {
         capturedAt: new Date().toISOString(),
       },
       dedupeHash,
-      split: splitFor(customer.text),
+      split: previous[0]?.split ?? splitForConversation(input.clientId, input.conversationId),
     });
     return inserted ? 'stored' : 'duplicate';
   }
@@ -156,21 +163,26 @@ export function createLearningCapture(opts: {
   return {
     record(input) {
       if (!enabled) return;
+      if (!authorizedClientIds.has(input.clientId)) {
+        stats.excluded++;
+        return;
+      }
       stats.queued++;
       tail = tail.then(() => withRetry(input));
     },
     process,
     async recordHumanReply(clientId, conversationId, text, names = []) {
-      if (!enabled || hasSecret(text)) return;
+      if (!enabled || !authorizedClientIds.has(clientId) || hasSecret(text)) return;
       await store.attachHumanReply(clientId, conversationId, redact(text, names).text);
     },
     async recordResolution(clientId, conversationId, phase, handoff) {
       const resolution = resolutionFor(phase, handoff);
-      if (enabled) await store.setConversationResolution(clientId, conversationId, resolution);
+      if (enabled && authorizedClientIds.has(clientId))
+        await store.setConversationResolution(clientId, conversationId, resolution);
       return resolution;
     },
     async recordFeedback(clientId, conversationId, f) {
-      if (!enabled) return false;
+      if (!enabled || !authorizedClientIds.has(clientId)) return false;
       const turns = await store.turnsOfConversation(clientId, conversationId);
       const target = turns[turns.length - 1];
       if (!target) return false;

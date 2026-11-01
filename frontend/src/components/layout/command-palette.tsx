@@ -2,6 +2,7 @@ import { CornerDownLeft, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog } from '@/components/ui/dialog';
+import { useAuth } from '@/auth/context';
 import { useTenant } from '@/context/tenant';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS } from './nav-items';
@@ -17,12 +18,13 @@ interface Command {
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const { clients, tenant, select } = useTenant();
+  const { profile } = useAuth();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
 
   const commands = useMemo<Command[]>(() => {
     const id = tenant?.id ?? '';
-    const pages = NAV_ITEMS.map((n) => ({
+    const pages = NAV_ITEMS.filter((n) => profile?.permissions.includes(n.permission)).map((n) => ({
       id: `go-${n.id}`,
       label: `Go to ${n.label}`,
       hint: n.hint,
@@ -35,7 +37,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       run: () => select(c.id),
     }));
     return [...pages, ...tenants];
-  }, [clients, tenant, navigate, select]);
+  }, [clients, tenant, navigate, select, profile]);
 
   const shown = commands.filter((c) => c.label.toLowerCase().includes(query.toLowerCase().trim()));
   const index = Math.min(active, Math.max(0, shown.length - 1));

@@ -31,6 +31,9 @@ export type ScriptStep =
     })
   | ((req: LlmRequest) => Partial<LlmResponse> | 'fail');
 
+let requestKeyCounter = 0;
+export const nextChatRequestKey = () => `test-chat-turn-${++requestKeyCounter}`;
+
 interface Classification {
   intent: string;
   sentiment: string;
@@ -156,7 +159,12 @@ export async function createHarness(
   opts: {
     ingestKnowledge?: boolean;
     /** Wire the learning system into the chat service and the app. */
-    learning?: boolean | { ml?: Partial<import('@backend/learning/ml-service').MlOptions>; training?: Record<string, unknown>; local?: unknown };
+    learning?: boolean | {
+      ml?: Partial<import('@backend/learning/ml-service').MlOptions>;
+      training?: Record<string, unknown>;
+      local?: unknown;
+      authorizedClientIds?: readonly string[];
+    };
     classify?: Parameters<typeof createScriptedLlm>[0];
     /** Extra environment variables, for example the voice gateway secret. */
     env?: Record<string, string>;
@@ -228,7 +236,16 @@ export async function createHarness(
         ml: { minEval: 3, minShadow: 2, route: false, p95Ms: 8000, ...(typeof opts.learning === 'object' ? opts.learning.ml : {}) },
         ...(typeof opts.learning === 'object' && opts.learning.training ? { trainingOverride: opts.learning.training } : {}),
         ...(typeof opts.learning === 'object' && opts.learning.local ? { localOverride: opts.learning.local } : {}),
-        config: { enabled: true, retentionDays: 90, minSftExamples: 3, minIntentExamples: 3 },
+        config: {
+          enabled: true,
+          authorizedClientIds:
+            typeof opts.learning === 'object' && opts.learning.authorizedClientIds
+              ? opts.learning.authorizedClientIds
+              : registry.list().map((client) => client.config.id),
+          retentionDays: 90,
+          minSftExamples: 3,
+          minIntentExamples: 3,
+        },
       })
     : undefined;
   const chat = createChatService({

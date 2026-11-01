@@ -1,6 +1,6 @@
 # Learning from calls and chats
 
-Voice calls and chats feed one reviewed pipeline per company. People approve what is worth learning from, every change is measured on questions it was not built from, and nothing reaches a customer until a person deploys it. There is a way back for every change.
+Voice calls and chats feed one reviewed pipeline per company only after the company is explicitly authorized. People approve what is worth learning from, every change is measured on questions it was not built from, and nothing reaches a customer until a person deploys it. There is a way back for every change.
 
 This is **offline, reviewed learning**. It is not continuous learning: no model weights change while a conversation is happening, and nothing here updates a model after each interaction. What the system actually does is listed under "What is operational".
 
@@ -16,21 +16,21 @@ chat ───────┘   (tokens)  (flags)   (people)    (frozen)  ├─
 
 | Step | Where | What it does |
 | --- | --- | --- |
-| Capture | `backend/src/learning/capture.ts`, hooked in `agent/service.ts` | After a real turn is saved, a queue (never awaited by the reply) redacts it, analyses it and stores a row in `learning_turns`. Retries three times, idempotent per (company, conversation, turn). Evaluation runs are not captured. |
+| Eligibility and capture | `LEARNING_AUTHORIZED_CLIENTS`, `backend/src/learning/capture.ts`, hooked in `agent/service.ts` | Capture and use of conversation-derived learning are disabled for every tenant unless its id is explicitly allow-listed after its applicable customer notice, contractual basis and data-handling approval are confirmed. Authorized real turns are queued (never awaited by the reply), redacted, analysed and stored in `learning_turns`; retries three times, idempotent per (company, conversation, turn). Evaluation runs are not captured. |
 | Redaction | `redact.ts` | Emails, phones, cards, booking references, dates of birth, spoken names and the names found in the conversation's tool results become tokens (`[EMAIL]`, `[REF]`, `[NAME]` …). A turn that mentions a password, PIN, CVV, one-time code or card number is not stored at all. |
-| Analysis | `analyze.ts` | Flags: stock openers, repeated reply, customer repeated themselves, too long, unanswered policy question, avoidable handoff, unsure speech, failed tool call, formatting in a spoken reply. "Resolved" comes only from facts: the booking journey reached `COMPLETED` (a verified change) or a person marked the handoff resolved. A long chat or a polite goodbye never counts. |
+| Analysis | `analyze.ts` | Flags: stock openers, repeated reply, customer repeated themselves, explicit customer corrections, too long, unanswered policy question, avoidable handoff, unsure speech, failed tool call, formatting in a spoken reply. "Resolved" comes only from facts: the booking journey reached `COMPLETED` (a verified change) or a person marked the handoff resolved. A long chat or a polite goodbye never counts. |
 | Human agents | `routes/handoffs.ts` | A person's reply is attached (redacted) to the turn it answered as an **unverified lead**. It is never a label until a reviewer approves it. |
 | Review | `/learning` console, `routes/learning.ts` | Approve (with an edited reply, what it is for, and for search examples the document that should answer), reject or exclude. Reviewer name and reason are stored. A reviewer's edit is redacted again and must come out clean. |
 | Gaps | `gaps.ts` | Unanswered policy questions from both channels are grouped by topic. Each group shows examples, channels, the closest approved passage and a plain recommendation. A colleague's answer is shown as a lead; policy only changes when an approved document does. |
-| Datasets | `dataset.ts` | Freezes approved fine-tuning examples as a numbered version with a SHA-256. Only reviewed, deduplicated, clean, training-side examples go in. Below `LEARNING_MIN_SFT_EXAMPLES` the version is built but never called ready. |
+| Datasets | `dataset.ts` | Freezes approved fine-tuning examples as a numbered version with a SHA-256. A conversation stays on one split; cross-split customer utterances with at least 0.85 token-Jaccard similarity are excluded from both sides. Context includes only approved, clean examples from the same conversation and split. Below `LEARNING_MIN_SFT_EXAMPLES` the version is built but never called ready. |
 | Evaluation | `evaluate.ts`, `evalsets.ts` | Hand-written held-out sets for SkyLink Air and NovaTel (voice and chat wording) plus shared rule cases. Every release gets named gates with numbers. |
-| Releases | `registry.ts` | Versioned, per company and channel. Candidate → (shadow) → active. Deploy needs every gate passed. Rollback restores the previous release, or the built-in behaviour. |
+| Releases | `registry.ts` | Versioned, per company and channel. Candidate → (shadow) → active. A behavior proposal may reference a tenant-local turn that a reviewer approved for behavior use; the reviewer-authored lesson and source turn id are recorded on the release. Deploy needs every gate passed. Rollback restores the previous release, or the built-in behaviour. |
 
 ## What is operational
 
 | Method | Status | Notes |
 | --- | --- | --- |
-| Capture, redaction, analysis, review queue, retention, deletion | Operational | Both channels, per company. |
+| Capture, redaction, analysis, review queue, retention, deletion | Operational | Both channels, per company, but only for tenants listed in `LEARNING_AUTHORIZED_CLIENTS`; an empty list fails closed. |
 | Knowledge gaps → recommended documents | Operational | Recommends; a person uploads the document, which is re-indexed by the existing PDF pipeline. |
 | Search settings tuning (relevance bar) | Operational | Chosen on half of the evaluation questions, judged on the other half; released only if it improves a measure and worsens none. Shared by voice and chat. |
 | Style lessons (prompt/behaviour) | Operational | Short lessons and "never start with…" phrases, added to the reply instructions of one channel or both. Validated, evaluated with the real model, staged by percentage. |
@@ -49,12 +49,14 @@ Verification, explicit confirmation, idempotency, PII masking, tenant isolation,
 
 Human transcripts, customer feedback and retrieved documents are untrusted input everywhere in this pipeline. Customer feedback (`POST /feedback`) can only attach a rating or a suggested correction to its own conversation's latest turn, redacted and unapproved.
 
+The tenant allow-list is an operator attestation that the applicable notice, contract and data-handling requirements have been checked; it does not itself obtain customer consent. If a tenant requires per-customer consent, do not enable that tenant until the application has a suitable consent mechanism. After restarting the service with a tenant removed from the allow-list, new capture, feedback, training, evaluation and learning-release operations are disabled for that tenant; previously stored rows remain subject to the existing retention/deletion controls and are not used while authorization is absent.
+
 ## Privacy
 
 - Separate stores: the identifiable conversation stays in `messages`; learning rows hold only redacted text, document names and pages, tool names and statuses (no tool inputs or outputs, no passage text).
 - Company isolation: every query carries the company; an id from another company is "not found". Tested.
 - Retention: unreviewed, rejected and excluded rows are deleted after `LEARNING_RETENTION_DAYS` (default 90); approved examples stay until removed. `DELETE /clients/:id/learning/conversations/:cid` removes one conversation's rows.
-- Access: set `LEARNING_REVIEW_TOKEN` to require a bearer token on every console route. Without it, anyone who can reach the API can review (the same as the handoff inbox in this build).
+- Access: OIDC authentication and server-side role and tenant permissions protect the learning API. Reviews record the verified identity in OIDC mode; the editable reviewer label is available only in local development. See [AUTHENTICATION.md](./AUTHENTICATION.md).
 - Datasets are downloaded only from the console route; the files contain no raw conversations.
 - Encryption at rest is the database's job (use an encrypted Postgres volume); this build does not add application-level encryption.
 
@@ -63,11 +65,11 @@ Human transcripts, customer feedback and retrieved documents are untrusted input
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `LEARNING_ENABLED` | `on` | Off stops capture entirely. |
+| `LEARNING_AUTHORIZED_CLIENTS` | empty | Comma-separated tenant ids authorized for conversation-derived learning after notice, contract and data-handling review. Empty disables capture and training for all tenants. |
 | `LEARNING_RETENTION_DAYS` | `90` | Expiry of unreviewed rows. |
 | `LEARNING_MIN_SFT_EXAMPLES` | `200` | Approved examples before a dataset is "ready" (and before a cycle freezes one). |
 | `LEARNING_MIN_INTENT_EXAMPLES` | `30` | Approved intent examples before a cycle retrains the intent model from live data. |
 | `LEARNING_SCHEDULE_MINUTES` | `0` | Run the cycle for every company on this schedule. `0` = by hand only. |
-| `LEARNING_REVIEW_TOKEN` | empty | Bearer token for the console routes. |
 
 A **cycle** (`POST /clients/:id/learning/cycle` or the button) does the cheap steps (finish capture, expire old rows, refresh gaps) and the thresholded steps (freeze a dataset, retrain the intent model). It never deploys.
 
@@ -105,7 +107,7 @@ Tests: `tests/learning/` (pure logic and the full flow through the real chat ser
 - The intent model does not influence any reply. Making it do so (for example to skip a classification call) needs its own evaluation of the safety fields, which it does not predict.
 - Style-lesson evaluation uses 10 held-out questions plus 3 probes per run and the same model that answers customers; with a rate-limited free tier it can fail for reasons unrelated to the lessons. Run it again.
 - Retrieval releases are shared by voice and chat, and `rollout` percentages apply to style lessons only.
-- There is no login. The reviewer name is whatever the console sends; use the review token and a gateway if people outside your team can reach the API.
+- OIDC deployment requires the identity provider to issue the `evaluator`, `ai_engineer`, `knowledge_manager`, or `administrator` role as appropriate, together with the tenant IDs the user may access. `LEARNING_REVIEW_TOKEN` is obsolete and does not authorize requests.
 
 ---
 
@@ -113,7 +115,7 @@ Tests: `tests/learning/` (pure logic and the full flow through the real chat ser
 
 ## What was already there, and what was added
 
-Reused unchanged: capture and redaction, the review queue, gap grouping, frozen datasets, `model_releases` with gates and rollback, tenant isolation, the PDF pipeline with versioned documents, the hybrid search with reranking, and the console. Added: training jobs (`training_runs`), shadow output storage (`shadow_outputs`), knowledge proposals (`knowledge_proposals`; migration `0004`), the trainer's `hardware`, `smoke` and `train` commands with progress, cancel and resume, `ml/serve_local.py`, a candidate-model comparison, a gap diagnosis, a candidate-index builder, and the **Training** and **Knowledge changes** tabs.
+Reused: the reviewed capture/redaction pipeline, review queue, gap grouping, versioned datasets, `model_releases` with gates and rollback, tenant isolation, the PDF pipeline with versioned documents, hybrid search with reranking, and the console. This phase adds a fail-closed tenant authorization gate for conversation-derived learning and prevents same-conversation, near-duplicate, or unreviewed-history leakage across SFT/intent train and evaluation data. Earlier capabilities include training jobs (`training_runs`), shadow output storage (`shadow_outputs`), knowledge proposals (`knowledge_proposals`; migration `0004`), the trainer's `hardware`, `smoke` and `train` commands with progress, cancel and resume, `ml/serve_local.py`, a candidate-model comparison, a gap diagnosis, a candidate-index builder, and the **Training** and **Knowledge changes** tabs.
 
 ## 1. Fine-tuning a local open model
 
@@ -121,7 +123,7 @@ Reused unchanged: capture and redaction, the review queue, gap grouping, frozen 
 
 **This machine:** Intel i7-6700 (4 cores, 8 threads), 16 GB memory, GeForce GTX 760 (CUDA capability 3.0, which current PyTorch does not support, so it is reported as unusable). Training is on the CPU. `hardware` checks the libraries, the memory that is free right now (not the total), the GPU's capability and the model's estimated need, and answers `gpu`, `cpu_slow` or `not_ready` with the reason. A run that would not fit is refused instead of started. On a machine with a usable GPU the same command uses it. To train elsewhere, copy the run folder's `train.jsonl`, `manifest.json` and `eval.jsonl` (redacted, reviewed data only; no credentials are in them) and run `python ml/train_sft.py train …` there, then copy the adapter folder back.
 
-**What may be trained on.** Only a frozen dataset version: approved for fine-tuning by a reviewer, redacted again on approval, free of secrets and personal data, deduplicated, on the training side of the fixed split, with a reply that does not teach skipping a safety step. A human colleague's wording is used only if a reviewer approved it. The trainer re-checks all of it and refuses (a) fewer than the recorded minimum number of examples (it never pads), (b) a file that does not match its recorded hash, (c) personal data, (d) any question that is in the held-out file, (e) duplicates. Loss is computed on the final reply only; earlier turns are context. Speech-recognition errors are not copied: learning rows hold the redacted transcript and a reviewer approves the reply, not the transcript.
+**What may be trained on.** Only a frozen dataset version: from a tenant on the authorization allow-list, approved for fine-tuning by a reviewer, redacted again on approval, free of detected secrets and personal identifiers, deduplicated, on the training side of the conversation-level split, with a reply that does not teach skipping a safety step. Cross-split utterances with token-set Jaccard similarity of at least 0.85 are excluded from both the training and evaluation sets. Conversation context may include only earlier, approved, clean SFT examples from the same split. A human colleague's wording is used only if a reviewer approved it. The trainer re-checks all of it and refuses (a) fewer than the recorded minimum number of examples (it never pads), (b) a file that does not match its recorded hash, (c) detected personal data, (d) any question that is in the held-out file, (e) duplicates. Loss is computed on the final reply only; earlier turns are context. Speech-recognition errors are not copied: learning rows hold the redacted transcript and a reviewer approves the reply, not the transcript.
 
 **Job lifecycle.** The console (or `POST /clients/:id/learning/training/runs`) validates, writes the run folder, runs `check`, then starts `train` as a separate process. State is in the database, so a browser refresh or a server restart loses nothing: a run whose process disappeared is shown as *interrupted* and can be resumed from its last checkpoint. Cancel writes a flag file; the trainer saves a checkpoint at the next step and stops. One run at a time. A run registers a candidate model only if it is a real training run that finished and whose adapter reloads and generates text; a *toolchain test* (`smoke`) never does.
 

@@ -15,6 +15,7 @@ vi.mock('@/services/api', async () => {
   return {
     ...actual,
     api: {
+      authConfig: vi.fn(),
       health: vi.fn(),
       clients: vi.fn(),
       client: vi.fn(),
@@ -119,6 +120,7 @@ const found: KnowledgeSearchResult = {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  mocked.authConfig.mockResolvedValue({ mode: 'development', issuer: null });
   mocked.health.mockResolvedValue({ status: 'ok', db: 'up' });
   mocked.clients.mockResolvedValue(clients);
   mocked.client.mockResolvedValue(clientDetail);

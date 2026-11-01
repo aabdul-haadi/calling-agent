@@ -22,55 +22,55 @@
   }
  },
  "cold_start_seconds": {
-  "asr_load": 4.23,
-  "asr_refine_load": 7.62,
-  "asr_warmup": 0.35,
-  "tts_load": 1.93,
-  "tts_warmup": 0.09,
-  "ready_after_start": 14.74
+  "asr_load": 7.01,
+  "asr_refine_load": 9.2,
+  "asr_warmup": 0.5,
+  "tts_load": 3.29,
+  "tts_warmup": 0.56,
+  "ready_after_start": 22.27
  },
  "first_turn_after_start": {
-  "vad_onset_ms": 137,
-  "first_partial_ms": 1103,
-  "speech_end_to_final_ms": 892,
-  "speech_end_to_first_text_ms": 894,
-  "speech_end_to_first_audio_ms": 1062
+  "vad_onset_ms": 181,
+  "first_partial_ms": 819,
+  "speech_end_to_final_ms": 1096,
+  "speech_end_to_first_text_ms": 1099,
+  "speech_end_to_first_audio_ms": 1344
  },
  "turns": {
   "vad_onset_ms": {
    "n": 8,
-   "mean": 123.1,
-   "p50": 108.8,
-   "p95": 173.9,
-   "max": 173.9
+   "mean": 118.9,
+   "p50": 118.3,
+   "p95": 161.7,
+   "max": 161.7
   },
   "first_partial_ms": {
    "n": 8,
-   "mean": 805.3,
-   "p50": 895.0,
-   "p95": 943.8,
-   "max": 943.8
+   "mean": 836.9,
+   "p50": 885.3,
+   "p95": 979.2,
+   "max": 979.2
   },
   "speech_end_to_final_ms": {
    "n": 8,
-   "mean": 858.4,
-   "p50": 845.3,
-   "p95": 933.4,
-   "max": 933.4
+   "mean": 1105.6,
+   "p50": 1046.6,
+   "p95": 1278.4,
+   "max": 1278.4
   },
   "speech_end_to_first_text_ms": {
    "n": 8,
-   "mean": 860.5,
-   "p50": 849.7,
-   "p95": 936.0,
-   "max": 936.0
+   "mean": 1107.6,
+   "p50": 1048.5,
+   "p95": 1280.2,
+   "max": 1280.2
   },
   "speech_end_to_first_audio_ms": {
    "n": 8,
-   "mean": 1032.9,
-   "p50": 1011.2,
-   "p95": 1098.8,
-   "max": 1098.8
+   "mean": 1368.6,
+   "p50": 1336.7,
+   "p95": 1524.6,
+   "max": 1524.6
   },
   "transcripts_flagged_low_confidence": 0,
   "n": 8
@@ -80,19 +80,19 @@
   "missed": 0,
   "onset_to_stop_signal_ms": {
    "n": 6,
-   "mean": 129.1,
-   "p50": 128.6,
-   "p95": 130.7,
-   "max": 130.7
+   "mean": 160.2,
+   "p50": 156.9,
+   "p95": 176.0,
+   "max": 176.0
   },
   "stale_frames_after_interrupt_total": 0,
   "new_turn_understood": 6,
   "server_decision_ms": {
    "n": 6,
-   "mean": 2.6,
-   "p50": 2.6,
-   "p95": 4.0,
-   "max": 4.0
+   "mean": 4.3,
+   "p50": 1.4,
+   "p95": 18.8,
+   "max": 18.8
   }
  },
  "false_interruptions": {
@@ -123,8 +123,8 @@
   },
   "echo_-20": {
    "trials": 4,
-   "interrupted": 0,
-   "rate": 0.0
+   "interrupted": 1,
+   "rate": 0.25
   },
   "echo_-10": {
    "trials": 4,
@@ -133,60 +133,60 @@
   }
  },
  "resources": {
-  "rss_mb_peak": 1682.0,
-  "cpu_percent_mean_when_busy": 133.0,
-  "cpu_percent_peak": 730.0,
+  "rss_mb_peak": 1683.0,
+  "cpu_percent_mean_when_busy": 145.0,
+  "cpu_percent_peak": 610.0,
   "logical_cpus": 8
  },
  "server_metrics": {
   "timings_ms": {
    "barge_in_decision_ms": {
-    "n": 14,
-    "mean": 2.3,
-    "p50": 1.5,
-    "p95": 5.3,
-    "max": 5.3
+    "n": 15,
+    "mean": 2.6,
+    "p50": 1.3,
+    "p95": 18.8,
+    "max": 18.8
    },
    "barge_in_handling_ms": {
-    "n": 14,
-    "mean": 4.5,
-    "p50": 3.4,
-    "p95": 8.8,
-    "max": 8.8
+    "n": 15,
+    "mean": 2.8,
+    "p50": 2.7,
+    "p95": 4.9,
+    "max": 4.9
    },
    "final_asr_ms": {
-    "n": 49,
-    "mean": 239.7,
-    "p50": 156.3,
-    "p95": 979.8,
-    "max": 1584.5
+    "n": 50,
+    "mean": 426.4,
+    "p50": 372.5,
+    "p95": 740.3,
+    "max": 923.6
    },
    "speech_end_to_final_ms": {
-    "n": 49,
-    "mean": 841.5,
-    "p50": 757.7,
-    "p95": 1582.4,
-    "max": 2186.9
+    "n": 50,
+    "mean": 1029.9,
+    "p50": 975.1,
+    "p95": 1343.2,
+    "max": 1525.8
    },
    "speech_end_to_first_audio_ms": {
     "n": 9,
-    "mean": 963.7,
-    "p50": 963.8,
-    "p95": 1054.9,
-    "max": 1054.9
+    "mean": 1286.1,
+    "p50": 1266.1,
+    "p95": 1454.2,
+    "max": 1454.2
    },
    "speech_end_to_first_text_ms": {
     "n": 9,
-    "mean": 789.6,
-    "p50": 799.2,
-    "p95": 880.5,
-    "max": 880.5
+    "mean": 1025.6,
+    "p50": 1006.8,
+    "p95": 1209.9,
+    "max": 1209.9
    }
   },
   "counts": {
-   "interruptions": 14,
-   "prefetch_started": 57,
-   "prefetch_used": 49,
+   "interruptions": 15,
+   "prefetch_started": 58,
+   "prefetch_used": 50,
    "sessions_started": 35
   }
  }

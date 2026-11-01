@@ -52,6 +52,7 @@ vi.mock('@/services/api', async () => {
   return {
     ...actual,
     api: {
+      authConfig: vi.fn(),
       health: vi.fn(),
       clients: vi.fn(),
       client: vi.fn(),
@@ -75,6 +76,7 @@ const server = (e: Record<string, unknown>) =>
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  mocked.authConfig.mockResolvedValue({ mode: 'development', issuer: null });
   hoisted.last = undefined;
   hoisted.startError = undefined;
   mocked.health.mockResolvedValue({ status: 'ok', db: 'up' });
@@ -118,7 +120,7 @@ describe('Voice Lab with the local engine', () => {
   it('shows searching the policies, then the document and page the answer rests on', async () => {
     const user = userEvent.setup();
     renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
     await emit(
       server({
@@ -178,7 +180,7 @@ describe('Voice Lab with the local engine', () => {
 
   it('uses the local engine when it is running and says what it is made of', async () => {
     renderLab();
-    expect(await screen.findByRole('button', { name: 'Start voice session' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Start talking' })).toBeInTheDocument();
     expect(await screen.findByText(/sherpa-onnx\/zipformer-large/)).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Local engine' })).toBeChecked();
   });
@@ -202,7 +204,7 @@ describe('Voice Lab with the local engine', () => {
   it('runs a whole call from real gateway events', async () => {
     const user = userEvent.setup();
     const { container } = renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(mocked.voiceSession).toHaveBeenCalledWith('skylink-air', undefined));
     await waitFor(() => expect(hoisted.last).toBeDefined());
 
@@ -267,7 +269,7 @@ describe('Voice Lab with the local engine', () => {
   it('shows an interruption at once', async () => {
     const user = userEvent.setup();
     renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
     await emit(
       server({
@@ -288,7 +290,7 @@ describe('Voice Lab with the local engine', () => {
   it('the Stop button interrupts only when there is something to stop', async () => {
     const user = userEvent.setup();
     renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
     await emit(
       server({
@@ -313,16 +315,16 @@ describe('Voice Lab with the local engine', () => {
     );
     const user = userEvent.setup();
     const { container } = renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Microphone access was blocked');
-    expect(screen.getByRole('button', { name: 'Reconnect voice session' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconnect' })).toBeInTheDocument();
     expect(await serious(container)).toEqual([]);
   });
 
   it('a fatal session error ends the call and offers reconnect', async () => {
     const user = userEvent.setup();
     renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
     await emit(
       server({
@@ -337,13 +339,13 @@ describe('Voice Lab with the local engine', () => {
       server({ type: 'session.error', code: 'timeout', message: 'no audio received', fatal: true }),
     );
     expect(await screen.findByRole('alert')).toHaveTextContent('no audio received');
-    expect(screen.getByRole('button', { name: 'Reconnect voice session' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconnect' })).toBeInTheDocument();
   });
 
   it('flags a transcript the recognizer was unsure about', async () => {
     const user = userEvent.setup();
     renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
     await emit(
       server({
@@ -373,7 +375,7 @@ describe('Voice Lab timing', () => {
   it('shows where the time of the last turn went', async () => {
     const user = userEvent.setup();
     renderLab();
-    await user.click(await screen.findByRole('button', { name: 'Start voice session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start talking' }));
     await waitFor(() => expect(hoisted.last).toBeDefined());
     await emit(
       server({
@@ -402,7 +404,7 @@ describe('Voice Lab timing', () => {
       '420 ms',
     );
     expect(within(list).getByText('Searching the policies').nextSibling).toHaveTextContent('90 ms');
-    expect(within(list).getByText('You stop talking → first sound').nextSibling).toHaveTextContent(
+    expect(within(list).getByText('You stop talking → first TTS audio').nextSibling).toHaveTextContent(
       '2100 ms',
     );
     expect(within(list).queryByText(/somethingElse/)).not.toBeInTheDocument();

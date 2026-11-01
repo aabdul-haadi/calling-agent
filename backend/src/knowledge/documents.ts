@@ -320,7 +320,6 @@ export function createKnowledgeService(deps: KnowledgeServiceDeps): KnowledgeSer
         queue.push(id);
         return;
       }
-      await knowledgeRepo.deleteChunksOfDocument(db, id).catch(() => undefined);
       if (wasReady) {
         // A failed re-index must not take down a document that was answering questions.
         await knowledgeRepo.updateDocument(db, id, {
@@ -329,6 +328,7 @@ export function createKnowledgeService(deps: KnowledgeServiceDeps): KnowledgeSer
         });
         return;
       }
+      await knowledgeRepo.deleteChunksOfDocument(db, id).catch(() => undefined);
       await knowledgeRepo.updateDocument(db, id, {
         status: 'failed',
         stage: null,

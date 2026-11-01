@@ -57,6 +57,7 @@ export function ConversationsPage() {
         </div>
       ) : !conversations.data?.length ? (
         <EmptyState
+          asset="chat"
           title="No conversations yet"
           hint="Start a chat or voice test from the Agent Workspace. Completed interactions will appear here."
           action={

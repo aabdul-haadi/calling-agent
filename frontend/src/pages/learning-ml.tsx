@@ -226,7 +226,7 @@ export function TrainingTab({ clientId }: { clientId: string }) {
       ) : runs.loading ? (
         <Skeleton className="h-24" />
       ) : !runs.data?.length ? (
-        <EmptyState title="No training runs yet" hint="Approve examples for fine-tuning, freeze a dataset, then start a run." />
+        <EmptyState asset="lab" title="No training runs yet" hint="Approve examples for fine-tuning, freeze a dataset, then start a run." />
       ) : (
         runs.data.map((r) => <RunCard key={r.id} r={r} clientId={clientId} onDone={runs.reload} />)
       )}
@@ -448,7 +448,7 @@ export function KnowledgeChangesTab({ clientId }: { clientId: string }) {
         ) : gaps.loading ? (
           <Skeleton className="h-24" />
         ) : !open.length ? (
-          <EmptyState title="No open gaps" hint="Run a learning cycle after customers have asked questions the documents do not answer." />
+          <EmptyState asset="allClear" title="No open gaps" hint="Run a learning cycle after customers have asked questions the documents do not answer." />
         ) : (
           open.map((g) => <GapProposer key={g.id} gap={g} clientId={clientId} onDone={proposals.reload} />)
         )}
@@ -460,7 +460,7 @@ export function KnowledgeChangesTab({ clientId }: { clientId: string }) {
         ) : proposals.loading ? (
           <Skeleton className="h-24" />
         ) : !proposals.data?.length ? (
-          <EmptyState title="Nothing proposed" hint="A proposal is a document plus who owns it. It is measured on a copy of the index before anything changes." />
+          <EmptyState asset="document" title="Nothing proposed" hint="A proposal is a document plus who owns it. It is measured on a copy of the index before anything changes." />
         ) : (
           proposals.data.map((p) => <ProposalCard key={p.id} p={p} clientId={clientId} onDone={proposals.reload} />)
         )}

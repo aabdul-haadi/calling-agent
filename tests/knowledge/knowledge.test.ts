@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { chunkMarkdown } from '@backend/knowledge';
+import { chunkMarkdown, decide, tokenize, type Ranked } from '@backend/knowledge';
 import { NO_POLICY_REPLY } from '@backend/knowledge/types';
 import { DEFAULT_RETRIEVAL } from '@backend/knowledge/retrieve';
 import { createRetriever, localProvider } from '@backend/knowledge';
@@ -58,6 +58,8 @@ describe('retrieval (RAG)', () => {
     ['What is the change fee if I move my flight?', 'voluntary-changes-and-fees'],
     ['Can I get a refund for a cancelled flight?', 'refunds'],
     ['Can I bring my dog on the plane?', 'special-baggage-pets-sports'],
+    ['Can my puppy sit with me on board?', 'special-baggage-pets-sports'],
+    ['Can I get my money back on a cheap saver ticket?', 'refunds'],
     ['My luggage never arrived, what compensation do I get?', 'delayed-and-lost-baggage'],
     ['What time does check-in close?', 'check-in-and-boarding'],
   ])('finds the right policy for "%s"', async (question, source) => {
@@ -68,10 +70,32 @@ describe('retrieval (RAG)', () => {
     expect(res.citations.length).toBeLessThanOrEqual(DEFAULT_RETRIEVAL.maxResults);
   });
 
+  it('uses retrieval-only expansions for a telecom no-service question', async () => {
+    const res = await retrieve()('novatel', 'no service on my phone');
+    expect(res.relevant).toBe(true);
+    expect(res.citations.some((citation) => citation.source === 'outage-credits')).toBe(true);
+  });
+
+  it.each([
+    'Can I put sporting bats in checked baggage?',
+    'Can my puppy sit with me on board?',
+    'Can I get my money back on a cheap saver ticket?',
+  ])('retains supported paraphrase evidence for "%s"', async (question) => {
+    const res = await retrieve()('skylink-air', question);
+    expect(res.relevant).toBe(true);
+    expect(res.citations.length).toBeGreaterThan(0);
+  });
+
+  it('does not use another tenant’s baggage policy for NovaTel', async () => {
+    const res = await retrieve()('novatel', 'How many checked bags can I take in economy?');
+    expect(res.citations.map((citation) => citation.source)).not.toContain('checked-baggage');
+  });
+
   it.each([
     'Do you offer free rocket rides to the moon?',
     'What is the capital of Australia?',
     'Can you recommend a good pizza restaurant?',
+    'Can I carry a weapon not covered by the baggage guide?',
   ])('finds nothing relevant for "%s"', async (question) => {
     const res = await retrieve()('skylink-air', question);
     expect(res.relevant).toBe(false);
@@ -104,5 +128,78 @@ describe('retrieval (RAG)', () => {
     expect(res.reply).toMatch(/human agent/i);
     expect(h.llm.calls).toHaveLength(0);
     expect(res.citations).toHaveLength(0);
+  });
+
+  it('continues with a supported policy answer after the customer declines a human transfer', async () => {
+    h.llm.reset();
+    h.llm.script(say('Refunds are processed within 7 business days [Source: refunds].'));
+    const offered = await h.chat.chat({
+      clientId: 'skylink-air',
+      message: 'Do you offer free rocket rides to the moon?',
+      channel: 'voice',
+    });
+    expect(offered.reply).toBe(NO_POLICY_REPLY);
+    expect(offered.handoff).toBeUndefined();
+
+    const answer = await h.chat.chat({
+      clientId: 'skylink-air',
+      conversationId: offered.conversationId,
+      message: 'No human transfer, please. How long do refunds take after airline cancellation?',
+      channel: 'voice',
+    });
+    expect(answer.reply).toContain('7 business days');
+    expect(answer.reply).not.toMatch(/human agent|connect you/i);
+    expect(answer.citations.some((citation) => citation.source === 'refunds')).toBe(true);
+    expect(h.llm.calls).toHaveLength(1);
+  });
+});
+
+describe('retrieval evidence decisions', () => {
+  const candidate = (rerank: number, overlap: number, queryExpanded = false): Ranked => ({
+    hit: {
+      id: 'marginal-topic-match',
+      documentId: 'doc-1',
+      source: 'carry-on-baggage',
+      heading: 'Items not allowed in the cabin',
+      content: 'Sharp objects, sporting bats and any flammable items must be placed in checked baggage.',
+      page: null,
+      pageEnd: null,
+      version: 1,
+      score: 0.73,
+    },
+    similarity: 0.73,
+    keyword: 0.49,
+    overlap,
+    score: 0.6,
+    rerank,
+    queryExpanded,
+  });
+
+  it('rejects a marginal topical match without independent query-term coverage', () => {
+    const decision = decide([candidate(-1.6, 0.5)]);
+    expect(decision.relevant).toBe(false);
+    expect(decision.passages).toHaveLength(0);
+  });
+
+  it('keeps marginal but corroborated paraphrases and strong semantic matches', () => {
+    expect(decide([candidate(-1.8, 0.6)]).relevant).toBe(true);
+    expect(decide([candidate(1.2, 0.5)]).relevant).toBe(true);
+  });
+
+  it('rejects a high reranker score when only generic topic words match', () => {
+    const topicalOnly = candidate(0.6, 0.4);
+    topicalOnly.specificTermCoverage = 0;
+    expect(decide([topicalOnly]).relevant).toBe(false);
+  });
+
+  it('normalizes a hard change-fee paraphrase to a supported policy term', () => {
+    expect(tokenize('switching to another flight')).toContain('change');
+  });
+
+  it('only admits weak matches when reviewed expansion or context added a search path', () => {
+    expect(decide([candidate(-5, 0.5)]).relevant).toBe(false);
+    const expanded = decide([candidate(-5, 0.5, true)]);
+    expect(expanded.relevant).toBe(true);
+    expect(expanded.weak).toBe(true);
   });
 });

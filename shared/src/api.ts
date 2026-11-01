@@ -309,6 +309,7 @@ export type TurnEvent =
       };
     }
   | { type: 'agent.thinking' }
+  | { type: 'agent.first_token' }
   | { type: 'knowledge.searching' }
   | { type: 'turn.timing'; timings: TurnTimings }
   | {

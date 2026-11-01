@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { flagsFor, resolutionFor, similarity } from '@backend/learning/analyze';
 import { hasSecret, leftovers, namesFrom, redact } from '@backend/learning/redact';
-import { normalize, splitFor } from '@backend/learning/capture';
+import { normalize, splitFor, splitForConversation } from '@backend/learning/capture';
 import { score, train, predict } from '@backend/learning/intent-model';
 import { EVAL_SETS } from '@backend/learning/evalsets';
 import {
@@ -73,6 +73,8 @@ describe('turn analysis', () => {
     expect(flagsFor({ ...base, aiReply: '- one\n- two' })).toContain('formatting_in_voice');
     expect(flagsFor({ ...base, channel: 'chat', aiReply: '- one\n- two' })).not.toContain('formatting_in_voice');
     expect(flagsFor({ ...base, customerText: 'I already told you my reference' })).toContain('lost_context');
+    expect(flagsFor({ ...base, customerText: 'Correction: I meant May 14, not May 12.' })).toContain('customer_corrected');
+    expect(flagsFor({ ...base, customerText: 'What time does check-in close?' })).not.toContain('customer_corrected');
     expect(flagsFor({ ...base, toolStatuses: ['ok', 'error'] })).toContain('tool_failed');
   });
   it('never calls a conversation resolved because it ended politely or ran long', () => {
@@ -101,6 +103,13 @@ describe('train/eval split', () => {
     for (let i = 0; i < 500; i++) if (splitFor(`question number ${i} about refunds`) === 'eval') held++;
     expect(held).toBeGreaterThan(60);
     expect(held).toBeLessThan(140);
+  });
+  it('keeps all turns in one tenant conversation on a stable split', () => {
+    const side = splitForConversation('skylink-air', '00000000-0000-4000-8000-000000000001');
+    expect(splitForConversation('skylink-air', '00000000-0000-4000-8000-000000000001')).toBe(side);
+    expect(['train', 'eval']).toContain(
+      splitForConversation('novatel', '00000000-0000-4000-8000-000000000001'),
+    );
   });
 });
 

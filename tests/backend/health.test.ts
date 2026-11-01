@@ -15,6 +15,28 @@ describe('foundation', () => {
     expect(() => loadEnv({})).toThrow(/MOCK_CLIENT_SECRET/);
   });
 
+  it('refuses production startup without OIDC configuration', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        MOCK_CLIENT_ID: 'test-client',
+        MOCK_CLIENT_SECRET: 'test-secret',
+        WEBHOOK_SECRET: 'test-webhook-secret',
+      }),
+    ).toThrow(/AUTH_MODE=oidc/);
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        AUTH_MODE: 'oidc',
+        OIDC_ISSUER: 'http://identity.example.test',
+        OIDC_AUDIENCE: 'agent-delivery-api',
+        MOCK_CLIENT_ID: 'test-client',
+        MOCK_CLIENT_SECRET: 'test-secret',
+        WEBHOOK_SECRET: 'test-webhook-secret',
+      }),
+    ).toThrow(/must use HTTPS/);
+  });
+
   it('GET /health reports the database as up', async () => {
     const res = await request(h.app).get('/health');
     expect(res.status).toBe(200);

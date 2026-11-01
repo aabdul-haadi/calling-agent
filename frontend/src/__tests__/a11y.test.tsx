@@ -22,6 +22,7 @@ vi.mock('@/services/api', async () => {
   return {
     ...actual,
     api: {
+      authConfig: vi.fn(),
       health: vi.fn(),
       clients: vi.fn(),
       client: vi.fn(),
@@ -75,6 +76,7 @@ const reply = (over: Partial<ChatResponse['state']> = {}): ChatResponse => ({
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  mocked.authConfig.mockResolvedValue({ mode: 'development', issuer: null });
   mocked.health.mockResolvedValue({ status: 'ok', db: 'up' });
   mocked.clients.mockResolvedValue(clients);
   mocked.client.mockResolvedValue(clientDetail);
@@ -108,19 +110,49 @@ const renderAt = (path: string) =>
   );
 
 describe('accessibility (axe)', () => {
+  it('does not render protected workspaces when the server requires OIDC sign-in', async () => {
+    mocked.authConfig.mockResolvedValue({
+      mode: 'oidc',
+      issuer: 'https://identity.example.test',
+    });
+    renderAt('/agent/skylink-air');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Sign in to your workspace' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Hi, I'm Ava/)).not.toBeInTheDocument();
+  });
+
   it('overview', async () => {
     const { container } = renderAt('/');
-    await screen.findByText('Evaluation quality');
+    await screen.findByText('Quality checks');
     await expectNoSeriousA11yIssues(container);
   });
 
   it('agent console (chat, citations, trace, state)', async () => {
     const user = userEvent.setup();
     const { container } = renderAt('/agent/skylink-air');
+    expect(await screen.findByRole('heading', { name: 'Support workspace' })).toBeInTheDocument();
     await screen.findByText(/Hi, I'm Ava/);
     await user.click(screen.getByRole('button', { name: 'My flight was cancelled' }));
     await screen.findByText(/Happy to help/);
     await expectNoSeriousA11yIssues(container);
+  });
+
+  it('lets support operators collapse the conversation inspector', async () => {
+    const user = userEvent.setup();
+    renderAt('/agent/skylink-air');
+    await screen.findByRole('heading', { name: 'Support workspace' });
+
+    await user.click(screen.getByRole('button', { name: 'Hide details' }));
+    expect(screen.getByRole('button', { name: 'Show details' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(document.getElementById('support-inspector')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show details' }));
+    expect(document.getElementById('support-inspector')).toBeInTheDocument();
   });
 
   it('agent console with an approval waiting', async () => {
@@ -187,8 +219,8 @@ describe('accessibility (axe)', () => {
   it('command palette dialog', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await screen.findByText('Evaluation quality');
-    await user.click(screen.getByRole('button', { name: /Search pages and tenants/ }));
+    await screen.findByText('Quality checks');
+    await user.click(screen.getByRole('button', { name: /^Search/ }));
     const dialog = await screen.findByRole('dialog');
     await expectNoSeriousA11yIssues(dialog);
   });
@@ -202,7 +234,7 @@ describe('accessibility (axe)', () => {
     expect(alert).toHaveTextContent("Can't reach the server");
     mocked.clients.mockResolvedValue(clients);
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(screen.getByText('Evaluation quality')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Quality checks')).toBeInTheDocument());
   });
 });
 
@@ -226,6 +258,7 @@ describe('behaviour', () => {
     await waitFor(() =>
       expect(mocked.chat).toHaveBeenLastCalledWith(
         expect.objectContaining({ message: 'Yes, please go ahead.' }),
+        expect.any(String),
       ),
     );
   });
@@ -244,14 +277,14 @@ describe('behaviour', () => {
   it('switching tenant rescopes the pages', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await screen.findByText('Evaluation quality');
+    await screen.findByText('Quality checks');
     await user.selectOptions(screen.getByLabelText('Tenant'), 'novatel');
     await waitFor(() => expect(mocked.overview).toHaveBeenLastCalledWith('novatel'));
   });
 
   it('never shows a made-up number: unrecorded token usage says so', async () => {
     renderAt('/');
-    await screen.findByText('Evaluation quality');
+    await screen.findByText('Quality checks');
     expect(screen.getAllByText('Not recorded').length).toBeGreaterThanOrEqual(2);
   });
 
@@ -265,7 +298,9 @@ describe('behaviour', () => {
     renderAt('/');
     await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     const dialog = await screen.findByRole('dialog', { name: 'Navigation' });
-    expect(within(dialog).getByRole('link', { name: /Conversations/ })).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('link', { name: /Conversation history/ }),
+    ).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });

@@ -14,6 +14,8 @@ import {
   crossEncoderReranker,
   retrievalFor,
   extractorPython,
+  decide,
+  toCitation,
   type EmbeddingProvider,
 } from '../knowledge';
 import { createLogger } from '../logger';
@@ -248,6 +250,18 @@ interface Row {
   ms: number;
   closest?: { rerank?: number; vector?: number; keyword?: number };
   weak: boolean;
+  ranked: {
+    source: string;
+    heading: string;
+    page?: number | null;
+    pageEnd?: number | null;
+    version?: number;
+    rerank?: number;
+    similarity?: number;
+    keyword?: number;
+    overlap: number;
+    snippet: string;
+  }[];
   timings: {
     embedMs: number;
     vectorMs: number;
@@ -257,13 +271,18 @@ interface Row {
   };
 }
 const rows: Row[] = [];
+const allRanked: Awaited<ReturnType<typeof searcher.rank>>[] = [];
 for (const c of cases) {
   const t0 = performance.now();
-  const r = await searcher.search(c.tenant, c.question, { recentQuestions: c.history });
+  const rankedSet = await searcher.rank(c.tenant, c.question, { recentQuestions: c.history });
+  const decision = decide(rankedSet.ranked, searcher.config);
+  const passages = decision.passages.map((p) => toCitation(p, decision.weak));
+  const closest = decision.closest ? toCitation(decision.closest, decision.weak) : undefined;
+  allRanked.push(rankedSet);
   const ms = performance.now() - t0;
   let rank: number | null = null;
   if (c.expect) {
-    const i = r.passages.findIndex(
+    const i = passages.findIndex(
       (p) =>
         p.source === c.expect!.source &&
         p.page !== undefined &&
@@ -272,23 +291,150 @@ for (const c of cases) {
     );
     rank = i >= 0 ? i + 1 : null;
   }
-  const text = r.passages.map((p) => p.snippet.toLowerCase()).join(' ');
+  const text = passages.map((p) => p.snippet.toLowerCase()).join(' ');
   rows.push({
     case: c,
-    relevant: r.relevant,
+    relevant: decision.relevant,
     rank,
     answerFound: c.expect ? c.expect.answer.every((a) => text.includes(a.toLowerCase())) : false,
-    sources: r.passages.map((p) => `${p.source}${p.page ? ` p${p.page}` : ''}`),
+    sources: passages.map((p) => `${p.source}${p.page ? ` p${p.page}` : ''}`),
     ms,
-    closest: r.closest?.match,
-    weak: r.passages[0]?.weak === true,
-    timings: r.timings,
+    closest: closest?.match,
+    weak: passages[0]?.weak === true,
+    ranked: rankedSet.ranked.slice(0, 5).map((r) => ({
+      source: r.hit.source,
+      heading: r.hit.heading,
+      ...(r.hit.page !== undefined ? { page: r.hit.page } : {}),
+      ...(r.hit.pageEnd !== undefined ? { pageEnd: r.hit.pageEnd } : {}),
+      ...(r.hit.version !== undefined ? { version: r.hit.version } : {}),
+      ...(r.rerank !== undefined ? { rerank: Math.round(r.rerank * 10) / 10 } : {}),
+      ...(r.similarity !== undefined ? { similarity: Math.round(r.similarity * 100) / 100 } : {}),
+      ...(r.keyword !== undefined ? { keyword: Math.round(r.keyword * 100) / 100 } : {}),
+      overlap: Math.round(r.overlap * 100) / 100,
+      snippet: r.hit.content,
+    })),
+    timings: rankedSet.timings,
+  });
+}
+
+const challengeCases: {
+  id: string;
+  tenant: string;
+  question: string;
+  expectedRelevant: boolean;
+}[] = [
+  {
+    id: 'unsupported-firearm-exact',
+    tenant: 'skylink-air',
+    question: 'Can I bring a firearm in my checked luggage?',
+    expectedRelevant: false,
+  },
+  {
+    id: 'unsupported-hunting-rifle',
+    tenant: 'skylink-air',
+    question: 'Can I put a hunting rifle in my checked bag?',
+    expectedRelevant: false,
+  },
+  {
+    id: 'unsupported-ammunition',
+    tenant: 'skylink-air',
+    question: 'Can I pack ammunition in my checked luggage?',
+    expectedRelevant: false,
+  },
+  {
+    id: 'unsupported-weapons-hold',
+    tenant: 'skylink-air',
+    question: 'Are weapons allowed in the hold?',
+    expectedRelevant: false,
+  },
+  {
+    id: 'unsupported-weapon-baggage-guide',
+    tenant: 'skylink-air',
+    question: 'Can I carry a weapon not covered by the baggage guide?',
+    expectedRelevant: false,
+  },
+  {
+    id: 'supported-sporting-bats',
+    tenant: 'skylink-air',
+    question: 'Can I put sporting bats in checked baggage?',
+    expectedRelevant: true,
+  },
+  {
+    id: 'supported-puppy',
+    tenant: 'skylink-air',
+    question: 'Can my puppy sit with me on board?',
+    expectedRelevant: true,
+  },
+  {
+    id: 'supported-money-back-saver',
+    tenant: 'skylink-air',
+    question: 'Can I get my money back on a cheap saver ticket?',
+    expectedRelevant: true,
+  },
+  {
+    id: 'supported-novatel-no-service',
+    tenant: 'novatel',
+    question: 'No service on my phone. What should I do?',
+    expectedRelevant: true,
+  },
+  {
+    id: 'ambiguous-no-context',
+    tenant: 'skylink-air',
+    question: 'Can I bring it?',
+    expectedRelevant: false,
+  },
+];
+const challengeRows = [];
+for (const c of challengeCases) {
+  const t0 = performance.now();
+  const rankedSet = await searcher.rank(c.tenant, c.question);
+  const decision = decide(rankedSet.ranked, searcher.config);
+  challengeRows.push({
+    ...c,
+    relevant: decision.relevant,
+    weak: decision.weak ?? false,
+    reason: decision.reason,
+    ms: Math.round(performance.now() - t0),
+    citations: decision.passages.map((p) => toCitation(p, decision.weak)),
+    candidates: rankedSet.ranked.slice(0, 3).map((r) => ({
+      source: r.hit.source,
+      heading: r.hit.heading,
+      page: r.hit.page,
+      pageEnd: r.hit.pageEnd,
+      version: r.hit.version,
+      rerank: r.rerank === undefined ? null : Math.round(r.rerank * 10) / 10,
+      vector: r.similarity === undefined ? null : Math.round(r.similarity * 100) / 100,
+      keyword: r.keyword === undefined ? null : Math.round(r.keyword * 100) / 100,
+      overlap: Math.round(r.overlap * 100) / 100,
+      specificTermCoverage:
+        r.specificTermCoverage === undefined ? null : Math.round(r.specificTermCoverage * 100) / 100,
+      snippet: r.hit.content,
+    })),
   });
 }
 
 const share = (n: number, d: number) => (d === 0 ? null : Math.round((1000 * n) / d) / 10);
 const answerable = rows.filter((r) => r.case.expect);
 const byKind = (k: Case['kind']) => rows.filter((r) => r.case.kind === k);
+const thresholdSweep = [-4.5, -3, -2, -1.5, -1, 0].map((minRerank) => {
+  const decisions = rows.map((row, i) => ({
+    row,
+    decision: decide(allRanked[i]!.ranked, { ...searcher.config, minRerank }),
+  }));
+  return {
+    minRerank,
+    answerableWronglyRefused: share(
+      decisions.filter(({ row, decision }) => row.case.expect && !decision.relevant).length,
+      answerable.length,
+    ),
+    unsupportedFalsePositives: decisions
+      .filter(({ row, decision }) => row.case.kind === 'unsupported' && decision.relevant)
+      .map(({ row }) => row.case.question),
+    crossTenantPassages: decisions
+      .filter(({ row, decision }) => row.case.kind === 'cross-tenant' && decision.relevant)
+      .map(({ row }) => row.case.question),
+  };
+});
 const percentile = (xs: number[], p: number) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length
@@ -337,6 +483,18 @@ const summary = {
       .filter((r) => r.relevant && r.weak)
       .map((r) => r.case.question),
   },
+  challenges: {
+    cases: challengeRows.length,
+    supportedRetrieved: share(
+      challengeRows.filter((r) => r.expectedRelevant && r.relevant).length,
+      challengeRows.filter((r) => r.expectedRelevant).length,
+    ),
+    unsupportedFalsePositives: challengeRows
+      .filter((r) => !r.expectedRelevant && r.relevant)
+      .map((r) => r.id),
+    results: challengeRows,
+  },
+  thresholdSweep,
   abstention: {
     unsupportedCorrectlyRefused: share(
       byKind('unsupported').filter((r) => !r.relevant).length,

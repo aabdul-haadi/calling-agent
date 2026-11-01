@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1
+# Builds the web app and serves it with Caddy, which also terminates HTTPS and forwards /api and
+# /voice to the other containers. The build context is the repository root.
+
+FROM node:24-bookworm-slim AS build
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY shared/package.json shared/
+COPY backend/package.json backend/
+COPY mock-services/package.json mock-services/
+COPY frontend/package.json frontend/
+RUN pnpm install --frozen-lockfile --filter "@adk/frontend..."
+COPY tsconfig.base.json tsconfig.json ./
+COPY shared shared
+# The type check also covers the tests, which read the company configurations.
+COPY clients clients
+COPY frontend frontend
+
+# VITE_ settings are fixed into the bundle at build time: change them, rebuild this image.
+ARG VITE_API_URL
+ARG VITE_OIDC_AUTHORITY=
+ARG VITE_OIDC_CLIENT_ID=
+ARG VITE_OIDC_SCOPE=openid profile email
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_OIDC_AUTHORITY=$VITE_OIDC_AUTHORITY \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
+    VITE_OIDC_SCOPE=$VITE_OIDC_SCOPE
+RUN test -n "$VITE_API_URL" || (echo "VITE_API_URL is required, for example https://console.example.com/api" && exit 1)
+RUN pnpm --filter "@adk/frontend" build
+
+# ---------------------------------------------------------------------------------------------
+FROM caddy:2-alpine
+COPY deploy/Caddyfile deploy/Caddyfile.demo /etc/caddy/
+COPY --from=build /app/frontend/dist /srv
+EXPOSE 80 443

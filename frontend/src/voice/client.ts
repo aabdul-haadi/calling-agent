@@ -1,3 +1,4 @@
+import { SILENT_FRAME, type LipFrame } from '@/avatar/lip-sync';
 import { Playback } from './playback';
 import {
   PROTOCOL_VERSION,
@@ -183,6 +184,11 @@ export class VoiceClient {
   }
 
   /** Real level of the audio currently coming out of the speakers. */
+  /** The avatar's mouth, from the audio actually playing (closed when nothing is heard). */
+  lipFrame(): LipFrame {
+    return this.playback?.lipFrame() ?? SILENT_FRAME;
+  }
+
   outputLevel(): number {
     return this.playback?.level() ?? 0;
   }

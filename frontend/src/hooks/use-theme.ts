@@ -9,8 +9,8 @@ function initialTheme(): Theme {
   } catch {
     // storage can be blocked; fall through to the OS preference
   }
-  // Light is the primary experience; dark is opt-in via the toggle.
-  return 'light';
+  // First visit: the dark workspace. A saved choice always wins, and the toggle switches either way.
+  return 'dark';
 }
 
 export function useTheme() {

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** The base surface. Raised one step above the page, with a fine border and a faint top highlight. */
 export const Card = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('rounded-lg border border-border bg-card shadow-soft', className)}
+    className={cn('rounded-xl border border-border bg-card shadow-soft', className)}
     {...props}
   />
 );

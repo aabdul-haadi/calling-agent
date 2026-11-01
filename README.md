@@ -63,6 +63,11 @@ Open <http://localhost:5173>. Try booking **SK1001**, last name **Rahman** (flig
 
 If the configured database is unreachable, the backend still starts and reports `/health` as `degraded` instead of crashing.
 
+The local `.env.example` uses a development-only administrator identity so the demo works without
+SSO. Production requires OIDC: configure the issuer, API audience, SPA client, and role/tenant
+claims as described in [docs/AUTHENTICATION.md](./docs/AUTHENTICATION.md). Do not expose the
+development auth mode to an untrusted network.
+
 ## The operations console (UI)
 
 Open <http://localhost:5173>. The dark theme is the default; the toggle in the top bar switches to light.
